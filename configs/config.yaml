@@ -1,0 +1,35 @@
+# Senix 网关配置文件
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  mode: "debug"  # debug, release, test
+  jwt_secret: "your-secret-key-change-in-production"
+
+database:
+  type: "sqlite"
+  path: "./data/db/senix.db"
+
+log:
+  level: "info"      # debug, info, warn, error
+  format: "console"  # console, json
+  output: "stdout"   # stdout, file, both
+  file_path: "./logs/senix.log"
+  max_size: 100      # MB
+  max_backups: 10
+  max_age: 30        # days
+
+cert:
+  data_dir: "./data/certs"
+  default_ca: "letsencrypt"
+  default_email: ""
+  auto_renew: true
+  renew_before_days: 30
+
+nginx:
+  config_dir: "./data/configs"
+  cert_dir: "./data/certs"
+  template_dir: "./configs/templates"
+  auto_reload: false
+  reload_cmd: "nginx -s reload"
+  test_cmd: "nginx -t"

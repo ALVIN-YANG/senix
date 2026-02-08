@@ -1,0 +1,36 @@
+.security-page {
+  padding-bottom: 24px;
+}
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1f2329;
+}
+
+.blacklist-section {
+  padding: 16px 0;
+}
+
+/* Tabs 样式 */
+.arco-tabs-nav {
+  margin-bottom: 24px;
+}
+
+.arco-tabs-tab {
+  font-size: 14px;
+  padding: 12px 20px;
+}
+
+.arco-tabs-tab-active {
+  color: #3370ff;
+  font-weight: 500;
+}
+
+.arco-tabs-ink {
+  background-color: #3370ff;
+}

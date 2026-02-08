@@ -1,0 +1,13 @@
+.settings-page {
+  padding-bottom: 24px;
+}
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1f2329;
+}

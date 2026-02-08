@@ -1,0 +1,90 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f5f6f7;
+}
+
+/* 飞书风格变量 */
+:root {
+  --primary-color: #3370ff;
+  --primary-hover: #2860df;
+  --success-color: #34d399;
+  --warning-color: #fbbf24;
+  --error-color: #f87171;
+  --text-primary: #1f2329;
+  --text-secondary: #646a73;
+  --text-tertiary: #8f959e;
+  --border-color: #dee0e3;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f6f7;
+  --bg-tertiary: #f2f3f5;
+  --sidebar-bg: #1f2329;
+  --sidebar-width: 240px;
+  --header-height: 60px;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Arco Design 自定义主题 */
+.arco-menu-dark {
+  background-color: var(--sidebar-bg) !important;
+}
+
+.arco-menu-dark .arco-menu-item,
+.arco-menu-dark .arco-menu-inline-header {
+  color: #c9cdd4;
+}
+
+.arco-menu-dark .arco-menu-item:hover,
+.arco-menu-dark .arco-menu-inline-header:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.arco-menu-dark .arco-menu-selected,
+.arco-menu-dark .arco-menu-selected:hover {
+  background-color: var(--primary-color) !important;
+  color: #fff !important;
+}
+
+.arco-btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.arco-btn-primary:hover {
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.arco-link {
+  color: var(--primary-color);
+}
+
+.arco-link:hover {
+  color: var(--primary-hover);
+}

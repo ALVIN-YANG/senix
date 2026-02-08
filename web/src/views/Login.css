@@ -1,0 +1,78 @@
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.login-logo {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  background: linear-gradient(135deg, #3370ff 0%, #2860df 100%);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1f2329;
+  margin-bottom: 8px;
+}
+
+.login-header p {
+  font-size: 14px;
+  color: #646a73;
+}
+
+.login-tips {
+  text-align: center;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #dee0e3;
+}
+
+.login-tips p {
+  font-size: 13px;
+  color: #8f959e;
+}
+
+/* 输入框样式 */
+.arco-input-wrapper {
+  border-radius: 8px;
+}
+
+.arco-input-wrapper:focus-within {
+  border-color: #3370ff;
+  box-shadow: 0 0 0 2px rgba(51, 112, 255, 0.1);
+}
+
+/* 按钮样式 */
+.arco-btn-primary {
+  background-color: #3370ff;
+  border-color: #3370ff;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.arco-btn-primary:hover {
+  background-color: #2860df;
+  border-color: #2860df;
+}

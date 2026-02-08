@@ -1,0 +1,110 @@
+.layout {
+  min-height: 100vh;
+}
+
+.sider {
+  background-color: #1f2329 !important;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.logo {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.logo-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #3370ff 0%, #2860df 100%);
+  border-radius: 8px;
+  margin-right: 12px;
+}
+
+.logo-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.header {
+  background-color: #fff;
+  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.user-info:hover {
+  background-color: #f5f6f7;
+}
+
+.username {
+  margin-left: 8px;
+  font-size: 14px;
+  color: #1f2329;
+}
+
+.content {
+  padding: 24px;
+  background-color: #f5f6f7;
+  min-height: calc(100vh - 60px);
+}
+
+/* Arco Menu 深色主题自定义 */
+.arco-menu-dark {
+  background-color: transparent !important;
+}
+
+.arco-menu-dark .arco-menu-inner {
+  background-color: transparent !important;
+}
+
+.arco-menu-dark .arco-menu-item {
+  color: #c9cdd4;
+  margin: 4px 12px;
+  border-radius: 6px;
+}
+
+.arco-menu-dark .arco-menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.arco-menu-dark .arco-menu-selected {
+  background-color: #3370ff !important;
+  color: #fff !important;
+}
+
+.arco-menu-dark .arco-menu-selected:hover {
+  background-color: #3370ff !important;
+}
+
+.arco-menu-dark .arco-menu-icon {
+  margin-right: 12px;
+}

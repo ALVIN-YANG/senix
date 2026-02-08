@@ -1,0 +1,56 @@
+.sites-page {
+  padding-bottom: 24px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.page-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1f2329;
+}
+
+.site-name {
+  font-weight: 500;
+  color: #1f2329;
+}
+
+.site-domain {
+  font-size: 12px;
+  color: #646a73;
+  margin-top: 4px;
+}
+
+/* 表格样式优化 */
+.arco-table-th {
+  background-color: #f5f6f7 !important;
+  font-weight: 600;
+}
+
+.arco-table-tr:hover .arco-table-td {
+  background-color: #f2f3f5;
+}
+
+/* 标签样式 */
+.arco-tag-blue {
+  background-color: #e8f4ff;
+  color: #3370ff;
+  border-color: #3370ff;
+}
+
+.arco-tag-green {
+  background-color: #e6f9f0;
+  color: #34d399;
+  border-color: #34d399;
+}
+
+.arco-tag-orange {
+  background-color: #fff7e6;
+  color: #fbbf24;
+  border-color: #fbbf24;
+}

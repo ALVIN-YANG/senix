@@ -1,0 +1,64 @@
+# Binaries
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go vendor directory
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Application
+data/
+logs/
+*.db
+*.log
+
+# Config (keep examples)
+config.yaml
+!configs/config.yaml
+
+# Environment
+.env
+.env.local
+
+# Temp
+tmp/
+temp/
+*.tmp
+
+# Build
+dist/
+build/
+
+# Frontend
+web/node_modules/
+web/dist/
+web/.cache/
+
+# Certificates
+*.pem
+*.key
+*.crt
+!test/fixtures/**/*.pem
+
+# Air (hot reload)
+.air.toml
+tmp/
