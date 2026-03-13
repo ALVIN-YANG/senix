@@ -193,7 +193,7 @@ func (s *Service) DeleteSite(id uint) error {
 
 	// 如果站点是激活状态，先禁用
 	if site.IsActive() {
-		if err := s.DisableSite(id); err != nil {
+		if _, err := s.DisableSite(id); err != nil {
 			logger.Error("disable site before delete failed", logger.ErrorField(err))
 		}
 	}

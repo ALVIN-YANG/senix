@@ -1,49 +1,60 @@
 .layout {
   min-height: 100vh;
+  background-color: var(--bg-secondary);
 }
 
 .sider {
-  background-color: #1f2329 !important;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  background-color: var(--sidebar-bg) !important;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+  z-index: 101;
+  position: relative;
 }
 
 .logo {
-  height: 60px;
+  height: var(--header-height);
   display: flex;
   align-items: center;
-  padding: 0 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0 24px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .logo-icon {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #3370ff 0%, #2860df 100%);
+  background: linear-gradient(135deg, #165dff 0%, #00b42a 100%);
   border-radius: 8px;
   margin-right: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
 .logo-text {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
   color: #fff;
-  white-space: nowrap;
+  letter-spacing: 0.5px;
+  background: linear-gradient(to right, #fff, #a3b8cc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .header {
-  background-color: #fff;
-  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.04);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
-  height: 60px;
+  padding: 0 32px;
+  height: var(--header-height);
   position: sticky;
   top: 0;
   z-index: 100;
+  border-bottom: 1px solid rgba(229, 230, 235, 0.5);
 }
 
 .header-right {
@@ -55,56 +66,84 @@
   display: flex;
   align-items: center;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: background-color 0.3s;
+  padding: 6px 12px;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  background: #f7f8fa;
+  border: 1px solid transparent;
 }
 
 .user-info:hover {
-  background-color: #f5f6f7;
+  background-color: #fff;
+  border-color: var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
 }
 
 .username {
-  margin-left: 8px;
+  margin-left: 10px;
   font-size: 14px;
-  color: #1f2329;
+  font-weight: 500;
+  color: var(--text-primary);
 }
 
 .content {
-  padding: 24px;
-  background-color: #f5f6f7;
-  min-height: calc(100vh - 60px);
+  padding: 24px 32px;
+  background-color: var(--bg-secondary);
+  min-height: calc(100vh - var(--header-height));
+  position: relative;
 }
 
-/* Arco Menu 深色主题自定义 */
+/* Add a cool background pattern to the content area */
+.content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: linear-gradient(180deg, #e4ebfb 0%, rgba(240, 242, 245, 0) 100%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.content > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Arco Menu Customizations */
 .arco-menu-dark {
   background-color: transparent !important;
 }
 
 .arco-menu-dark .arco-menu-inner {
   background-color: transparent !important;
+  padding-top: 12px;
 }
 
 .arco-menu-dark .arco-menu-item {
-  color: #c9cdd4;
-  margin: 4px 12px;
-  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 4px 16px;
+  border-radius: 8px;
+  height: 44px;
+  line-height: 44px;
+  transition: all 0.2s;
 }
 
 .arco-menu-dark .arco-menu-item:hover {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: rgba(255, 255, 255, 0.1);
   color: #fff;
+  transform: translateX(4px);
 }
 
 .arco-menu-dark .arco-menu-selected {
-  background-color: #3370ff !important;
+  background: linear-gradient(90deg, #165dff 0%, #3070ff 100%) !important;
   color: #fff !important;
-}
-
-.arco-menu-dark .arco-menu-selected:hover {
-  background-color: #3370ff !important;
+  box-shadow: 0 4px 12px rgba(22, 93, 255, 0.3);
 }
 
 .arco-menu-dark .arco-menu-icon {
   margin-right: 12px;
+  font-size: 18px;
 }

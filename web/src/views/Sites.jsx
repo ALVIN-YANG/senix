@@ -18,8 +18,8 @@ import {
   IconPlus,
   IconEdit,
   IconDelete,
-  IconPlay,
-  IconPause,
+  IconPlayCircle,
+  IconPauseCircle,
   IconEye
 } from '@arco-design/web-react/icon'
 import axios from 'axios'
@@ -189,7 +189,7 @@ function Sites() {
           {record.status === 'active' ? (
             <Button
               type="text"
-              icon={<IconPause />}
+              icon={<IconPauseCircle />}
               onClick={() => handleDisable(record.id)}
             >
               禁用
@@ -197,7 +197,7 @@ function Sites() {
           ) : (
             <Button
               type="text"
-              icon={<IconPlay />}
+              icon={<IconPlayCircle />}
               onClick={() => handleEnable(record.id)}
             >
               启用

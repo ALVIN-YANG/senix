@@ -49,8 +49,8 @@ func Setup(cfg *config.Config) *gin.Engine {
 		// 认证相关（不需要 JWT）
 		auth := api.Group("/auth")
 		{
-			auth.POST("/login", handleLogin)
-			auth.POST("/logout", handleLogout)
+			auth.POST("/login", handler.HandleLogin(cfg))
+			auth.POST("/logout", handler.HandleLogout())
 		}
 
 		// 需要认证的路由
@@ -141,15 +141,6 @@ func HealthCheck(c *gin.Context) {
 	})
 }
 
-// 以下处理器将在后续实现
-func handleLogin(c *gin.Context) {
-	utils.Error(c, http.StatusNotImplemented, "Not Implemented", "This feature is coming soon")
-}
-
-func handleLogout(c *gin.Context) {
-	utils.Success(c, nil)
-}
-
 func handleGetUsers(c *gin.Context) {
 	utils.Error(c, http.StatusNotImplemented, "Not Implemented", "This feature is coming soon")
 }
@@ -224,4 +215,12 @@ func handleGetLogs(c *gin.Context) {
 
 func handleReloadSystem(c *gin.Context) {
 	utils.Error(c, http.StatusNotImplemented, "Not Implemented", "This feature is coming soon")
+}
+
+// CheckAndRenewCerts 检查并续期证书
+func CheckAndRenewCerts() error {
+	if certHandler != nil {
+		return certHandler.CheckAndRenewCertificates()
+	}
+	return nil
 }

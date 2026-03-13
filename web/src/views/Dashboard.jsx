@@ -4,7 +4,7 @@ import {
   IconApps,
   IconCheckCircle,
   IconLock,
-  IconWarning,
+  IconExclamationCircle,
   IconRefresh,
   IconPlus
 } from '@arco-design/web-react/icon'
@@ -119,7 +119,7 @@ function Dashboard() {
           <Card className="stat-card" bordered={false}>
             <div className="stat-content">
               <div className="stat-icon orange">
-                <IconWarning style={{ fontSize: 24 }} />
+                <IconExclamationCircle style={{ fontSize: 24 }} />
               </div>
               <Statistic
                 title="即将过期"

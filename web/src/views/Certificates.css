@@ -6,24 +6,29 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
 }
 
 .page-header h1 {
-  font-size: 24px;
-  font-weight: 600;
-  color: #1f2329;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1d2129;
+  letter-spacing: -0.5px;
 }
 
 .cert-domain {
-  font-weight: 500;
-  color: #1f2329;
-  font-family: monospace;
+  font-weight: 600;
+  color: #1d2129;
+  font-family: 'Inter', monospace;
+  background: #f2f3f5;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  font-size: 13px;
 }
 
-/* 标签样式 */
+/* Custom Purple Tag */
 .arco-tag-purple {
-  background-color: #f3e8ff;
-  color: #a855f7;
-  border-color: #a855f7;
+  background-color: #f2e8ff !important;
+  color: #722ed1 !important;
 }

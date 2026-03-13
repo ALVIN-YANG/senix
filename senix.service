@@ -1,0 +1,13 @@
+[Unit]
+Description=Senix Control Plane
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/senix
+ExecStart=/opt/senix/bin/senix -config /opt/senix/configs/config.yaml
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

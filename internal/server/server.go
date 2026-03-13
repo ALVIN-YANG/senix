@@ -68,9 +68,12 @@ func (s *Server) Start() error {
 	// 启动 HTTP 服务器（非阻塞）
 	go func() {
 		if err := s.http.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("server start failed", logger.Error(err))
+			logger.Fatal("server start failed", zap.Error(err))
 		}
 	}()
+
+	// 启动证书自动续期任务
+	s.startCertRenewalTask()
 
 	// 等待中断信号
 	quit := make(chan os.Signal, 1)
@@ -110,3 +113,18 @@ func (s *Server) Cleanup() {
 	// 同步日志
 	logger.Sync()
 }
+
+// startCertRenewalTask 启动证书自动续期定时任务
+func (s *Server) startCertRenewalTask() {
+	// 每天执行一次
+	ticker := time.NewTicker(24 * time.Hour)
+	go func() {
+		for range ticker.C {
+			logger.Info("Starting certificate renewal check task...")
+			if err := router.CheckAndRenewCerts(); err != nil {
+				logger.Error("Certificate renewal check failed", zap.Error(err))
+			}
+		}
+	}()
+}
+

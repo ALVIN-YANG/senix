@@ -260,3 +260,8 @@ func (h *CertHandler) GetDNSProviders(c *gin.Context) {
 
 	utils.Success(c, providers)
 }
+
+// CheckAndRenewCertificates 检查并续期即将过期的证书
+func (h *CertHandler) CheckAndRenewCertificates() error {
+	return h.service.CheckAndRenewCertificates()
+}

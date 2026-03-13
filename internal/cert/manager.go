@@ -16,7 +16,6 @@ import (
 	"github.com/go-acme/lego/v4/certcrypto"
 	"github.com/go-acme/lego/v4/certificate"
 	"github.com/go-acme/lego/v4/challenge"
-	"github.com/go-acme/lego/v4/challenge/dns01"
 	"github.com/go-acme/lego/v4/challenge/http01"
 	"github.com/go-acme/lego/v4/lego"
 	"github.com/go-acme/lego/v4/providers/dns/alidns"
@@ -146,7 +145,7 @@ func (m *Manager) ObtainCertificate(user *ACMEUser, domains []string, challengeT
 		}
 		client.Challenge.Remove(challenge.HTTP01)
 		client.Challenge.Remove(challenge.TLSALPN01)
-		client.Challenge.AddDNS01(provider)
+		client.Challenge.SetDNS01Provider(provider)
 	default:
 		return nil, fmt.Errorf("unsupported challenge type: %s", challengeType)
 	}

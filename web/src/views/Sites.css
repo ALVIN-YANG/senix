@@ -6,51 +6,93 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
 }
 
 .page-header h1 {
-  font-size: 24px;
-  font-weight: 600;
-  color: #1f2329;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1d2129;
+  letter-spacing: -0.5px;
 }
 
 .site-name {
-  font-weight: 500;
-  color: #1f2329;
+  font-weight: 600;
+  color: #1d2129;
+  font-size: 15px;
+  margin-bottom: 4px;
 }
 
 .site-domain {
-  font-size: 12px;
-  color: #646a73;
-  margin-top: 4px;
+  font-size: 13px;
+  color: #86909c;
+  display: inline-block;
+  background: #f2f3f5;
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 
-/* 表格样式优化 */
+/* Table Style Optimizations */
+.arco-table-container {
+  border: none !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
 .arco-table-th {
-  background-color: #f5f6f7 !important;
+  background-color: #f7f8fa !important;
   font-weight: 600;
+  color: #4e5969;
+  border-bottom: 1px solid #e5e6eb !important;
+  padding: 16px !important;
+}
+
+.arco-table-td {
+  padding: 16px !important;
+  border-bottom: 1px solid #f2f3f5 !important;
 }
 
 .arco-table-tr:hover .arco-table-td {
-  background-color: #f2f3f5;
+  background-color: #fcfcfd !important;
 }
 
-/* 标签样式 */
+/* Premium Tags */
+.arco-tag {
+  border-radius: 6px !important;
+  font-weight: 500;
+  padding: 0 10px !important;
+  height: 28px !important;
+  line-height: 26px !important;
+  border: none !important;
+}
+
 .arco-tag-blue {
-  background-color: #e8f4ff;
-  color: #3370ff;
-  border-color: #3370ff;
+  background-color: #e8f3ff !important;
+  color: #165dff !important;
 }
 
 .arco-tag-green {
-  background-color: #e6f9f0;
-  color: #34d399;
-  border-color: #34d399;
+  background-color: #e8ffea !important;
+  color: #00b42a !important;
 }
 
 .arco-tag-orange {
-  background-color: #fff7e6;
-  color: #fbbf24;
-  border-color: #fbbf24;
+  background-color: #fff3e8 !important;
+  color: #ff7d00 !important;
+}
+
+.arco-tag-default {
+  background-color: #f2f3f5 !important;
+  color: #4e5969 !important;
+}
+
+.arco-space-item .arco-btn-text {
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.arco-space-item .arco-btn-text:hover {
+  background-color: #f2f3f5;
+  border-radius: 6px;
 }
