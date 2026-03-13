@@ -18,6 +18,7 @@
   padding: 0 16px;
   border-bottom: 1px solid var(--border);
   background: var(--background);
+  overflow: hidden;
 }
 
 .logo-icon {
@@ -30,13 +31,17 @@
   color: var(--background);
   border-radius: var(--radius-sm);
   margin-right: 12px;
+  flex-shrink: 0;
 }
 
 .logo-text {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 700;
   color: var(--foreground);
   letter-spacing: -0.05em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .header {
@@ -50,6 +55,7 @@
   position: sticky;
   top: 0;
   z-index: 100;
+  width: 100%;
 }
 
 .header-right {
@@ -79,6 +85,7 @@
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--foreground);
+  white-space: nowrap;
 }
 
 .content {
@@ -86,6 +93,9 @@
   background-color: var(--muted);
   min-height: calc(100vh - 60px);
   position: relative;
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 /* Shadcn style Sidebar Menu */
