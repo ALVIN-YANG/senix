@@ -30,8 +30,31 @@ It is designed for the modern web (circa 2026), providing zero-downtime reloads,
 * 🔐 **Automated SSL/TLS**: Native ACME integration via `lego`. Get and auto-renew Let's Encrypt certificates instantly.
 * 🛡️ **Enterprise WAF Security**: Built-in support for Coraza WAF to protect against SQLi, XSS, and modern OWASP Top 10 vulnerabilities.
 * 🌐 **Dynamic Configurations**: API-driven Nginx configuration generation with hot-reloading.
-* 📊 **Modern Glassmorphism UI**: A beautifully crafted dashboard utilizing React + Arco Design with top-tier UX.
+* 📊 **Modern Premium UI**: A beautifully crafted dashboard utilizing React + Arco Design with top-tier Feishu/Lark inspired UX.
 * ⚡ **Traffic Control**: Out-of-the-box Rate Limiting and IP Blacklisting mechanisms.
+* 🤖 **Self-Management**: Senix automatically manages its own web console configuration natively.
+* ✅ **Continuous Integration**: Built-in GitHub Actions workflows for automated testing and builds.
+
+## 📋 Implemented Features Matrix
+
+| Category | Feature | Status |
+| :--- | :--- | :---: |
+| **Data Plane** | Nginx Reverse Proxy | ✅ |
+| | Standalone & ConfigOnly Modes | ✅ |
+| | Automatic Nginx Reloads | ✅ |
+| **Control Plane** | Core REST API (Sites, Certs) | ✅ |
+| | JWT Authentication | ✅ |
+| | User Role Management | ✅ |
+| | Initial Admin Provisioning | ✅ |
+| | Scheduled Cron Tasks (Cert Renewal) | ✅ |
+| **Security** | Let's Encrypt ACME DNS-01 / HTTP-01 | ✅ |
+| | Bcrypt Password Hashing | ✅ |
+| | WAF / ModSecurity Integration | ⏳ (WIP) |
+| **Frontend** | Modern Dashboard (React 18) | ✅ |
+| | Sites & Certs Management UI | ✅ |
+| | State Management (Zustand) | ✅ |
+| **DevOps** | Systemd Install/Uninstall Scripts | ✅ |
+| | CI/CD (GitHub Actions) | ✅ |
 
 ## 🏗️ Architecture
 
