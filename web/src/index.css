@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
 * {
   margin: 0;
   padding: 0;
@@ -7,127 +5,148 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f0f2f5;
-  color: #1d2129;
+  background-color: #f5f6f7;
+  color: #1f2329;
 }
 
-/* Premium Tech Theme Variables */
+/* Feishu (Lark) Inspired Light Theme Variables */
 :root {
-  --primary-color: #165dff;
-  --primary-hover: #4080ff;
-  --success-color: #00b42a;
-  --warning-color: #ff7d00;
+  --primary-color: #3370ff;
+  --primary-hover: #285ee0;
+  --primary-active: #1e4bbf;
+  --success-color: #34d399;
+  --warning-color: #fbbf24;
   --error-color: #f53f3f;
-  --text-primary: #1d2129;
-  --text-secondary: #4e5969;
-  --text-tertiary: #86909c;
-  --border-color: #e5e6eb;
+  --text-primary: #1f2329;
+  --text-secondary: #646a73;
+  --text-tertiary: #8f959e;
+  --border-color: #dee0e3;
   --bg-primary: #ffffff;
-  --bg-secondary: #f7f8fa;
+  --bg-secondary: #f5f6f7;
   --bg-tertiary: #f2f3f5;
-  --sidebar-bg: #001529;
-  --sidebar-width: 260px;
-  --header-height: 64px;
-  --card-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-  --card-border-radius: 12px;
+  --sidebar-bg: #ffffff;
+  --sidebar-width: 240px;
+  --header-height: 60px;
+  --card-shadow: 0 1px 4px rgba(31, 35, 41, 0.05);
+  --card-border-radius: 8px;
 }
 
-/* Custom Scrollbar for sleek UI */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+
+/* Global Arco Design Overrides */
+.arco-theme-dark {
+  /* Disable dark mode overrides completely for this theme */
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #c9cdd4;
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #86909c;
-}
-
-/* Arco Design overrides for premium look */
 .arco-card {
+  background: var(--bg-primary) !important;
   border-radius: var(--card-border-radius) !important;
-  box-shadow: var(--card-shadow) !important;
-  border: 1px solid rgba(229, 230, 235, 0.5) !important;
-  background: rgba(255, 255, 255, 0.9) !important;
-  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-color) !important;
+  box-shadow: none !important;
 }
 
 .arco-card-header {
   border-bottom: 1px solid var(--border-color) !important;
+  padding: 16px 20px !important;
 }
 
-.arco-menu-dark {
-  background-color: var(--sidebar-bg) !important;
-}
-
-.arco-menu-dark .arco-menu-item,
-.arco-menu-dark .arco-menu-inline-header {
-  color: rgba(255, 255, 255, 0.65);
-  font-weight: 500;
-  letter-spacing: 0.3px;
-}
-
-.arco-menu-dark .arco-menu-item:hover,
-.arco-menu-dark .arco-menu-inline-header:hover {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: #fff;
-}
-
-.arco-menu-dark .arco-menu-selected,
-.arco-menu-dark .arco-menu-selected:hover {
-  background: linear-gradient(90deg, var(--primary-color) 0%, #3070ff 100%) !important;
-  color: #fff !important;
-  box-shadow: 0 2px 8px rgba(22, 93, 255, 0.3);
+.arco-card-header-title {
+  color: var(--text-primary) !important;
+  font-weight: 500 !important;
+  font-size: 16px !important;
 }
 
 .arco-btn {
   border-radius: 6px !important;
-  font-weight: 500 !important;
+  font-weight: 400 !important;
 }
 
 .arco-btn-primary {
-  background: linear-gradient(135deg, var(--primary-color) 0%, #3070ff 100%) !important;
-  border: none !important;
-  box-shadow: 0 2px 6px rgba(22, 93, 255, 0.3);
-  transition: all 0.3s ease;
+  background-color: var(--primary-color) !important;
+  border: 1px solid var(--primary-color) !important;
+  color: white !important;
+  box-shadow: none !important;
 }
 
 .arco-btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(22, 93, 255, 0.4);
+  background-color: var(--primary-hover) !important;
+  border-color: var(--primary-hover) !important;
 }
 
-.arco-link {
-  color: var(--primary-color);
-  font-weight: 500;
+.arco-btn-primary:active {
+  background-color: var(--primary-active) !important;
 }
 
+.arco-btn-secondary {
+  background-color: var(--bg-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+.arco-btn-secondary:hover {
+  background-color: var(--bg-tertiary) !important;
+  border-color: #c9cdd4 !important;
+}
+
+/* Tables */
 .arco-table-container {
-  border-radius: 8px;
-  overflow: hidden;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--card-border-radius);
+  background: var(--bg-primary) !important;
 }
 
 .arco-table-th {
-  background-color: #f7f8fa !important;
-  color: var(--text-secondary);
-  font-weight: 600 !important;
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-secondary) !important;
+  font-weight: 500 !important;
+  border-bottom: 1px solid var(--border-color) !important;
 }
 
-.page-header h1 {
-  font-size: 26px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 8px;
-  letter-spacing: -0.5px;
+.arco-table-td {
+  border-bottom: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+.arco-table-tr:hover .arco-table-td {
+  background-color: var(--bg-secondary) !important;
+}
+
+.arco-modal {
+  border-radius: 10px !important;
+  box-shadow: 0 10px 30px rgba(31, 35, 41, 0.15) !important;
+}
+
+.arco-modal-header {
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.arco-input-wrapper, .arco-select-view {
+  background-color: var(--bg-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 6px !important;
+  color: var(--text-primary) !important;
+  transition: all 0.2s;
+}
+
+.arco-input-wrapper:hover, .arco-select-view:hover {
+  border-color: var(--primary-hover) !important;
+}
+
+.arco-input-wrapper-focus, .arco-select-view-focus {
+  border-color: var(--primary-color) !important;
+  background-color: var(--bg-primary) !important;
+  box-shadow: 0 0 0 2px rgba(51, 112, 255, 0.2) !important;
+}
+
+.arco-tag {
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  border: none !important;
 }

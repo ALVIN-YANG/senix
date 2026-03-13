@@ -2,29 +2,10 @@
   padding-bottom: 24px;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 32px;
-}
-
-.page-header h1 {
-  font-size: 28px;
-  font-weight: 700;
-  color: #1d2129;
-  letter-spacing: -0.5px;
-}
-
 .cert-domain {
-  font-weight: 600;
-  color: #1d2129;
-  font-family: 'Inter', monospace;
-  background: #f2f3f5;
-  padding: 2px 8px;
-  border-radius: 4px;
-  display: inline-block;
-  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 14px;
 }
 
 /* Custom Purple Tag */

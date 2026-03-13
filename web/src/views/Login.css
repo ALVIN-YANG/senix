@@ -3,134 +3,94 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f0f2f5;
-  background-image: 
-    radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
-    radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
-    radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+  background-color: #f5f6f7;
   padding: 20px;
-  position: relative;
-  overflow: hidden;
-}
-
-/* Add cool animated background shapes */
-.login-container::before, .login-container::after {
-  content: '';
-  position: absolute;
-  width: 400px;
-  height: 400px;
-  border-radius: 50%;
-  filter: blur(80px);
-  z-index: 0;
-  opacity: 0.6;
-}
-
-.login-container::before {
-  background: #165dff;
-  top: -100px;
-  left: -100px;
-  animation: float 10s infinite ease-in-out alternate;
-}
-
-.login-container::after {
-  background: #00b42a;
-  bottom: -100px;
-  right: -100px;
-  animation: float 12s infinite ease-in-out alternate-reverse;
-}
-
-@keyframes float {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(50px, 50px) scale(1.1); }
-  100% { transform: translate(0, 0) scale(1); }
 }
 
 .login-card {
   width: 100%;
-  max-width: 440px;
-  border-radius: 20px !important;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2) !important;
-  background: rgba(255, 255, 255, 0.95) !important;
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.5) !important;
-  z-index: 1;
-  padding: 40px 20px 20px !important;
+  max-width: 360px;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 16px rgba(31, 35, 41, 0.08) !important;
+  background: #ffffff !important;
+  border: none !important;
+  padding: 32px 24px 24px !important;
 }
 
 .login-header {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 32px;
 }
 
 .login-logo {
-  width: 72px;
-  height: 72px;
-  margin: 0 auto 24px;
-  background: linear-gradient(135deg, #165dff 0%, #00b42a 100%);
-  border-radius: 20px;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 16px;
+  background-color: var(--primary-color);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 10px 20px rgba(22, 93, 255, 0.3);
+}
+
+.login-logo svg {
+  color: white !important;
+  font-size: 28px;
 }
 
 .login-header h1 {
-  font-size: 28px;
-  font-weight: 700;
-  color: #1d2129;
-  margin-bottom: 12px;
-  letter-spacing: -0.5px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
 }
 
 .login-header p {
-  font-size: 15px;
-  color: #86909c;
-  font-weight: 500;
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 .login-tips {
   text-align: center;
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid rgba(229, 230, 235, 0.6);
+  margin-top: 24px;
 }
 
 .login-tips p {
-  font-size: 13px;
-  color: #86909c;
-  font-weight: 500;
+  font-size: 12px;
+  color: var(--text-tertiary);
 }
 
 /* Input Styles */
 .arco-input-wrapper {
-  border-radius: 12px !important;
-  background: #f7f8fa !important;
-  border: 1px solid transparent !important;
-  transition: all 0.3s ease !important;
-  height: 48px !important;
+  border-radius: 6px !important;
+  background: var(--bg-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  height: 40px !important;
+  color: var(--text-primary) !important;
 }
 
 .arco-input-wrapper:hover {
-  background: #f2f3f5 !important;
+  border-color: var(--primary-hover) !important;
 }
 
 .arco-input-wrapper:focus-within {
-  background: #fff !important;
-  border-color: #165dff !important;
-  box-shadow: 0 0 0 3px rgba(22, 93, 255, 0.1) !important;
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 2px rgba(51, 112, 255, 0.2) !important;
 }
 
 .arco-input-prefix {
-  color: #86909c !important;
-  padding-left: 4px !important;
+  color: var(--text-tertiary) !important;
+}
+
+.arco-input {
+  color: var(--text-primary) !important;
 }
 
 /* Button Styles */
 .login-card .arco-btn-primary {
-  height: 48px !important;
-  border-radius: 12px !important;
-  font-size: 16px !important;
-  font-weight: 600 !important;
-  margin-top: 12px;
-  box-shadow: 0 6px 16px rgba(22, 93, 255, 0.3) !important;
+  height: 40px !important;
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  margin-top: 8px;
 }

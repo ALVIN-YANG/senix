@@ -105,7 +105,7 @@ function Layout() {
         </div>
         
         <Menu
-          theme="dark"
+          theme="light"
           selectedKeys={[location.pathname]}
           onClickMenuItem={handleMenuClick}
           style={{ width: '100%' }}
