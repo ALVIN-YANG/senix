@@ -1,54 +1,37 @@
+/* views/Sites.css */
 .sites-page {
   padding-bottom: 24px;
 }
 
 .site-name {
-  font-weight: 500;
-  color: var(--text-primary);
-  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+  font-size: 0.875rem;
   margin-bottom: 4px;
 }
 
 .site-domain {
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
-
-.arco-tag-blue {
-  background-color: #eef2ff !important;
-  color: var(--primary-color) !important;
-}
-
-.arco-tag-green {
-  background-color: #e8ffea !important;
-  color: #00b42a !important;
-}
-
-.arco-tag-orange {
-  background-color: #fff3e8 !important;
-  color: #ff7d00 !important;
-}
-
-.arco-tag-default {
-  background-color: var(--bg-tertiary) !important;
-  color: var(--text-secondary) !important;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
 }
 
 .arco-space-item .arco-btn-text {
-  font-weight: 400;
-  color: var(--text-secondary) !important;
+  font-weight: 500;
+  color: var(--muted-foreground) !important;
   padding: 0 8px;
+  border-radius: var(--radius-sm) !important;
 }
 
 .arco-space-item .arco-btn-text:hover {
-  background-color: var(--bg-secondary);
-  color: var(--text-primary) !important;
+  background-color: var(--accent);
+  color: var(--accent-foreground) !important;
 }
 
 .arco-space-item .arco-btn-text[status='danger'] {
-  color: var(--error-color) !important;
+  color: var(--destructive) !important;
 }
 
 .arco-space-item .arco-btn-text[status='danger']:hover {
-  background-color: #ffece8;
+  background-color: var(--destructive);
+  color: var(--destructive-foreground) !important;
 }

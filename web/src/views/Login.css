@@ -1,20 +1,21 @@
+/* views/Login.css */
 .login-container {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f5f6f7;
+  background-color: var(--background);
   padding: 20px;
 }
 
 .login-card {
   width: 100%;
-  max-width: 360px;
-  border-radius: 8px !important;
-  box-shadow: 0 4px 16px rgba(31, 35, 41, 0.08) !important;
-  background: #ffffff !important;
-  border: none !important;
-  padding: 32px 24px 24px !important;
+  max-width: 400px;
+  border-radius: var(--radius) !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1) !important;
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  padding: 32px 32px 24px !important;
 }
 
 .login-header {
@@ -25,72 +26,48 @@
 .login-logo {
   width: 48px;
   height: 48px;
-  margin: 0 auto 16px;
-  background-color: var(--primary-color);
-  border-radius: 12px;
+  margin: 0 auto 24px;
+  background-color: var(--foreground);
+  border-radius: var(--radius);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .login-logo svg {
-  color: white !important;
-  font-size: 28px;
+  color: var(--background) !important;
+  font-size: 24px;
 }
 
 .login-header h1 {
-  font-size: 20px;
+  font-size: 1.5rem;
   font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 6px;
+  letter-spacing: -0.05em;
+  color: var(--foreground);
+  margin-bottom: 8px;
 }
 
 .login-header p {
-  font-size: 13px;
-  color: var(--text-secondary);
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
 }
 
 .login-tips {
   text-align: center;
-  margin-top: 24px;
+  margin-top: 32px;
 }
 
 .login-tips p {
-  font-size: 12px;
-  color: var(--text-tertiary);
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
 }
 
-/* Input Styles */
-.arco-input-wrapper {
-  border-radius: 6px !important;
-  background: var(--bg-primary) !important;
-  border: 1px solid var(--border-color) !important;
+.login-card .arco-input-wrapper {
   height: 40px !important;
-  color: var(--text-primary) !important;
 }
 
-.arco-input-wrapper:hover {
-  border-color: var(--primary-hover) !important;
-}
-
-.arco-input-wrapper:focus-within {
-  border-color: var(--primary-color) !important;
-  box-shadow: 0 0 0 2px rgba(51, 112, 255, 0.2) !important;
-}
-
-.arco-input-prefix {
-  color: var(--text-tertiary) !important;
-}
-
-.arco-input {
-  color: var(--text-primary) !important;
-}
-
-/* Button Styles */
 .login-card .arco-btn-primary {
   height: 40px !important;
-  border-radius: 6px !important;
-  font-size: 14px !important;
-  font-weight: 400 !important;
-  margin-top: 8px;
+  margin-top: 16px;
+  width: 100% !important;
 }

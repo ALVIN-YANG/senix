@@ -1,15 +1,17 @@
+/* views/Certificates.css */
 .certs-page {
   padding-bottom: 24px;
 }
 
 .cert-domain {
   font-weight: 500;
-  color: var(--text-primary);
-  font-size: 14px;
+  color: var(--foreground);
+  font-size: 0.875rem;
 }
 
-/* Custom Purple Tag */
+/* Override tags specific to certificates if needed */
 .arco-tag-purple {
-  background-color: #f2e8ff !important;
-  color: #722ed1 !important;
+  background-color: var(--secondary) !important;
+  color: var(--foreground) !important;
+  border: 1px solid var(--border) !important;
 }

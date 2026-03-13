@@ -1,152 +1,219 @@
+/* index.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #f5f6f7;
-  color: #1f2329;
+:root {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(240, 10%, 3.9%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(240, 10%, 3.9%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(240, 10%, 3.9%);
+  --primary: hsl(240, 5.9%, 10%);
+  --primary-foreground: hsl(0, 0%, 98%);
+  --secondary: hsl(240, 4.8%, 95.9%);
+  --secondary-foreground: hsl(240, 5.9%, 10%);
+  --muted: hsl(240, 4.8%, 95.9%);
+  --muted-foreground: hsl(240, 3.8%, 46.1%);
+  --accent: hsl(240, 4.8%, 95.9%);
+  --accent-foreground: hsl(240, 5.9%, 10%);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 5.9%, 90%);
+  --input: hsl(240, 5.9%, 90%);
+  --ring: hsl(240, 5.9%, 10%);
+  --radius: 0.5rem;
+  --radius-sm: calc(var(--radius) - 2px);
+  --success: hsl(142, 71%, 45%);
+  --warning: hsl(38, 92%, 50%);
 }
 
-/* Feishu (Lark) Inspired Light Theme Variables */
-:root {
-  --primary-color: #3370ff;
-  --primary-hover: #285ee0;
-  --primary-active: #1e4bbf;
-  --success-color: #34d399;
-  --warning-color: #fbbf24;
-  --error-color: #f53f3f;
-  --text-primary: #1f2329;
-  --text-secondary: #646a73;
-  --text-tertiary: #8f959e;
-  --border-color: #dee0e3;
-  --bg-primary: #ffffff;
-  --bg-secondary: #f5f6f7;
-  --bg-tertiary: #f2f3f5;
-  --sidebar-bg: #ffffff;
-  --sidebar-width: 240px;
-  --header-height: 60px;
-  --card-shadow: 0 1px 4px rgba(31, 35, 41, 0.05);
-  --card-border-radius: 8px;
+.arco-theme-dark, .dark {
+  --background: hsl(240, 10%, 3.9%);
+  --foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 3.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --primary: hsl(0, 0%, 98%);
+  --primary-foreground: hsl(240, 5.9%, 10%);
+  --secondary: hsl(240, 3.7%, 15.9%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --accent: hsl(240, 3.7%, 15.9%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --ring: hsl(240, 4.9%, 83.9%);
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: var(--radius); }
+::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
 
-/* Global Arco Design Overrides */
-.arco-theme-dark {
-  /* Disable dark mode overrides completely for this theme */
-}
-
+/* Overrides for Arco Design to look like shadcn-ui */
 .arco-card {
-  background: var(--bg-primary) !important;
-  border-radius: var(--card-border-radius) !important;
-  border: 1px solid var(--border-color) !important;
-  box-shadow: none !important;
+  background: var(--card) !important;
+  color: var(--card-foreground) !important;
+  border-radius: var(--radius) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
 }
 
 .arco-card-header {
-  border-bottom: 1px solid var(--border-color) !important;
-  padding: 16px 20px !important;
+  border-bottom: none !important;
+  padding: 24px 24px 0 !important;
 }
 
 .arco-card-header-title {
-  color: var(--text-primary) !important;
-  font-weight: 500 !important;
-  font-size: 16px !important;
+  color: var(--card-foreground) !important;
+  font-weight: 600 !important;
+  font-size: 1.125rem !important;
+  line-height: 1 !important;
+  letter-spacing: -0.05em !important;
 }
 
 .arco-btn {
-  border-radius: 6px !important;
-  font-weight: 400 !important;
+  border-radius: var(--radius-sm) !important;
+  font-weight: 500 !important;
+  font-size: 0.875rem !important;
+  transition: colors 0.15s ease !important;
 }
 
 .arco-btn-primary {
-  background-color: var(--primary-color) !important;
-  border: 1px solid var(--primary-color) !important;
-  color: white !important;
-  box-shadow: none !important;
+  background-color: var(--primary) !important;
+  border: 1px solid var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
 }
 
 .arco-btn-primary:hover {
-  background-color: var(--primary-hover) !important;
-  border-color: var(--primary-hover) !important;
-}
-
-.arco-btn-primary:active {
-  background-color: var(--primary-active) !important;
+  opacity: 0.9 !important;
+  background-color: var(--primary) !important;
 }
 
 .arco-btn-secondary {
-  background-color: var(--bg-primary) !important;
-  border: 1px solid var(--border-color) !important;
-  color: var(--text-primary) !important;
+  background-color: var(--secondary) !important;
+  border: 1px solid var(--secondary) !important;
+  color: var(--secondary-foreground) !important;
 }
 
 .arco-btn-secondary:hover {
-  background-color: var(--bg-tertiary) !important;
-  border-color: #c9cdd4 !important;
+  background-color: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+}
+
+.arco-btn-outline {
+  background-color: transparent !important;
+  border: 1px solid var(--border) !important;
+  color: var(--foreground) !important;
+}
+
+.arco-btn-outline:hover {
+  background-color: var(--accent) !important;
+  color: var(--accent-foreground) !important;
 }
 
 /* Tables */
 .arco-table-container {
-  border: 1px solid var(--border-color) !important;
-  border-radius: var(--card-border-radius);
-  background: var(--bg-primary) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  background: var(--card) !important;
+  overflow: hidden !important;
 }
 
 .arco-table-th {
-  background-color: var(--bg-secondary) !important;
-  color: var(--text-secondary) !important;
+  background-color: var(--muted) !important;
+  color: var(--muted-foreground) !important;
   font-weight: 500 !important;
-  border-bottom: 1px solid var(--border-color) !important;
+  border-bottom: 1px solid var(--border) !important;
+  font-size: 0.875rem !important;
 }
 
 .arco-table-td {
-  border-bottom: 1px solid var(--border-color) !important;
-  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border) !important;
+  color: var(--foreground) !important;
+  font-size: 0.875rem !important;
+}
+
+.arco-table-tr:last-child .arco-table-td {
+  border-bottom: none !important;
 }
 
 .arco-table-tr:hover .arco-table-td {
-  background-color: var(--bg-secondary) !important;
+  background-color: var(--muted) !important;
 }
 
 .arco-modal {
-  border-radius: 10px !important;
-  box-shadow: 0 10px 30px rgba(31, 35, 41, 0.15) !important;
+  background: var(--background) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1) !important;
 }
 
 .arco-modal-header {
-  border-bottom: 1px solid var(--border-color) !important;
+  border-bottom: none !important;
+  padding: 24px 24px 0 !important;
+}
+
+.arco-modal-title {
+  font-weight: 600 !important;
+  color: var(--foreground) !important;
 }
 
 .arco-input-wrapper, .arco-select-view {
-  background-color: var(--bg-primary) !important;
-  border: 1px solid var(--border-color) !important;
-  border-radius: 6px !important;
-  color: var(--text-primary) !important;
-  transition: all 0.2s;
+  background-color: transparent !important;
+  border: 1px solid var(--input) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--foreground) !important;
+  font-size: 0.875rem !important;
+  transition: border-color 0.15s, box-shadow 0.15s !important;
 }
 
 .arco-input-wrapper:hover, .arco-select-view:hover {
-  border-color: var(--primary-hover) !important;
+  border-color: var(--border) !important;
 }
 
 .arco-input-wrapper-focus, .arco-select-view-focus {
-  border-color: var(--primary-color) !important;
-  background-color: var(--bg-primary) !important;
-  box-shadow: 0 0 0 2px rgba(51, 112, 255, 0.2) !important;
+  border-color: var(--ring) !important;
+  box-shadow: 0 0 0 1px var(--ring) !important;
+}
+
+.arco-input {
+  color: var(--foreground) !important;
 }
 
 .arco-tag {
-  border-radius: 4px !important;
-  font-size: 12px !important;
-  border: none !important;
+  border-radius: var(--radius-sm) !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  border: 1px solid transparent !important;
+  padding: 2px 10px !important;
+  height: 24px !important;
+  line-height: 18px !important;
 }
+
+/* Badge variants */
+.arco-tag.arco-tag-blue { background-color: var(--primary) !important; color: var(--primary-foreground) !important; }
+.arco-tag.arco-tag-green { background-color: var(--success) !important; color: var(--background) !important; }
+.arco-tag.arco-tag-orange { background-color: var(--warning) !important; color: var(--background) !important; }
+.arco-tag.arco-tag-default { background-color: var(--secondary) !important; color: var(--secondary-foreground) !important; }

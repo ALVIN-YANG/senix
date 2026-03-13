@@ -1,50 +1,52 @@
+/* layouts/Layout.css */
 .layout {
   min-height: 100vh;
-  background-color: var(--bg-secondary);
+  background-color: var(--background);
 }
 
 .sider {
-  background-color: var(--sidebar-bg) !important;
-  border-right: 1px solid var(--border-color);
+  background-color: var(--background) !important;
+  border-right: 1px solid var(--border);
   z-index: 101;
   position: relative;
 }
 
 .logo {
-  height: var(--header-height);
+  height: 60px;
   display: flex;
   align-items: center;
   padding: 0 16px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border);
+  background: var(--background);
 }
 
 .logo-icon {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--primary-color);
-  border-radius: 6px;
-  margin-right: 10px;
+  background-color: var(--foreground);
+  color: var(--background);
+  border-radius: var(--radius-sm);
+  margin-right: 12px;
 }
 
 .logo-text {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: 0px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--foreground);
+  letter-spacing: -0.05em;
 }
 
 .header {
-  background-color: var(--bg-primary) !important;
-  border-bottom: 1px solid var(--border-color);
+  background-color: var(--background) !important;
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  height: var(--header-height);
+  height: 60px;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -53,87 +55,105 @@
 .header-right {
   display: flex;
   align-items: center;
+  gap: 16px;
 }
 
 .user-info {
   display: flex;
   align-items: center;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
   transition: background-color 0.2s;
   background: transparent;
-  border: none;
+  border: 1px solid var(--border);
 }
 
 .user-info:hover {
-  background-color: var(--bg-secondary);
+  background-color: var(--accent);
+  color: var(--accent-foreground);
 }
 
 .username {
   margin-left: 8px;
-  font-size: 14px;
-  font-weight: 400;
-  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--foreground);
 }
 
 .content {
-  padding: 24px;
-  background-color: var(--bg-secondary);
-  min-height: calc(100vh - var(--header-height));
+  padding: 32px;
+  background-color: var(--muted);
+  min-height: calc(100vh - 60px);
   position: relative;
 }
 
-/* Light Theme Menu matching Feishu */
+/* Shadcn style Sidebar Menu */
 .arco-menu-light {
   background-color: transparent !important;
 }
 
 .arco-menu-light .arco-menu-inner {
-  padding: 8px;
+  padding: 16px 8px;
 }
 
 .arco-menu-light .arco-menu-item {
-  color: var(--text-secondary);
-  margin: 2px 0;
-  border-radius: 6px;
-  height: 40px;
-  line-height: 40px;
+  color: var(--muted-foreground);
+  margin: 4px 0;
+  border-radius: var(--radius-sm);
+  height: 36px;
+  line-height: 36px;
   transition: all 0.2s;
-  font-weight: 400;
+  font-weight: 500;
+  font-size: 0.875rem;
 }
 
 .arco-menu-light .arco-menu-item:hover {
-  background-color: var(--bg-secondary);
-  color: var(--text-primary);
+  background-color: var(--accent);
+  color: var(--accent-foreground);
 }
 
 .arco-menu-light .arco-menu-selected {
-  background-color: #eef2ff !important;
-  color: var(--primary-color) !important;
-  font-weight: 500;
+  background-color: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+  font-weight: 600;
 }
 
 .arco-menu-light .arco-menu-selected .arco-menu-icon {
-  color: var(--primary-color);
+  color: var(--foreground);
 }
 
 .arco-menu-light .arco-menu-icon {
-  margin-right: 10px;
-  font-size: 16px;
+  margin-right: 12px;
+  font-size: 1rem;
 }
 
 /* Page Header Common */
 .page-header {
-  margin-bottom: 24px;
+  margin-bottom: 32px;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .page-header h1 {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-primary);
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: var(--foreground);
   margin: 0;
+  letter-spacing: -0.05em;
+}
+
+.page-header p {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+@media (min-width: 768px) {
+  .page-header {
+    flex-direction: row;
+    align-items: center;
+  }
 }

@@ -1,36 +1,30 @@
+/* views/Security.css */
 .security-page {
   padding-bottom: 24px;
-}
-
-.page-header {
-  margin-bottom: 24px;
-}
-
-.page-header h1 {
-  font-size: 24px;
-  font-weight: 600;
-  color: #1f2329;
 }
 
 .blacklist-section {
   padding: 16px 0;
 }
 
-/* Tabs 样式 */
 .arco-tabs-nav {
   margin-bottom: 24px;
+  border-bottom: 1px solid var(--border) !important;
 }
 
 .arco-tabs-tab {
-  font-size: 14px;
-  padding: 12px 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 12px 16px;
+  color: var(--muted-foreground);
 }
 
 .arco-tabs-tab-active {
-  color: #3370ff;
-  font-weight: 500;
+  color: var(--foreground) !important;
+  font-weight: 600;
 }
 
 .arco-tabs-ink {
-  background-color: #3370ff;
+  background-color: var(--foreground) !important;
+  height: 2px !important;
 }
