@@ -30,7 +30,7 @@ It is designed for the modern web (circa 2026), providing zero-downtime reloads,
 * 🔐 **Automated SSL/TLS**: Native ACME integration via `lego`. Get and auto-renew Let's Encrypt certificates instantly.
 * 🛡️ **Enterprise WAF Security**: Built-in support for Coraza WAF to protect against SQLi, XSS, and modern OWASP Top 10 vulnerabilities.
 * 🌐 **Dynamic Configurations**: API-driven Nginx configuration generation with hot-reloading.
-* 📊 **Modern Premium UI**: A beautifully crafted dashboard utilizing React + Arco Design with top-tier Feishu/Lark inspired UX.
+* 📊 **Modern Premium UI**: A beautifully crafted dashboard utilizing React + shadcn-ui & TailwindCSS with top-tier Feishu/Lark inspired UX.
 * ⚡ **Traffic Control**: Out-of-the-box Rate Limiting and IP Blacklisting mechanisms.
 * 🤖 **Self-Management**: Senix automatically manages its own web console configuration natively.
 * ✅ **Continuous Integration**: Built-in GitHub Actions workflows for automated testing and builds.
@@ -108,7 +108,7 @@ http://<your-server-ip>:8080
 | :--- | :--- | :--- |
 | **Data Plane** | Nginx | Handles all reverse proxying and traffic routing. |
 | **Control Plane** | Go 1.22, Gin, GORM | High-concurrency backend API for configuration state. |
-| **Frontend** | React 18, Vite, Arco Design | 2026-level modern SPA dashboard. |
+| **Frontend** | React 18, Vite, shadcn-ui & TailwindCSS | 2026-level modern SPA dashboard. |
 | **Database** | SQLite / PostgreSQL | Robust storage for configurations and users. |
 | **Certificates** | lego | Go-based ACME client for seamless SSL. |
 
