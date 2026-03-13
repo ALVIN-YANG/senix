@@ -1,106 +1,100 @@
-# Senix - 高性能 Nginx 网关
+<div align="center">
+  <img src="https://raw.githubusercontent.com/ALVIN-YANG/senix/main/assets/logo.png" alt="Senix Gateway" width="200" height="200" onerror="this.src='https://via.placeholder.com/200x200.png?text=SENIX'">
+  
+  # Senix Gateway
+  
+  **The Next-Generation Nginx Control Plane & API Gateway**
 
-基于 Nginx 数据面 + Go 控制面的高性能网关解决方案。
+  [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat-square&logo=go)](https://golang.org/)
+  [![React Version](https://img.shields.io/badge/React-18.2+-61DAFB?style=flat-square&logo=react)](https://reactjs.org/)
+  [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
+  [![Nginx](https://img.shields.io/badge/Nginx-1.24+-009639?style=flat-square&logo=nginx)](https://nginx.org/)
 
-## 架构设计
+  [Documentation](https://github.com/ALVIN-YANG/senix/wiki) • 
+  [Installation](#quick-start) • 
+  [Features](#core-features) • 
+  [Contributing](#contributing)
+</div>
 
+---
+
+## ⚡ Overview
+
+Senix is a blazingly fast, modern, and highly scalable API Gateway built on top of the rock-solid **Nginx** data plane, managed by an intelligent **Go-based** control plane, and visualized through a cutting-edge **React 18** dashboard.
+
+It is designed for the modern web (circa 2026), providing zero-downtime reloads, built-in Let's Encrypt automation, and enterprise-grade WAF (Web Application Firewall) capabilities out of the box.
+
+## ✨ Core Features
+
+* 🚀 **Zero-Overhead Performance**: Leverages native Nginx for handling data traffic, meaning 0 latency penalty.
+* 🔐 **Automated SSL/TLS**: Native ACME integration via `lego`. Get and auto-renew Let's Encrypt certificates instantly.
+* 🛡️ **Enterprise WAF Security**: Built-in support for Coraza WAF to protect against SQLi, XSS, and modern OWASP Top 10 vulnerabilities.
+* 🌐 **Dynamic Configurations**: API-driven Nginx configuration generation with hot-reloading.
+* 📊 **Modern Glassmorphism UI**: A beautifully crafted dashboard utilizing React + Arco Design with top-tier UX.
+* ⚡ **Traffic Control**: Out-of-the-box Rate Limiting and IP Blacklisting mechanisms.
+
+## 🏗️ Architecture
+
+Senix decouples the Data Plane from the Control Plane for maximum resilience:
+
+```mermaid
+graph TD
+    Client((Clients)) -->|HTTP/HTTPS| Nginx[Nginx Data Plane]
+    Nginx -->|Reverse Proxy| Upstream1[Microservice A]
+    Nginx -->|Reverse Proxy| Upstream2[Microservice B]
+    
+    Admin((Administrator)) -->|Dashboard/API| SenixCP[Senix Go Control Plane]
+    
+    SenixCP -.->|Generates Configs| Nginx
+    SenixCP -.->|Hot Reloads| Nginx
+    SenixCP -.->|Auto ACME Renew| LetEncrypt[Let's Encrypt]
+    
+    style Nginx fill:#009639,stroke:#fff,stroke-width:2px,color:#fff
+    style SenixCP fill:#00ADD8,stroke:#fff,stroke-width:2px,color:#fff
 ```
-┌─────────────────────────────────────────────────────────┐
-│                      用户请求                            │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│  Nginx (数据面) - 高性能处理所有流量                      │
-│  ├── SSL 证书 (由 Senix 管理)                           │
-│  ├── WAF 规则 (由 Senix 生成配置)                        │
-│  ├── 反向代理                                           │
-│  └── 静态文件服务                                        │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│  后端服务                                                │
-└─────────────────────────────────────────────────────────┘
 
-        ↑ 配置同步 (HTTP API / 文件)
-        │
-┌─────────────────────────────────────────────────────────┐
-│  Senix 控制面 (Go) - 管理功能                            │
-│  ├── Web 管理界面 (端口 8080)                            │
-│  ├── 证书自动申请/续期 (Let's Encrypt)                   │
-│  ├── WAF 规则管理                                        │
-│  └── 监控统计                                            │
-└─────────────────────────────────────────────────────────┘
-```
+## 🚀 Quick Start
 
-## 核心特性
-
-- **高性能**: Nginx 原生处理流量，零性能损耗
-- **自动证书**: Let's Encrypt 自动申请和续期
-- **WAF 防护**: 基于 Coraza 的 Web 应用防火墙
-- **可视化管理**: 现代化的 Web 管理界面
-- **多站点支持**: 轻松管理多个域名和站点
-- **热重载**: 配置变更无需重启
-
-## 技术栈
-
-- **数据面**: Nginx + ModSecurity (可选)
-- **控制面**: Go + Gin + GORM
-- **前端**: Vue 3 + Element Plus
-- **数据库**: SQLite (默认) / PostgreSQL (可选)
-- **证书**: lego (Let's Encrypt 客户端)
-
-## 快速开始
-
-### 使用 Docker Compose 部署
+### One-Line Install (Recommended for Linux)
+For Ubuntu/Debian based systems, we provide an enterprise-grade automated installer:
 
 ```bash
+sudo curl -sSL https://raw.githubusercontent.com/ALVIN-YANG/senix/main/install.sh | sudo bash
+```
+*Note: This will install Nginx, Certbot, Senix Control Plane and set up the Systemd services automatically.*
+
+### Docker Compose
+```bash
+git clone https://github.com/ALVIN-YANG/senix.git
 cd senix
 docker-compose up -d
 ```
 
-访问管理界面: http://localhost:8080
-
-### 手动部署
-
-1. 启动 Nginx
-```bash
-docker-compose -f deployments/docker/nginx.yml up -d
+### Accessing the Dashboard
+Once deployed, open your browser and navigate to:
 ```
-
-2. 启动 Senix 控制面
-```bash
-cd cmd/senix
-go run main.go
+http://<your-server-ip>:8080
 ```
+**Default Credentials:**
+* **Username:** `admin`
+* **Password:** `admin123`
 
-## 项目结构
+## 🛠️ Tech Stack
 
-```
-senix/
-├── cmd/senix/           # 主程序入口
-├── internal/
-│   ├── api/            # HTTP API 接口
-│   ├── config/         # 配置管理
-│   ├── models/         # 数据模型
-│   ├── services/       # 业务逻辑
-│   ├── waf/            # WAF 引擎 (基于 Coraza)
-│   ├── cert/           # 证书管理 (基于 lego)
-│   └── nginx/          # Nginx 配置管理
-├── web/                # 前端代码 (Vue 3)
-├── deployments/        # 部署配置
-├── configs/            # 配置文件模板
-└── scripts/            # 辅助脚本
-```
+| Component | Technology | Description |
+| :--- | :--- | :--- |
+| **Data Plane** | Nginx | Handles all reverse proxying and traffic routing. |
+| **Control Plane** | Go 1.22, Gin, GORM | High-concurrency backend API for configuration state. |
+| **Frontend** | React 18, Vite, Arco Design | 2026-level modern SPA dashboard. |
+| **Database** | SQLite / PostgreSQL | Robust storage for configurations and users. |
+| **Certificates** | lego | Go-based ACME client for seamless SSL. |
 
-## 开源协议
+## 📜 License
 
-Apache License 2.0
+This project is licensed under the [Apache License 2.0](LICENSE).
 
-## 致谢
+## 🙏 Acknowledgements
 
-本项目参考并使用了以下开源项目：
-- [Coraza](https://github.com/corazawaf/coraza) - WAF 引擎
-- [lego](https://github.com/go-acme/lego) - Let's Encrypt 客户端
-- [SamWaf](https://github.com/samwafgo/SamWaf) - 架构参考
+* [Nginx](https://nginx.org/)
+* [Go-ACME/Lego](https://github.com/go-acme/lego)
+* [Coraza WAF](https://coraza.io/)
