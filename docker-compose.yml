@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  senix:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: senix-gateway:latest
+    container_name: senix-gateway
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - ./data/db:/opt/senix/data/db
+      - ./data/certs:/opt/senix/data/certs
+      - ./data/configs:/opt/senix/data/configs
+      - ./logs:/opt/senix/logs
+    environment:
+      - TZ=Asia/Shanghai
