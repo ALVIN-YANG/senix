@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+.github
+
+# Build output
+bin/
+data/
+logs/
+senix
+
+# Go
+vendor/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Node/Frontend
+web/node_modules/
+web/dist/
+web/.cache/
+web/build/
+web_old/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store

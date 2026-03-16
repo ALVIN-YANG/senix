@@ -7,6 +7,8 @@
 
   [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat-square&logo=go)](https://golang.org/)
   [![React Version](https://img.shields.io/badge/React-18.2+-61DAFB?style=flat-square&logo=react)](https://reactjs.org/)
+  [![Go CI](https://github.com/ALVIN-YANG/senix/actions/workflows/backend.yml/badge.svg)](https://github.com/ALVIN-YANG/senix/actions/workflows/backend.yml)
+  [![React CI](https://github.com/ALVIN-YANG/senix/actions/workflows/frontend.yml/badge.svg)](https://github.com/ALVIN-YANG/senix/actions/workflows/frontend.yml)
   [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
   [![Nginx](https://img.shields.io/badge/Nginx-1.24+-009639?style=flat-square&logo=nginx)](https://nginx.org/)
 
