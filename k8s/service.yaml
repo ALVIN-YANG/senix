@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: senix
+spec:
+  type: LoadBalancer
+  selector:
+    app: senix
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+    - protocol: TCP
+      port: 443
+      targetPort: 8443
