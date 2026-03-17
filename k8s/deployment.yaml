@@ -19,6 +19,18 @@ spec:
           image: senix-gateway:latest
           ports:
             - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
           env:
             - name: CONFIG_PATH
               value: "/opt/senix/configs/config.yaml"
