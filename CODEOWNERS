@@ -1,0 +1,9 @@
+# Global maintainers
+* @ALVIN-YANG
+
+# Documentation and frontend
+/docs/** @ALVIN-YANG
+web/** @ALVIN-YANG
+
+# Backend
+**/*.go @ALVIN-YANG
