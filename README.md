@@ -8,9 +8,7 @@
   <img src="https://img.shields.io/badge/license-Apache--2.0-67777b" alt="Apache-2.0 license">
 </p>
 
-Senix 是一个面向个人开发者和小团队的独立 Rust 网关。一个二进制同时承载 Pingora 数据面、SQLite 控制面、REST、无会话 MCP 和嵌入式管理后台，不依赖 Nginx 或外部数据库。
-
-它只管理网关该管的事：安全变更、实例流量和诊断证据。SSH、Docker、Kubernetes 和实际部署仍由用户或外部脚本控制。
+Senix 是一个面向个人开发者和小团队的独立 Rust 网关。一个二进制同时承载 Pingora 数据面、SQLite 控制面、REST、无会话 MCP 和嵌入式管理后台，不依赖 Nginx 或外部数据库。它管理安全变更、实例流量和诊断证据；SSH、Docker、Kubernetes 和实际部署仍由用户或外部脚本控制。
 
 > [!IMPORTANT]
 > 当前是可运行的 `v0.1` 纵切，不是完整生产发布版。已经实现的能力和暂不支持的范围都列在下方。
@@ -24,12 +22,6 @@ Senix 是一个面向个人开发者和小团队的独立 Rust 网关。一个�
 | 安全改配置 | 不可修改的 Change Plan、结构化差异、15 分钟 Owner 批准、原子 Snapshot 发布、回滚计划 |
 | 一个人管理 | Owner 控制台、受限 API Key、操作审计、实例维护控制舱、请求证据链 |
 | AI 协作 | 无会话 Streamable HTTP MCP；工具按 Key 权限裁剪，调用时再次授权 |
-
-### 这套边界解决什么
-
-- **部署脚本决定部署，Senix 只控制流量。** 脚本先摘流并等待旧请求结束，完成部署后再按新代次回接。Senix 不会擅自执行发布，也不会自动扩大灰度流量。
-- **AI 得到任务工具，不得到服务器 Shell。** REST、管理后台和 MCP 共用一套身份、授权、领域操作和审计规则。
-- **数据面不依赖控制面查询。** 请求只读取已发布的不可变运行快照，不在热路径访问 SQLite。
 
 ## 怎么工作
 
@@ -197,13 +189,7 @@ MCP 没有批准工具，也不能修改已生成计划。
 
 Streamable HTTP MCP 位于 `http://127.0.0.1:9080/mcp`。每个请求都使用管理后台生成的 Bearer Key；MCP 不接受浏览器 Cookie，也不保存协议会话。
 
-当前工具覆盖：
-
-- 实例列表、健康与摘流状态；
-- 摘流、回接、权重和禁用；
-- 请求诊断；
-- 配置规划、回滚规划、变更读取和应用已批准计划；
-- 审计读取。
+当前工具覆盖实例查询与流量控制、请求诊断、配置与回滚规划、应用已批准计划和审计读取。
 
 工具清单会按 Key 的动作和实例范围裁剪，实际调用仍会再次授权。MCP 不提供 Key 创建、计划批准、Shell、SSH、Docker 或 Kubernetes 工具。
 
@@ -239,7 +225,7 @@ senixd \
 - 被动健康信号、MCP stdio 桥、插件 Adapter、安装器和正式发布包尚未实现。
 - HTTP/3 不在当前 Pingora 数据面能力内。
 
-这些限制不会隐藏在路线图里。详细取舍和后续候选范围见 [需求文档](./docs/requirements.md)。
+详细取舍和后续候选范围见 [需求文档](./docs/requirements.md)。
 
 ## 仓库结构
 
@@ -262,11 +248,11 @@ cargo test --workspace --locked
 docker build --check .
 ```
 
-端到端测试会启动真实 HTTP 后端和 `senixd` 子进程，覆盖 Pingora 代理、持久化摘流、重启恢复、主动健康检查、Owner 会话、Key 范围与撤销、审计、MCP 能力裁剪、精确批准后应用和幂等重放。
+端到端测试使用真实 HTTP 后端和 `senixd` 子进程，覆盖代理、流量控制、健康检查、鉴权、审计、MCP 和批准应用。
 
 ## 参与开发
 
-提交前请阅读 [CONTRIBUTING.md](./CONTRIBUTING.md) 和 [SECURITY.md](./SECURITY.md)。问题报告与改动应保留 Senix 的核心边界：网关负责流量与证据，外部系统负责实际部署。
+提交前请阅读 [CONTRIBUTING.md](./CONTRIBUTING.md) 和 [SECURITY.md](./SECURITY.md)。
 
 ## License
 

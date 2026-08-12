@@ -1,0 +1,32 @@
+name: Feature request
+description: Propose a focused improvement to Senix
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem should Senix solve?
+      description: Describe the gateway or control-plane problem, not only the desired implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Include the operator workflow, authorization boundary, and expected failure behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Explain whether an external script, deployment platform, or adapter can already handle this need.
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: Project boundary
+      options:
+        - label: This request keeps actual deployment and server shell access outside Senix.
+          required: true
