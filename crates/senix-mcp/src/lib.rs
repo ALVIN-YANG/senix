@@ -1,0 +1,527 @@
+//! MCP Adapter for the Senix control-plane Modules.
+
+use std::sync::Arc;
+
+use http::request::Parts;
+use rmcp::{
+    ErrorData, RoleServer, ServerHandler,
+    handler::server::{router::tool::ToolRouter, tool::Extension, wrapper::Parameters},
+    model::{
+        CacheScope, CallToolResult, ListToolsResult, PaginatedRequestParams, ProtocolVersion,
+        ResultType,
+    },
+    schemars,
+    service::RequestContext,
+    tool, tool_handler, tool_router,
+    transport::streamable_http_server::{
+        StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
+    },
+};
+use senix_core::{
+    AuditOutcome, ConfigEngine, DiagnosticEngine, DrainOptions, Error, GatewayConfig,
+    ManagementAction, Principal, ResourceRef, Result as SenixResult, RiskLevel, SecurityController,
+    TrafficController,
+};
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+
+#[derive(Clone)]
+pub struct McpModules {
+    pub traffic: Arc<TrafficController>,
+    pub config: Arc<ConfigEngine>,
+    pub diagnostics: DiagnosticEngine,
+    pub security: Arc<SecurityController>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct McpHttpOptions {
+    /// Extra Host header values accepted in addition to localhost and loopback addresses.
+    pub allowed_hosts: Vec<String>,
+    /// Browser Origin values accepted by the MCP endpoint. Non-browser clients usually omit it.
+    pub allowed_origins: Vec<String>,
+}
+
+#[derive(Clone)]
+pub struct SenixMcp {
+    modules: McpModules,
+    tool_router: ToolRouter<Self>,
+}
+
+impl SenixMcp {
+    #[must_use]
+    pub fn new(modules: McpModules) -> Self {
+        Self {
+            modules,
+            tool_router: Self::tool_router(),
+        }
+    }
+
+    fn tool_visible(&self, principal: &Principal, name: &str) -> bool {
+        let action = match name {
+            "list_instances" | "get_instance_health" | "get_drain_status" => {
+                ManagementAction::InstanceRead
+            }
+            "drain_instance" => ManagementAction::InstanceDrain,
+            "rejoin_instance" => ManagementAction::InstanceRejoin,
+            "set_instance_weight" => ManagementAction::InstanceSetWeight,
+            "disable_instance" => ManagementAction::InstanceDisable,
+            "diagnose_request" => {
+                return self.modules.security.allows(
+                    principal,
+                    ManagementAction::DiagnosticsRead,
+                    &ResourceRef::Global,
+                );
+            }
+            "plan_change" => {
+                return self.modules.security.allows(
+                    principal,
+                    ManagementAction::ChangePlan,
+                    &ResourceRef::Global,
+                );
+            }
+            "list_audit_events" => {
+                return self.modules.security.allows(
+                    principal,
+                    ManagementAction::AuditRead,
+                    &ResourceRef::Global,
+                );
+            }
+            _ => return false,
+        };
+        self.modules
+            .traffic
+            .list_instances()
+            .iter()
+            .any(|instance| {
+                self.modules.security.allows(
+                    principal,
+                    action,
+                    &ResourceRef::Instance(instance.id.clone()),
+                )
+            })
+    }
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct InstanceParams {
+    /// Stable Senix instance identifier, not an IP address.
+    instance_id: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct OperationParams {
+    /// Operation identifier returned by `drain_instance`.
+    operation_id: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct DrainParams {
+    /// Stable Senix instance identifier.
+    instance_id: String,
+    /// Maximum time to wait for ordinary in-flight requests.
+    #[serde(default = "default_drain_timeout_ms")]
+    timeout_ms: u64,
+    /// Explicitly bypass last-backend protection. Existing connections are never terminated.
+    #[serde(default)]
+    force: bool,
+    /// Caller-generated key used to make retries return the same operation.
+    idempotency_key: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct RejoinParams {
+    instance_id: String,
+    /// New deployment generation; must be greater than the previous generation.
+    generation: u64,
+    weight: u32,
+    #[serde(default)]
+    force: bool,
+    idempotency_key: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct WeightParams {
+    instance_id: String,
+    weight: u32,
+    idempotency_key: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct DisableParams {
+    instance_id: String,
+    idempotency_key: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct DiagnoseParams {
+    host: String,
+    path: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct PlanChangeParams {
+    /// Complete candidate `GatewayConfig` JSON object.
+    candidate: serde_json::Value,
+}
+
+#[tool_router(router = tool_router)]
+impl SenixMcp {
+    #[tool(description = "List only the gateway instances visible to this Credential.")]
+    async fn list_instances(&self, Extension(parts): Extension<Parts>) -> CallToolResult {
+        let result = (|| {
+            let principal = principal(&parts)?;
+            Ok(self
+                .modules
+                .traffic
+                .list_instances()
+                .into_iter()
+                .filter(|instance| {
+                    self.modules.security.allows(
+                        &principal,
+                        ManagementAction::InstanceRead,
+                        &ResourceRef::Instance(instance.id.clone()),
+                    )
+                })
+                .collect::<Vec<_>>())
+        })();
+        domain_result(result)
+    }
+
+    #[tool(
+        description = "Get traffic, health, generation, weight and in-flight state for one instance."
+    )]
+    async fn get_instance_health(
+        &self,
+        Parameters(input): Parameters<InstanceParams>,
+        Extension(parts): Extension<Parts>,
+    ) -> CallToolResult {
+        let result = (|| {
+            let principal = principal(&parts)?;
+            self.modules.security.authorize(
+                &principal,
+                ManagementAction::InstanceRead,
+                &ResourceRef::Instance(input.instance_id.clone()),
+            )?;
+            self.modules.traffic.status(&input.instance_id)
+        })();
+        domain_result(result)
+    }
+
+    #[tool(
+        description = "Stop assigning new requests to an instance and start a bounded drain operation."
+    )]
+    async fn drain_instance(
+        &self,
+        Parameters(input): Parameters<DrainParams>,
+        Extension(parts): Extension<Parts>,
+    ) -> CallToolResult {
+        let result = (|| {
+            let principal = principal(&parts)?;
+            let resource = ResourceRef::Instance(input.instance_id.clone());
+            self.modules.security.authorize(
+                &principal,
+                ManagementAction::InstanceDrain,
+                &resource,
+            )?;
+            let operation = self.modules.traffic.begin_drain(
+                &input.instance_id,
+                DrainOptions {
+                    force: input.force,
+                    timeout_ms: input.timeout_ms,
+                },
+                &input.idempotency_key,
+            )?;
+            self.modules.security.record_action(
+                &principal,
+                ManagementAction::InstanceDrain.as_str(),
+                &resource,
+                AuditOutcome::Succeeded,
+                if input.force {
+                    RiskLevel::High
+                } else {
+                    RiskLevel::Medium
+                },
+                json!({"operation_id": operation.operation_id, "force": input.force}),
+            )?;
+            Ok(operation)
+        })();
+        domain_result(result)
+    }
+
+    #[tool(description = "Read the latest durable state of a drain operation.")]
+    async fn get_drain_status(
+        &self,
+        Parameters(input): Parameters<OperationParams>,
+        Extension(parts): Extension<Parts>,
+    ) -> CallToolResult {
+        let result = (|| {
+            let principal = principal(&parts)?;
+            let operation = self.modules.traffic.drain_status(&input.operation_id)?;
+            self.modules.security.authorize(
+                &principal,
+                ManagementAction::InstanceRead,
+                &ResourceRef::Instance(operation.instance_id.clone()),
+            )?;
+            Ok(operation)
+        })();
+        domain_result(result)
+    }
+
+    #[tool(
+        description = "Return a fully drained instance as a strictly newer deployment generation."
+    )]
+    async fn rejoin_instance(
+        &self,
+        Parameters(input): Parameters<RejoinParams>,
+        Extension(parts): Extension<Parts>,
+    ) -> CallToolResult {
+        let result = (|| {
+            let principal = principal(&parts)?;
+            let resource = ResourceRef::Instance(input.instance_id.clone());
+            self.modules.security.authorize(
+                &principal,
+                ManagementAction::InstanceRejoin,
+                &resource,
+            )?;
+            let instance = self.modules.traffic.rejoin(
+                &input.instance_id,
+                input.generation,
+                input.weight,
+                input.force,
+                &input.idempotency_key,
+            )?;
+            self.modules.security.record_action(
+                &principal,
+                ManagementAction::InstanceRejoin.as_str(),
+                &resource,
+                AuditOutcome::Succeeded,
+                if input.force {
+                    RiskLevel::High
+                } else {
+                    RiskLevel::Medium
+                },
+                json!({"generation": input.generation, "force": input.force}),
+            )?;
+            Ok(instance)
+        })();
+        domain_result(result)
+    }
+
+    #[tool(description = "Set the share of new requests assigned to a serving instance.")]
+    async fn set_instance_weight(
+        &self,
+        Parameters(input): Parameters<WeightParams>,
+        Extension(parts): Extension<Parts>,
+    ) -> CallToolResult {
+        let result = (|| {
+            let principal = principal(&parts)?;
+            let resource = ResourceRef::Instance(input.instance_id.clone());
+            self.modules.security.authorize(
+                &principal,
+                ManagementAction::InstanceSetWeight,
+                &resource,
+            )?;
+            let instance = self.modules.traffic.set_weight(
+                &input.instance_id,
+                input.weight,
+                &input.idempotency_key,
+            )?;
+            self.modules.security.record_action(
+                &principal,
+                ManagementAction::InstanceSetWeight.as_str(),
+                &resource,
+                AuditOutcome::Succeeded,
+                RiskLevel::Medium,
+                json!({"weight": input.weight}),
+            )?;
+            Ok(instance)
+        })();
+        domain_result(result)
+    }
+
+    #[tool(description = "Keep an instance out of selection until an explicit rejoin.")]
+    async fn disable_instance(
+        &self,
+        Parameters(input): Parameters<DisableParams>,
+        Extension(parts): Extension<Parts>,
+    ) -> CallToolResult {
+        let result = (|| {
+            let principal = principal(&parts)?;
+            let resource = ResourceRef::Instance(input.instance_id.clone());
+            self.modules.security.authorize(
+                &principal,
+                ManagementAction::InstanceDisable,
+                &resource,
+            )?;
+            let instance = self
+                .modules
+                .traffic
+                .disable(&input.instance_id, &input.idempotency_key)?;
+            self.modules.security.record_action(
+                &principal,
+                ManagementAction::InstanceDisable.as_str(),
+                &resource,
+                AuditOutcome::Succeeded,
+                RiskLevel::High,
+                json!({}),
+            )?;
+            Ok(instance)
+        })();
+        domain_result(result)
+    }
+
+    #[tool(
+        description = "Explain route matching and backend eligibility using current runtime evidence."
+    )]
+    async fn diagnose_request(
+        &self,
+        Parameters(input): Parameters<DiagnoseParams>,
+        Extension(parts): Extension<Parts>,
+    ) -> CallToolResult {
+        let result = (|| {
+            let principal = principal(&parts)?;
+            self.modules.security.authorize(
+                &principal,
+                ManagementAction::DiagnosticsRead,
+                &ResourceRef::Global,
+            )?;
+            Ok(self.modules.diagnostics.diagnose(&input.host, &input.path))
+        })();
+        domain_result(result)
+    }
+
+    #[tool(
+        description = "Validate a complete candidate config and return a version-bound diff without applying it."
+    )]
+    async fn plan_change(
+        &self,
+        Parameters(input): Parameters<PlanChangeParams>,
+        Extension(parts): Extension<Parts>,
+    ) -> CallToolResult {
+        let result = (|| {
+            let principal = principal(&parts)?;
+            self.modules.security.authorize(
+                &principal,
+                ManagementAction::ChangePlan,
+                &ResourceRef::Global,
+            )?;
+            let candidate: GatewayConfig =
+                serde_json::from_value(input.candidate).map_err(|error| {
+                    Error::InvalidState(format!("candidate config is invalid: {error}"))
+                })?;
+            self.modules.config.plan(candidate)
+        })();
+        domain_result(result)
+    }
+
+    #[tool(description = "List immutable, secret-free management audit events.")]
+    async fn list_audit_events(&self, Extension(parts): Extension<Parts>) -> CallToolResult {
+        let result = (|| {
+            let principal = principal(&parts)?;
+            self.modules.security.list_audit(&principal)
+        })();
+        domain_result(result)
+    }
+}
+
+#[tool_handler(
+    router = self.tool_router,
+    name = "senix",
+    version = "0.1.0",
+    instructions = "Manage Senix gateway traffic through scoped, audited tools. Never executes deployment commands."
+)]
+impl ServerHandler for SenixMcp {
+    async fn list_tools(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        context: RequestContext<RoleServer>,
+    ) -> std::result::Result<ListToolsResult, ErrorData> {
+        let principal = context
+            .extensions
+            .get::<Parts>()
+            .and_then(|parts| parts.extensions.get::<Principal>())
+            .ok_or_else(|| ErrorData::invalid_request("management credential is required", None))?;
+        let tools = self
+            .tool_router
+            .list_all()
+            .into_iter()
+            .filter(|tool| self.tool_visible(principal, &tool.name))
+            .collect();
+        let supports_cache_hints = context
+            .protocol_version()
+            .is_some_and(|version| version >= ProtocolVersion::V_2026_07_28);
+        Ok(ListToolsResult {
+            result_type: Some(ResultType::COMPLETE),
+            tools,
+            meta: None,
+            next_cursor: None,
+            ttl_ms: supports_cache_hints.then_some(0),
+            cache_scope: supports_cache_hints.then_some(CacheScope::Private),
+        })
+    }
+}
+
+pub type SenixMcpService = StreamableHttpService<SenixMcp, LocalSessionManager>;
+
+#[must_use]
+pub fn streamable_http_service(modules: McpModules) -> SenixMcpService {
+    streamable_http_service_with_options(modules, &McpHttpOptions::default())
+}
+
+#[must_use]
+pub fn streamable_http_service_with_options(
+    modules: McpModules,
+    options: &McpHttpOptions,
+) -> SenixMcpService {
+    let mut config = StreamableHttpServerConfig::default()
+        .with_legacy_session_mode(false)
+        .with_json_response(true);
+    if !options.allowed_hosts.is_empty() {
+        let mut hosts = config.allowed_hosts.clone();
+        hosts.extend(options.allowed_hosts.iter().cloned());
+        hosts.sort();
+        hosts.dedup();
+        config = config.with_allowed_hosts(hosts);
+    }
+    if !options.allowed_origins.is_empty() {
+        config = config.with_allowed_origins(options.allowed_origins.iter().cloned());
+    }
+    StreamableHttpService::new(
+        move || Ok(SenixMcp::new(modules.clone())),
+        Arc::<LocalSessionManager>::default(),
+        config,
+    )
+}
+
+fn principal(parts: &Parts) -> SenixResult<Principal> {
+    parts
+        .extensions
+        .get::<Principal>()
+        .cloned()
+        .ok_or(Error::AuthenticationRequired)
+}
+
+fn domain_result<T>(result: SenixResult<T>) -> CallToolResult
+where
+    T: Serialize,
+{
+    match result {
+        Ok(value) => match serde_json::to_value(value) {
+            Ok(value) => CallToolResult::structured(value),
+            Err(_) => CallToolResult::structured_error(json!({
+                "code": "INTERNAL_ERROR",
+                "message": "failed to serialize tool result",
+                "evidence": {}
+            })),
+        },
+        Err(error) => CallToolResult::structured_error(json!({
+            "code": error.code(),
+            "message": error.public_message(),
+            "evidence": error.evidence(),
+        })),
+    }
+}
+
+const fn default_drain_timeout_ms() -> u64 {
+    60_000
+}

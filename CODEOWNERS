@@ -1,9 +1,8 @@
 # Global maintainers
 * @ALVIN-YANG
 
-# Documentation and frontend
+# Documentation
 /docs/** @ALVIN-YANG
-web/** @ALVIN-YANG
 
-# Backend
-**/*.go @ALVIN-YANG
+# Rust gateway
+/crates/** @ALVIN-YANG

@@ -1,0 +1,38 @@
+{
+  "routes": [
+    {
+      "id": "route-main",
+      "host": "example.test",
+      "path_prefix": "/",
+      "backends": [
+        {
+          "id": "instance-a",
+          "address": "127.0.0.1:4101",
+          "generation": 1,
+          "weight": 100,
+          "health_check": {
+            "protocol": "http",
+            "path": "/health",
+            "interval_ms": 5000,
+            "timeout_ms": 1000,
+            "healthy_threshold": 2,
+            "unhealthy_threshold": 3
+          }
+        },
+        {
+          "id": "instance-b",
+          "address": "127.0.0.1:4102",
+          "generation": 1,
+          "weight": 100,
+          "health_check": {
+            "protocol": "tcp",
+            "interval_ms": 5000,
+            "timeout_ms": 1000,
+            "healthy_threshold": 2,
+            "unhealthy_threshold": 3
+          }
+        }
+      ]
+    }
+  ]
+}

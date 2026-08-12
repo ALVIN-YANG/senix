@@ -1,25 +1,21 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { resolve } from 'path'
+import { resolve } from "node:path";
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
+  base: "/admin/",
   plugins: [react()],
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, 'src')
-    }
-  },
-  server: {
-    port: 3000,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true
+  publicDir: false,
+  build: {
+    outDir: "../crates/senixd/assets",
+    emptyOutDir: false,
+    rollupOptions: {
+      input: { admin: resolve(import.meta.dirname, "admin.html") },
+      output: {
+        entryFileNames: "admin.js",
+        chunkFileNames: "admin-[name].js",
+        assetFileNames: "admin-[name][extname]"
       }
     }
-  },
-  build: {
-    outDir: 'dist',
-    assetsDir: 'assets'
   }
-})
+});
