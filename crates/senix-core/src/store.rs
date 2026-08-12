@@ -4,7 +4,7 @@ use parking_lot::Mutex;
 use rusqlite::{Connection, OptionalExtension, Row, params, types::Type};
 
 use crate::{
-    AuditEvent, AuditOutcome, CredentialKind, CredentialSummary, DrainOperation, Error,
+    AuditEvent, AuditOutcome, ChangePlan, CredentialKind, CredentialSummary, DrainOperation, Error,
     GatewayConfig, HealthState, InstanceState, PersistedInstanceState, Result, RiskLevel,
     TrafficState,
     security::{StoredCredential, StoredOwnerAccount},
@@ -114,6 +114,38 @@ pub trait ConfigStateStore: InstanceStateStore {
     /// Returns an error when serialization fails, the version is out of range, or storage rejects
     /// the write.
     fn save_config(&self, version: u64, config: &GatewayConfig) -> Result<()>;
+    /// Inserts one immutable Change Plan.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when serialization fails or storage rejects the insert.
+    fn save_change(&self, change: &ChangePlan) -> Result<()>;
+    /// Loads one Change Plan by its stable identifier.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when storage cannot be read or contains invalid data.
+    fn change(&self, change_id: uuid::Uuid) -> Result<Option<ChangePlan>>;
+    /// Lists Change Plans newest first.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when storage cannot be read or contains invalid data.
+    fn list_changes(&self) -> Result<Vec<ChangePlan>>;
+    /// Replaces mutable lifecycle metadata for an existing immutable Change Plan.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the plan does not exist, serialization fails, or storage rejects the
+    /// update.
+    fn update_change(&self, change: &ChangePlan) -> Result<()>;
+    /// Atomically inserts the new Snapshot and marks its approved Change Plan as applied.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when serialization fails, the version is invalid, the plan does not
+    /// exist, or storage rejects the transaction.
+    fn commit_config_change(&self, version: u64, change: &ChangePlan) -> Result<()>;
 }
 
 pub struct SqliteStateStore {
@@ -163,6 +195,14 @@ impl SqliteStateStore {
                  config_json TEXT NOT NULL,
                  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
              );
+             CREATE TABLE IF NOT EXISTS change_plans (
+                 change_id TEXT PRIMARY KEY,
+                 status TEXT NOT NULL,
+                 created_at_ms INTEGER NOT NULL,
+                 plan_json TEXT NOT NULL
+             );
+             CREATE INDEX IF NOT EXISTS change_plans_created
+                 ON change_plans(created_at_ms DESC, change_id DESC);
              CREATE TABLE IF NOT EXISTS credentials (
                  id TEXT PRIMARY KEY,
                  label TEXT NOT NULL,
@@ -939,6 +979,95 @@ impl ConfigStateStore for SqliteStateStore {
             params![sqlite_version(version)?, serde_json::to_string(config)?],
         )?;
         Ok(())
+    }
+
+    fn save_change(&self, change: &ChangePlan) -> Result<()> {
+        self.connection.lock().execute(
+            "INSERT INTO change_plans (change_id, status, created_at_ms, plan_json)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![
+                change.change_id.to_string(),
+                change_status_name(change.status),
+                change.created_at_ms,
+                serde_json::to_string(change)?,
+            ],
+        )?;
+        Ok(())
+    }
+
+    fn change(&self, change_id: uuid::Uuid) -> Result<Option<ChangePlan>> {
+        let json = self
+            .connection
+            .lock()
+            .query_row(
+                "SELECT plan_json FROM change_plans WHERE change_id = ?1",
+                [change_id.to_string()],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        json.map(|json| serde_json::from_str(&json).map_err(Error::from))
+            .transpose()
+    }
+
+    fn list_changes(&self) -> Result<Vec<ChangePlan>> {
+        let connection = self.connection.lock();
+        let mut statement = connection.prepare(
+            "SELECT plan_json FROM change_plans ORDER BY created_at_ms DESC, change_id DESC",
+        )?;
+        let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
+        let mut changes = Vec::new();
+        for row in rows {
+            changes.push(serde_json::from_str(&row?)?);
+        }
+        Ok(changes)
+    }
+
+    fn update_change(&self, change: &ChangePlan) -> Result<()> {
+        let changed = self.connection.lock().execute(
+            "UPDATE change_plans SET status = ?2, plan_json = ?3 WHERE change_id = ?1",
+            params![
+                change.change_id.to_string(),
+                change_status_name(change.status),
+                serde_json::to_string(change)?,
+            ],
+        )?;
+        if changed == 0 {
+            return Err(Error::ChangeNotFound(change.change_id.to_string()));
+        }
+        Ok(())
+    }
+
+    fn commit_config_change(&self, version: u64, change: &ChangePlan) -> Result<()> {
+        let mut connection = self.connection.lock();
+        let transaction = connection.transaction()?;
+        transaction.execute(
+            "INSERT INTO config_snapshots (version, config_json) VALUES (?1, ?2)",
+            params![
+                sqlite_version(version)?,
+                serde_json::to_string(&change.candidate)?,
+            ],
+        )?;
+        let changed = transaction.execute(
+            "UPDATE change_plans SET status = ?2, plan_json = ?3 WHERE change_id = ?1",
+            params![
+                change.change_id.to_string(),
+                change_status_name(change.status),
+                serde_json::to_string(change)?,
+            ],
+        )?;
+        if changed == 0 {
+            return Err(Error::ChangeNotFound(change.change_id.to_string()));
+        }
+        transaction.commit()?;
+        Ok(())
+    }
+}
+
+const fn change_status_name(status: crate::ChangeStatus) -> &'static str {
+    match status {
+        crate::ChangeStatus::Planned => "PLANNED",
+        crate::ChangeStatus::Approved => "APPROVED",
+        crate::ChangeStatus::Applied => "APPLIED",
     }
 }
 

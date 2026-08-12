@@ -151,6 +151,7 @@ impl From<senix_core::Error> for ApiError {
             senix_core::Error::InstanceNotFound(_)
             | senix_core::Error::DrainOperationNotFound(_)
             | senix_core::Error::SnapshotNotFound(_)
+            | senix_core::Error::ChangeNotFound(_)
             | senix_core::Error::CredentialNotFound(_)
             | senix_core::Error::RouteNotFound { .. } => StatusCode::NOT_FOUND,
             senix_core::Error::CredentialAlreadyInitialized
@@ -158,7 +159,9 @@ impl From<senix_core::Error> for ApiError {
             | senix_core::Error::OwnerAccountNotInitialized
             | senix_core::Error::OwnerCredentialNotInitialized
             | senix_core::Error::LastAvailableBackend { .. }
-            | senix_core::Error::StalePlan => StatusCode::CONFLICT,
+            | senix_core::Error::StalePlan
+            | senix_core::Error::ChangeApprovalRequired(_)
+            | senix_core::Error::ChangeApprovalExpired(_) => StatusCode::CONFLICT,
             senix_core::Error::InvalidConfig | senix_core::Error::InvalidState(_) => {
                 StatusCode::UNPROCESSABLE_ENTITY
             }
@@ -267,8 +270,7 @@ fn main() -> Result<()> {
         let candidate: GatewayConfig =
             serde_json::from_slice(&fs::read(path).context("read bootstrap config")?)
                 .context("parse bootstrap config")?;
-        let plan = config.plan(candidate)?;
-        config.apply(plan)?;
+        config.initialize(candidate)?;
     }
 
     let traffic = Arc::new(TrafficController::new(
@@ -397,7 +399,16 @@ fn admin_router(state: AppState) -> Router {
         .route("/api/v1/instances/{id}/weight", patch(set_weight))
         .route("/api/v1/instances/{id}/disable", post(disable))
         .route("/api/v1/diagnostics/requests", post(diagnose))
+        .route("/api/v1/config", get(current_config))
+        .route("/api/v1/changes", get(list_changes))
         .route("/api/v1/changes/plan", post(plan_change))
+        .route("/api/v1/changes/{id}", get(get_change))
+        .route("/api/v1/changes/{id}/approve", post(approve_change))
+        .route("/api/v1/changes/{id}/apply", post(apply_change))
+        .route(
+            "/api/v1/snapshots/{version}/rollback-plan",
+            post(plan_rollback),
+        )
         .route(
             "/api/v1/credentials",
             get(list_credentials).post(issue_credential),
@@ -818,13 +829,136 @@ async fn plan_change(
     State(state): State<AppState>,
     Extension(principal): Extension<Principal>,
     Json(candidate): Json<GatewayConfig>,
-) -> Result<Json<ChangePlan>, ApiError> {
+) -> Result<(StatusCode, Json<ChangePlan>), ApiError> {
     state.security.authorize(
         &principal,
         ManagementAction::ChangePlan,
         &ResourceRef::Global,
     )?;
-    Ok(Json(state.config.plan(candidate)?))
+    let plan = state.config.plan(candidate, &principal)?;
+    state.security.record_action(
+        &principal,
+        ManagementAction::ChangePlan.as_str(),
+        &ResourceRef::Global,
+        AuditOutcome::Succeeded,
+        RiskLevel::Low,
+        json!({
+            "change_id": plan.change_id,
+            "candidate_digest": plan.candidate_digest,
+            "issue_count": plan.issues.len()
+        }),
+    )?;
+    Ok((StatusCode::CREATED, Json(plan)))
+}
+
+async fn list_changes(
+    State(state): State<AppState>,
+    Extension(principal): Extension<Principal>,
+) -> Result<Json<Vec<ChangePlan>>, ApiError> {
+    state.security.authorize(
+        &principal,
+        ManagementAction::ChangeRead,
+        &ResourceRef::Global,
+    )?;
+    Ok(Json(state.config.list_changes()?))
+}
+
+async fn current_config(
+    State(state): State<AppState>,
+    Extension(principal): Extension<Principal>,
+) -> Result<Json<senix_core::ConfigSnapshot>, ApiError> {
+    state.security.authorize(
+        &principal,
+        ManagementAction::ChangeRead,
+        &ResourceRef::Global,
+    )?;
+    let snapshot = state.config.current()?.ok_or_else(|| {
+        senix_core::Error::InvalidState("configuration is not initialized".into())
+    })?;
+    Ok(Json(snapshot))
+}
+
+async fn get_change(
+    State(state): State<AppState>,
+    Path(id): Path<uuid::Uuid>,
+    Extension(principal): Extension<Principal>,
+) -> Result<Json<ChangePlan>, ApiError> {
+    state.security.authorize(
+        &principal,
+        ManagementAction::ChangeRead,
+        &ResourceRef::Global,
+    )?;
+    let change = state
+        .config
+        .change(id)?
+        .ok_or_else(|| senix_core::Error::ChangeNotFound(id.to_string()))?;
+    Ok(Json(change))
+}
+
+async fn approve_change(
+    State(state): State<AppState>,
+    Path(id): Path<uuid::Uuid>,
+    Extension(principal): Extension<Principal>,
+) -> Result<Json<ChangePlan>, ApiError> {
+    state.security.authorize(
+        &principal,
+        ManagementAction::ChangeApprove,
+        &ResourceRef::Global,
+    )?;
+    let change = state.config.approve(id, &principal)?;
+    state.security.record_action(
+        &principal,
+        ManagementAction::ChangeApprove.as_str(),
+        &ResourceRef::Global,
+        AuditOutcome::Succeeded,
+        RiskLevel::High,
+        json!({"change_id": id, "candidate_digest": change.candidate_digest}),
+    )?;
+    Ok(Json(change))
+}
+
+async fn apply_change(
+    State(state): State<AppState>,
+    Path(id): Path<uuid::Uuid>,
+    Extension(principal): Extension<Principal>,
+) -> Result<Json<senix_core::AppliedChange>, ApiError> {
+    state.security.authorize(
+        &principal,
+        ManagementAction::ChangeApply,
+        &ResourceRef::Global,
+    )?;
+    let applied = state.config.apply(id, &principal)?;
+    state.security.record_action(
+        &principal,
+        ManagementAction::ChangeApply.as_str(),
+        &ResourceRef::Global,
+        AuditOutcome::Succeeded,
+        RiskLevel::High,
+        json!({"change_id": id, "snapshot_version": applied.version}),
+    )?;
+    Ok(Json(applied))
+}
+
+async fn plan_rollback(
+    State(state): State<AppState>,
+    Path(version): Path<u64>,
+    Extension(principal): Extension<Principal>,
+) -> Result<(StatusCode, Json<ChangePlan>), ApiError> {
+    state.security.authorize(
+        &principal,
+        ManagementAction::ChangePlan,
+        &ResourceRef::Global,
+    )?;
+    let plan = state.config.plan_rollback(version, &principal)?;
+    state.security.record_action(
+        &principal,
+        "change.plan_rollback",
+        &ResourceRef::Global,
+        AuditOutcome::Succeeded,
+        RiskLevel::Low,
+        json!({"change_id": plan.change_id, "target_version": version}),
+    )?;
+    Ok((StatusCode::CREATED, Json(plan)))
 }
 
 async fn issue_credential(

@@ -9,6 +9,8 @@ const ACTIONS = [
   ["instance.disable", "禁用实例"],
   ["diagnostics.read", "运行诊断"],
   ["change.plan", "规划变更"],
+  ["change.read", "查看变更"],
+  ["change.apply", "应用已批准变更"],
   ["audit.read", "查看审计"]
 ];
 
@@ -106,7 +108,7 @@ function Sidebar({ owner, page, onPage, onLogout }) {
   return <aside className="sidebar">
     <div className="sidebar-brand"><BrandMark compact /><div><strong>Senix</strong><span>Control desk</span></div></div>
     <nav aria-label="控制台导航">
-      {[["overview", "流量状态", "状态", "1"], ["credentials", "访问 Key", "Key", "2"], ["audit", "审计记录", "审计", "3"]].map(([id, label, short, key]) =>
+      {[["overview", "流量状态", "状态", "1"], ["changes", "配置变更", "变更", "2"], ["credentials", "访问 Key", "Key", "3"], ["audit", "审计记录", "审计", "4"]].map(([id, label, short, key]) =>
         <button key={id} className={`nav-item${page === id ? " active" : ""}`} onClick={() => onPage(id)} type="button"><span data-short={short}>{label}</span><kbd>{key}</kbd></button>)}
     </nav>
     <div className="sidebar-foot">
@@ -141,6 +143,102 @@ function Overview({ instances }) {
   </section>;
 }
 
+function ChangeCard({ change, onAction, busy }) {
+  const stages = ["PLANNED", "APPROVED", "APPLIED"];
+  const reached = stages.indexOf(change.status);
+  const diffCount = change.diff.added_routes.length + change.diff.changed_routes.length + change.diff.removed_routes.length;
+  const approvalExpired = change.status === "APPROVED" && (!change.approval_expires_at_ms || change.approval_expires_at_ms <= Date.now());
+  return <article className="change-card">
+    <div className="approval-rail" aria-label={`变更状态 ${change.status}`}>
+      {stages.map((stage, index) => <span className={index <= reached ? "reached" : ""} key={stage}><i />{stage}</span>)}
+    </div>
+    <div className="change-body">
+      <div className="change-heading">
+        <div><strong>{change.kind === "ROLLBACK" ? `回滚至 Snapshot ${change.rollback_target_version}` : `Change ${change.change_id.slice(0, 8)}`}</strong><code>{change.candidate_digest.slice(0, 16)}…</code></div>
+        <div className="change-version">v{change.base_version} → {change.applied_version ? `v${change.applied_version}` : "待发布"}</div>
+      </div>
+      <p className="change-meta">{change.created_by.label} 创建于 {formatTime(change.created_at_ms)} · {diffCount} 个路由差异</p>
+      {change.status === "APPROVED" && <p className={`approval-expiry${approvalExpired ? " expired" : ""}`}>{approvalExpired ? "批准已过期，需由 Owner 重新批准" : `批准有效至 ${formatTime(change.approval_expires_at_ms)}`}</p>}
+      <div className="diff-pills">
+        {change.diff.added_routes.map((id) => <span className="diff-added" key={`a-${id}`}>+ {id}</span>)}
+        {change.diff.changed_routes.map((id) => <span className="diff-changed" key={`c-${id}`}>~ {id}</span>)}
+        {change.diff.removed_routes.map((id) => <span className="diff-removed" key={`r-${id}`}>− {id}</span>)}
+        {!diffCount && <span>配置内容未变化</span>}
+      </div>
+      {change.issues.length > 0 && <div className="issue-list" role="alert">{change.issues.map((issue) => <p key={`${issue.code}-${issue.message}`}><b>{issue.code}</b>{issue.message}</p>)}</div>}
+      <details><summary>查看完整候选配置</summary><pre>{JSON.stringify(change.candidate, null, 2)}</pre></details>
+      <div className="change-actions">
+        {change.status === "PLANNED" && change.issues.length === 0 && <button className="primary-button" disabled={busy} onClick={() => onAction(change, "approve")} type="button">批准这份内容</button>}
+        {change.status === "PLANNED" && change.issues.length > 0 && <span className="blocked-label">修正校验问题后重新规划</span>}
+        {change.status === "APPROVED" && approvalExpired && <button className="primary-button" disabled={busy} onClick={() => onAction(change, "approve")} type="button">重新批准这份内容</button>}
+        {change.status === "APPROVED" && !approvalExpired && <button className="primary-button" disabled={busy} onClick={() => onAction(change, "apply")} type="button">应用已批准计划</button>}
+        {change.status === "APPLIED" && change.base_version > 0 && <button className="quiet-button" disabled={busy} onClick={() => onAction(change, "rollback")} type="button">以 v{change.base_version} 创建回滚计划</button>}
+      </div>
+    </div>
+  </article>;
+}
+
+function Changes({ current, changes, onReload, notify }) {
+  const [candidate, setCandidate] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState("");
+
+  useEffect(() => {
+    if (current) setCandidate(JSON.stringify(current.config, null, 2));
+  }, [current?.version]);
+
+  async function plan(event) {
+    event.preventDefault();
+    let parsed;
+    try {
+      parsed = JSON.parse(candidate);
+    } catch {
+      setError("JSON 格式不正确，先修正后再规划。");
+      return;
+    }
+    setBusy("plan");
+    setError("");
+    try {
+      const change = await api("/api/v1/changes/plan", { method: "POST", body: parsed });
+      notify(change.issues.length ? `计划已保存，发现 ${change.issues.length} 个问题` : "变更计划已保存，等待批准");
+      await onReload();
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function action(change, name) {
+    setBusy(`${change.change_id}-${name}`);
+    try {
+      if (name === "rollback") {
+        await api(`/api/v1/snapshots/${change.base_version}/rollback-plan`, { method: "POST" });
+        notify(`已生成回滚到 v${change.base_version} 的计划，仍需批准`);
+      } else {
+        await api(`/api/v1/changes/${change.change_id}/${name}`, { method: "POST" });
+        notify(name === "approve" ? "计划已批准" : "已发布为新配置快照");
+      }
+      await onReload();
+    } catch (requestError) {
+      notify(requestError.message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  return <section className="page changes-page">
+    <div className="snapshot-banner"><div><span>当前 Snapshot</span><strong>v{current?.version ?? "—"}</strong></div><p>候选配置必须先生成不可修改的计划。批准只绑定计划中显示的摘要和完整内容。</p></div>
+    <form className="config-editor" onSubmit={plan}>
+      <div className="section-heading split"><div><h2>规划配置</h2><p>编辑完整配置只会生成计划，不会直接影响正在处理的流量。</p></div><button className="primary-button" disabled={Boolean(busy)} type="submit">{busy === "plan" ? "正在校验…" : "生成变更计划"}</button></div>
+      <textarea aria-label="完整候选配置 JSON" spellCheck="false" value={candidate} onChange={(event) => setCandidate(event.target.value)} />
+      <p className="form-error" role="alert">{error}</p>
+    </form>
+    <div className="section-heading"><div><h2>批准队列</h2><p>AI 和脚本可以规划；只有 Owner 可以批准；带 change.apply 的 Key 只能应用已经批准的精确计划。</p></div></div>
+    <div className="change-list">{changes.length ? changes.map((change) => <ChangeCard change={change} busy={Boolean(busy)} onAction={action} key={change.change_id} />) : <div className="empty-state">还没有配置变更计划。</div>}</div>
+  </section>;
+}
+
 function CredentialRow({ item, onRevoke }) {
   const revoked = Boolean(item.revoked_at_ms);
   const isBootstrap = item.kind === "OWNER";
@@ -167,8 +265,13 @@ function KeyForm({ instances, onCancel, onIssued }) {
     const form = new FormData(event.currentTarget);
     const actions = form.getAll("actions");
     const instanceIds = allResources ? [] : form.getAll("instance_ids");
+    const needsGlobalScope = actions.some((action) => ["diagnostics.read", "change.plan", "change.read", "change.apply", "audit.read"].includes(action));
     if (!actions.length || (!allResources && !instanceIds.length)) {
       setError("至少选择一个动作和一个实例范围。");
+      return;
+    }
+    if (needsGlobalScope && !allResources) {
+      setError("诊断、配置变更和审计动作必须选择“所有当前和未来实例”。");
       return;
     }
     setBusy(true);
@@ -275,6 +378,8 @@ function SecretDialog({ secret, onClose }) {
 function ControlDesk({ owner, onExpired }) {
   const [page, setPage] = useState("overview");
   const [instances, setInstances] = useState([]);
+  const [current, setCurrent] = useState(null);
+  const [changes, setChanges] = useState([]);
   const [credentials, setCredentials] = useState([]);
   const [audit, setAudit] = useState([]);
   const [updated, setUpdated] = useState(null);
@@ -289,10 +394,12 @@ function ControlDesk({ owner, onExpired }) {
 
   const loadAll = useCallback(async () => {
     try {
-      const [nextInstances, nextCredentials, nextAudit] = await Promise.all([
-        api("/api/v1/instances"), api("/api/v1/credentials"), api("/api/v1/audit-events")
+      const [nextInstances, nextCurrent, nextChanges, nextCredentials, nextAudit] = await Promise.all([
+        api("/api/v1/instances"), api("/api/v1/config"), api("/api/v1/changes"), api("/api/v1/credentials"), api("/api/v1/audit-events")
       ]);
       setInstances(nextInstances);
+      setCurrent(nextCurrent);
+      setChanges(nextChanges);
       setCredentials(nextCredentials);
       setAudit(nextAudit);
       setUpdated(new Date());
@@ -305,8 +412,8 @@ function ControlDesk({ owner, onExpired }) {
   useEffect(() => { loadAll(); }, [loadAll]);
   useEffect(() => {
     function keyboard(event) {
-      if (["INPUT", "SELECT"].includes(document.activeElement?.tagName)) return;
-      if (["1", "2", "3"].includes(event.key)) setPage(["overview", "credentials", "audit"][Number(event.key) - 1]);
+      if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
+      if (["1", "2", "3", "4"].includes(event.key)) setPage(["overview", "changes", "credentials", "audit"][Number(event.key) - 1]);
     }
     document.addEventListener("keydown", keyboard);
     return () => document.removeEventListener("keydown", keyboard);
@@ -319,6 +426,7 @@ function ControlDesk({ owner, onExpired }) {
 
   const labels = {
     overview: ["Live traffic", "流量状态"],
+    changes: ["Approval queue", "配置变更"],
     credentials: ["Access boundary", "访问 Key"],
     audit: ["Recorded actions", "审计记录"]
   };
@@ -328,6 +436,7 @@ function ControlDesk({ owner, onExpired }) {
     <main>
       <header className="topbar"><div><p className="eyebrow">{labels[page][0]}</p><h1>{labels[page][1]}</h1></div><div className="top-actions"><span className="last-updated">{updated ? `更新于 ${updated.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}` : "尚未刷新"}</span><button className="quiet-button" onClick={loadAll} type="button">刷新</button></div></header>
       {page === "overview" && <Overview instances={instances} />}
+      {page === "changes" && <Changes current={current} changes={changes} onReload={loadAll} notify={notify} />}
       {page === "credentials" && <Credentials credentials={credentials} instances={instances} onReload={loadAll} onSecret={setSecret} notify={notify} />}
       {page === "audit" && <Audit events={audit} />}
     </main>

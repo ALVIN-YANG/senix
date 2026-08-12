@@ -2017,6 +2017,7 @@ dependencies = [
  "senix-core",
  "serde",
  "serde_json",
+ "uuid",
 ]
 
 [[package]]

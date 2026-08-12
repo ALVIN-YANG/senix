@@ -72,10 +72,24 @@ impl SenixMcp {
                     &ResourceRef::Global,
                 );
             }
-            "plan_change" => {
+            "plan_change" | "plan_rollback" => {
                 return self.modules.security.allows(
                     principal,
                     ManagementAction::ChangePlan,
+                    &ResourceRef::Global,
+                );
+            }
+            "list_changes" | "get_change" => {
+                return self.modules.security.allows(
+                    principal,
+                    ManagementAction::ChangeRead,
+                    &ResourceRef::Global,
+                );
+            }
+            "apply_approved_change" => {
+                return self.modules.security.allows(
+                    principal,
+                    ManagementAction::ChangeApply,
                     &ResourceRef::Global,
                 );
             }
@@ -112,6 +126,18 @@ struct InstanceParams {
 struct OperationParams {
     /// Operation identifier returned by `drain_instance`.
     operation_id: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct ChangeParams {
+    /// Stable Change Plan identifier returned by `plan_change`.
+    change_id: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct SnapshotParams {
+    /// Immutable Snapshot version to restore through the normal approval chain.
+    target_version: u64,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -391,7 +417,7 @@ impl SenixMcp {
     }
 
     #[tool(
-        description = "Validate a complete candidate config and return a version-bound diff without applying it."
+        description = "Persist a complete candidate as an immutable, version-bound Change Plan without applying it."
     )]
     async fn plan_change(
         &self,
@@ -409,7 +435,123 @@ impl SenixMcp {
                 serde_json::from_value(input.candidate).map_err(|error| {
                     Error::InvalidState(format!("candidate config is invalid: {error}"))
                 })?;
-            self.modules.config.plan(candidate)
+            let plan = self.modules.config.plan(candidate, &principal)?;
+            self.modules.security.record_action(
+                &principal,
+                ManagementAction::ChangePlan.as_str(),
+                &ResourceRef::Global,
+                AuditOutcome::Succeeded,
+                RiskLevel::Low,
+                json!({
+                    "change_id": plan.change_id,
+                    "candidate_digest": plan.candidate_digest,
+                    "issue_count": plan.issues.len()
+                }),
+            )?;
+            Ok(plan)
+        })();
+        domain_result(result)
+    }
+
+    #[tool(
+        description = "Create an immutable rollback Change Plan from a historical Snapshot. It still requires Owner approval before apply."
+    )]
+    async fn plan_rollback(
+        &self,
+        Parameters(input): Parameters<SnapshotParams>,
+        Extension(parts): Extension<Parts>,
+    ) -> CallToolResult {
+        let result = (|| {
+            let principal = principal(&parts)?;
+            self.modules.security.authorize(
+                &principal,
+                ManagementAction::ChangePlan,
+                &ResourceRef::Global,
+            )?;
+            let plan = self
+                .modules
+                .config
+                .plan_rollback(input.target_version, &principal)?;
+            self.modules.security.record_action(
+                &principal,
+                "change.plan_rollback",
+                &ResourceRef::Global,
+                AuditOutcome::Succeeded,
+                RiskLevel::Low,
+                json!({
+                    "change_id": plan.change_id,
+                    "target_version": input.target_version
+                }),
+            )?;
+            Ok(plan)
+        })();
+        domain_result(result)
+    }
+
+    #[tool(description = "List durable Change Plans newest first.")]
+    async fn list_changes(&self, Extension(parts): Extension<Parts>) -> CallToolResult {
+        let result = (|| {
+            let principal = principal(&parts)?;
+            self.modules.security.authorize(
+                &principal,
+                ManagementAction::ChangeRead,
+                &ResourceRef::Global,
+            )?;
+            self.modules.config.list_changes()
+        })();
+        domain_result(result)
+    }
+
+    #[tool(description = "Read one durable Change Plan including approval and apply status.")]
+    async fn get_change(
+        &self,
+        Parameters(input): Parameters<ChangeParams>,
+        Extension(parts): Extension<Parts>,
+    ) -> CallToolResult {
+        let result = (|| {
+            let principal = principal(&parts)?;
+            self.modules.security.authorize(
+                &principal,
+                ManagementAction::ChangeRead,
+                &ResourceRef::Global,
+            )?;
+            let change_id = uuid::Uuid::parse_str(&input.change_id)
+                .map_err(|_| Error::ChangeNotFound(input.change_id.clone()))?;
+            self.modules
+                .config
+                .change(change_id)?
+                .ok_or(Error::ChangeNotFound(input.change_id))
+        })();
+        domain_result(result)
+    }
+
+    #[tool(
+        description = "Apply an exact Change Plan that the Owner already approved. This tool cannot approve or modify the plan."
+    )]
+    async fn apply_approved_change(
+        &self,
+        Parameters(input): Parameters<ChangeParams>,
+        Extension(parts): Extension<Parts>,
+    ) -> CallToolResult {
+        let result = (|| {
+            let principal = principal(&parts)?;
+            self.modules.security.authorize(
+                &principal,
+                ManagementAction::ChangeApply,
+                &ResourceRef::Global,
+            )?;
+            let change_id = uuid::Uuid::parse_str(&input.change_id)
+                .map_err(|_| Error::ChangeNotFound(input.change_id.clone()))?;
+            let applied = self.modules.config.apply(change_id, &principal)?;
+            self.modules.security.record_action(
+                &principal,
+                ManagementAction::ChangeApply.as_str(),
+                &ResourceRef::Global,
+                AuditOutcome::Succeeded,
+                RiskLevel::High,
+                json!({"change_id": change_id, "snapshot_version": applied.version}),
+            )?;
+            Ok(applied)
         })();
         domain_result(result)
     }

@@ -163,6 +163,118 @@ fn owner_can_login_to_embedded_admin_and_manage_keys_with_csrf_protection() {
 }
 
 #[test]
+fn an_ai_key_can_apply_only_the_exact_change_plan_approved_by_the_owner() {
+    let backend = spawn_backend("A", Duration::ZERO);
+    let proxy = free_address();
+    let admin = free_address();
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("senix.db");
+    let config = dir.path().join("gateway.json");
+    write_single_backend_config(&config, backend);
+
+    bootstrap_owner_key(&db);
+    bootstrap_owner_account(&db, "admin", "correct horse battery staple");
+    let senix = spawn_senix(proxy, admin, &db, &config);
+    wait_until_ready(admin);
+    let cookie = login_owner_cookie(admin, "correct horse battery staple");
+
+    let mut candidate: Value = serde_json::from_slice(&fs::read(&config).unwrap()).unwrap();
+    candidate["routes"][0]["host"] = json!("approved.test");
+    let (status, planned, _) = admin_response_with_headers(
+        admin,
+        "POST",
+        "/api/v1/changes/plan",
+        Some(candidate),
+        &[("Cookie", &cookie), ("X-Senix-CSRF", "1")],
+    );
+    assert_eq!(status, 201);
+    assert_eq!(planned["status"], "PLANNED");
+    assert_eq!(planned["created_by"]["label"], "admin");
+    assert_eq!(planned["candidate_digest"].as_str().unwrap().len(), 64);
+    let change_id = planned["change_id"].as_str().unwrap();
+
+    let (status, missing_approval, _) = admin_response_with_headers(
+        admin,
+        "POST",
+        &format!("/api/v1/changes/{change_id}/apply"),
+        None,
+        &[("Cookie", &cookie), ("X-Senix-CSRF", "1")],
+    );
+    assert_eq!(status, 409);
+    assert_eq!(missing_approval["code"], "CHANGE_APPROVAL_REQUIRED");
+
+    let (status, approved, _) = admin_response_with_headers(
+        admin,
+        "POST",
+        &format!("/api/v1/changes/{change_id}/approve"),
+        None,
+        &[("Cookie", &cookie), ("X-Senix-CSRF", "1")],
+    );
+    assert_eq!(status, 200);
+    assert_eq!(approved["status"], "APPROVED");
+
+    let apply_key = issue_global_api_key_with_cookie(
+        admin,
+        &cookie,
+        "config-agent",
+        &["change.read", "change.apply"],
+    );
+
+    let (status, denied_approval) = admin_response_with_bearer(
+        admin,
+        "POST",
+        &format!("/api/v1/changes/{change_id}/approve"),
+        None,
+        None,
+        Some(&apply_key),
+    );
+    assert_eq!(status, 403);
+    assert_eq!(denied_approval["evidence"]["action"], "change.approve");
+
+    assert_change_apply_tools(admin, &apply_key);
+
+    let (_, applied) = mcp_request(
+        admin,
+        Some(&apply_key),
+        41,
+        "tools/call",
+        &json!({
+            "name": "apply_approved_change",
+            "arguments": {"change_id": change_id}
+        }),
+    );
+    assert_eq!(applied["result"]["structuredContent"]["version"], 2);
+    let (status, replayed) = admin_response_with_bearer(
+        admin,
+        "POST",
+        &format!("/api/v1/changes/{change_id}/apply"),
+        None,
+        None,
+        Some(&apply_key),
+    );
+    assert_eq!(status, 200);
+    assert_eq!(replayed["version"], 2);
+
+    let (status, changes) = admin_response_with_bearer(
+        admin,
+        "GET",
+        "/api/v1/changes",
+        None,
+        None,
+        Some(&apply_key),
+    );
+    assert_eq!(status, 200);
+    assert_eq!(changes[0]["status"], "APPLIED");
+    assert_eq!(changes[0]["applied_version"], 2);
+    let (status, current) =
+        admin_response_with_bearer(admin, "GET", "/api/v1/config", None, None, Some(&apply_key));
+    assert_eq!(status, 200);
+    assert_eq!(current["version"], 2);
+    assert_eq!(current["config"]["routes"][0]["host"], "approved.test");
+    drop(senix);
+}
+
+#[test]
 fn restricted_key_is_scoped_revocable_and_audited_without_secret_leakage() {
     let backend_a = spawn_backend("A", Duration::ZERO);
     let backend_b = spawn_backend("B", Duration::ZERO);
@@ -986,6 +1098,41 @@ fn issue_api_key(
         issued["credential_id"].as_str().unwrap().to_owned(),
         issued["api_key"].as_str().unwrap().to_owned(),
     )
+}
+
+fn issue_global_api_key_with_cookie(
+    admin: SocketAddr,
+    cookie: &str,
+    label: &str,
+    actions: &[&str],
+) -> String {
+    let (status, issued, _) = admin_response_with_headers(
+        admin,
+        "POST",
+        "/api/v1/credentials",
+        Some(json!({
+            "label": label,
+            "actions": actions,
+            "instance_ids": [],
+            "all_resources": true
+        })),
+        &[("Cookie", cookie), ("X-Senix-CSRF", "1")],
+    );
+    assert_eq!(status, 201);
+    issued["api_key"].as_str().unwrap().to_owned()
+}
+
+fn assert_change_apply_tools(admin: SocketAddr, api_key: &str) {
+    let (_, tools) = mcp_request(admin, Some(api_key), 40, "tools/list", &json!({}));
+    let tool_names = tools["result"]["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|tool| tool["name"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert!(tool_names.contains(&"list_changes"));
+    assert!(tool_names.contains(&"apply_approved_change"));
+    assert!(!tool_names.contains(&"approve_change"));
 }
 
 fn assert_key_not_listed(admin: SocketAddr, owner_key: &str, api_key: &str) {

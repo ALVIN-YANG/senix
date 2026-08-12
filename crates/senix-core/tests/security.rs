@@ -125,6 +125,53 @@ fn owner_account_revokes_bootstrap_key_and_sessions_are_statelessly_invalidated(
         .unwrap();
 }
 
+#[test]
+fn api_keys_may_apply_an_approved_change_but_can_never_approve_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Arc::new(SqliteStateStore::open(dir.path().join("state.db")).unwrap());
+    let security = SecurityController::new(store);
+    let owner_key = security.bootstrap_owner_key("owner").unwrap();
+    let owner = security.authenticate(&owner_key.api_key).unwrap();
+
+    let approval_policy = AccessPolicy {
+        all_resources: true,
+        actions: BTreeSet::from([ManagementAction::ChangeApprove]),
+        instance_ids: BTreeSet::new(),
+    };
+    assert!(matches!(
+        security.issue_key(&owner, "self-approver", approval_policy, None),
+        Err(Error::InvalidState(_))
+    ));
+
+    let apply_key = security
+        .issue_key(
+            &owner,
+            "change-runner",
+            AccessPolicy {
+                all_resources: true,
+                actions: BTreeSet::from([
+                    ManagementAction::ChangeRead,
+                    ManagementAction::ChangeApply,
+                ]),
+                instance_ids: BTreeSet::new(),
+            },
+            None,
+        )
+        .unwrap();
+    let runner = security.authenticate(&apply_key.api_key).unwrap();
+    security
+        .authorize(&runner, ManagementAction::ChangeApply, &ResourceRef::Global)
+        .unwrap();
+    assert!(matches!(
+        security.authorize(
+            &runner,
+            ManagementAction::ChangeApprove,
+            &ResourceRef::Global,
+        ),
+        Err(Error::Forbidden { .. })
+    ));
+}
+
 fn now_ms() -> i64 {
     i64::try_from(
         SystemTime::now()

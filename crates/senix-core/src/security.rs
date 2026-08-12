@@ -37,6 +37,12 @@ pub enum ManagementAction {
     DiagnosticsRead,
     #[serde(rename = "change.plan")]
     ChangePlan,
+    #[serde(rename = "change.read")]
+    ChangeRead,
+    #[serde(rename = "change.approve")]
+    ChangeApprove,
+    #[serde(rename = "change.apply")]
+    ChangeApply,
     #[serde(rename = "credential.manage")]
     CredentialManage,
     #[serde(rename = "audit.read")]
@@ -54,6 +60,9 @@ impl ManagementAction {
             Self::InstanceDisable => "instance.disable",
             Self::DiagnosticsRead => "diagnostics.read",
             Self::ChangePlan => "change.plan",
+            Self::ChangeRead => "change.read",
+            Self::ChangeApprove => "change.approve",
+            Self::ChangeApply => "change.apply",
             Self::CredentialManage => "credential.manage",
             Self::AuditRead => "audit.read",
         }
@@ -814,6 +823,26 @@ fn validate_policy(policy: &AccessPolicy) -> Result<()> {
             "API keys cannot manage credentials".to_owned(),
         ));
     }
+    if policy.actions.contains(&ManagementAction::ChangeApprove) {
+        return Err(Error::InvalidState(
+            "API keys cannot approve configuration changes".to_owned(),
+        ));
+    }
+    let requires_global_scope = policy.actions.iter().any(|action| {
+        matches!(
+            action,
+            ManagementAction::DiagnosticsRead
+                | ManagementAction::ChangePlan
+                | ManagementAction::ChangeRead
+                | ManagementAction::ChangeApply
+                | ManagementAction::AuditRead
+        )
+    });
+    if requires_global_scope && !policy.all_resources {
+        return Err(Error::InvalidState(
+            "global management actions require all_resources".to_owned(),
+        ));
+    }
     if !policy.all_resources && policy.instance_ids.is_empty() {
         return Err(Error::InvalidState(
             "API key must target all resources or at least one instance".to_owned(),
@@ -827,11 +856,14 @@ const fn action_risk(action: ManagementAction) -> RiskLevel {
         ManagementAction::InstanceDrain
         | ManagementAction::InstanceRejoin
         | ManagementAction::InstanceDisable
-        | ManagementAction::ChangePlan
+        | ManagementAction::ChangeApprove
+        | ManagementAction::ChangeApply
         | ManagementAction::CredentialManage => RiskLevel::High,
         ManagementAction::InstanceSetWeight => RiskLevel::Medium,
         ManagementAction::InstanceRead
         | ManagementAction::DiagnosticsRead
+        | ManagementAction::ChangePlan
+        | ManagementAction::ChangeRead
         | ManagementAction::AuditRead => RiskLevel::Low,
     }
 }

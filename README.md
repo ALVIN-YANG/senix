@@ -5,7 +5,7 @@ Senix 是一个基于 Rust 和 Pingora 的独立网关，不依赖 Nginx、Go �
 目前已经实现：
 
 - Pingora 双后端 HTTP 代理和平滑加权轮询。
-- 完整配置快照的校验、持久化、原子发布和回滚。
+- 不可修改的配置计划、结构化差异、15 分钟 Owner 批准、原子发布和回滚计划。
 - 持久化摘流操作、在途请求查询、超时状态、回接、权重调整和禁用。
 - 流量写操作幂等，摘流与禁用状态可跨重启恢复。
 - 单实例保护、显式强制操作和结构化错误证据。
@@ -15,8 +15,9 @@ Senix 是一个基于 Rust 和 Pingora 的独立网关，不依赖 Nginx、Go �
 - 本机两步 Owner 引导、Argon2id 密码、短期浏览器会话，以及只存摘要的受限 API Key。
 - REST 与 MCP 共用的默认拒绝授权、结构化错误和无秘密审计。
 - 无会话 Streamable HTTP MCP；工具清单按当前 Key 的能力裁剪。
+- React 管理台中的配置编辑、批准队列、精确摘要和 Snapshot 版本视图。
 
-暂未实现人工批准、MCP stdio 桥、Service 范围、被动健康信号、证书、完整服务/变更后台、长连接分类与强制收尾、多节点和插件 Adapter。完整边界见 [需求文档](docs/requirements.md)，模块边界见 [ADR-0001](docs/adr/0001-core-seams.md)、[ADR-0002](docs/adr/0002-management-security.md) 和 [ADR-0003](docs/adr/0003-mcp-adapter.md)。
+暂未实现 MCP stdio 桥、Service 范围、被动健康信号、证书、完整服务建模、长连接分类与强制收尾、多节点和插件 Adapter。完整边界见 [需求文档](docs/requirements.md)，模块与安全决策见 [docs/adr](docs/adr)。
 
 ## 目录
 
@@ -115,7 +116,7 @@ React 管理后台使用 Owner Account 登录，REST 脚本和 MCP 使用 `Autho
 
 ## 管理后台
 
-后台产物嵌入 `senixd`，不需要单独部署前端。当前页面支持实例流量/健康状态、生成和吊销受限 Key、一次性 Key 展示以及审计查看。浏览器 Cookie 为 HttpOnly、SameSite=Strict；写操作还要求同源 CSRF 头。退出登录与本机密码重置都会使旧浏览器会话立即失效。
+后台产物嵌入 `senixd`，不需要单独部署前端。当前页面支持实例流量/健康状态、完整配置规划、差异与摘要核对、Owner 批准、应用与回滚计划、受限 Key 管理和审计查看。浏览器 Cookie 为 HttpOnly、SameSite=Strict；写操作还要求同源 CSRF 头。退出登录与本机密码重置都会使旧浏览器会话立即失效。
 
 修改前端后需重新生成嵌入产物：
 
@@ -145,13 +146,13 @@ curl -X POST \
 
 `GET /api/v1/credentials` 只返回元数据；`DELETE /api/v1/credentials/{id}` 立即撤销 Key。`GET /api/v1/audit-events` 返回操作者、动作、资源、结果和风险，不保存 Key、Authorization 头或完整请求体。轮换由用户或外部脚本按“签发新 Key、切换调用方、撤销旧 Key”完成。
 
-当前动作名为 `instance.read`、`instance.drain`、`instance.rejoin`、`instance.set_weight`、`instance.disable`、`diagnostics.read`、`change.plan` 和 `audit.read`。Service 还不是当前运行模型中的真实实体，因此首版只承诺全局或 Instance 范围。
+当前动作名为 `instance.read`、`instance.drain`、`instance.rejoin`、`instance.set_weight`、`instance.disable`、`diagnostics.read`、`change.plan`、`change.read`、`change.apply` 和 `audit.read`。`change.approve` 只允许 Owner，不能签发给 API Key。Service 还不是当前运行模型中的真实实体，因此首版只承诺全局或 Instance 范围；配置变更动作需要全局范围。
 
 ## MCP
 
 Streamable HTTP MCP 位于 `http://127.0.0.1:9080/mcp`，每个请求都使用后台生成的 Bearer Key。MCP 不保存协议会话；同一 Key 在 REST 和 MCP 上得到相同授权与审计结果。`tools/list` 会按 Key 的动作和实例范围隐藏无权使用的工具，实际调用时仍会再次授权。
 
-当前暴露 `list_instances`、`get_instance_health`、`drain_instance`、`get_drain_status`、`rejoin_instance`、`set_instance_weight`、`disable_instance`、`diagnose_request`、`plan_change` 和 `list_audit_events`。不提供 Key 创建、Shell、SSH、Docker 或 Kubernetes 工具，也未在批准流程完成前暴露配置 apply/rollback。
+当前暴露 `list_instances`、`get_instance_health`、`drain_instance`、`get_drain_status`、`rejoin_instance`、`set_instance_weight`、`disable_instance`、`diagnose_request`、`plan_change`、`plan_rollback`、`list_changes`、`get_change`、`apply_approved_change` 和 `list_audit_events`。MCP 没有批准工具，也不能修改已生成计划；只有 Owner 批准精确候选内容后，带 `change.apply` 的 Key 才能应用。MCP 不提供 Key 创建、Shell、SSH、Docker 或 Kubernetes 工具。
 
 MCP 默认只接受 `localhost`、`127.0.0.1` 和 `::1` 的 Host。通过私网域名访问时必须显式加入允许列表；浏览器客户端还应配置 Origin：
 
@@ -232,4 +233,4 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace --locked
 ```
 
-端到端测试会启动真实 HTTP 后端和 `senixd` 子进程，验证持久化摘流、状态恢复、主动健康检查、Key 范围/撤销/审计，以及 MCP 初始化、能力裁剪、越权拒绝和摘流调用。
+端到端测试会启动真实 HTTP 后端和 `senixd` 子进程，验证持久化摘流、状态恢复、主动健康检查、Owner 登录、Key 范围/撤销/审计，以及 MCP 能力裁剪、越权拒绝、精确批准后应用和幂等重放。

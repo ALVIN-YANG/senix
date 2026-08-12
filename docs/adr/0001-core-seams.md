@@ -9,7 +9,7 @@
 
 ### ConfigEngine
 
-Interface 负责 `plan`、`apply`、`rollback` 和读取当前快照。它隐藏配置校验、差异生成、版本分配、SQLite 持久化和原子发布顺序。
+Interface 负责 `plan`、`approve`、`apply`、`plan_rollback` 和读取当前 Snapshot。它隐藏配置校验、差异生成、批准有效期、版本分配、SQLite 持久化和原子发布顺序。
 
 ### TrafficController
 

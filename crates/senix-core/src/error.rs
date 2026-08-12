@@ -70,6 +70,15 @@ pub enum Error {
     #[error("configuration changed since this plan was created")]
     StalePlan,
 
+    #[error("change plan not found: {0}")]
+    ChangeNotFound(String),
+
+    #[error("change plan requires owner approval: {0}")]
+    ChangeApprovalRequired(String),
+
+    #[error("change plan approval has expired: {0}")]
+    ChangeApprovalExpired(String),
+
     #[error("configuration snapshot not found: {0}")]
     SnapshotNotFound(u64),
 
@@ -110,6 +119,9 @@ impl Error {
             Self::InvalidState(_) => "INVALID_STATE",
             Self::InvalidConfig => "INVALID_CONFIG",
             Self::StalePlan => "STALE_PLAN",
+            Self::ChangeNotFound(_) => "CHANGE_NOT_FOUND",
+            Self::ChangeApprovalRequired(_) => "CHANGE_APPROVAL_REQUIRED",
+            Self::ChangeApprovalExpired(_) => "CHANGE_APPROVAL_EXPIRED",
             Self::SnapshotNotFound(_) => "SNAPSHOT_NOT_FOUND",
             Self::Store(_) | Self::Serialization(_) | Self::Crypto(_) => "INTERNAL_ERROR",
         }
@@ -137,6 +149,11 @@ impl Error {
             } => serde_json::json!({"instance_id": instance_id, "route_id": route_id}),
             Self::DrainOperationNotFound(operation_id) => {
                 serde_json::json!({"operation_id": operation_id})
+            }
+            Self::ChangeNotFound(change_id)
+            | Self::ChangeApprovalRequired(change_id)
+            | Self::ChangeApprovalExpired(change_id) => {
+                serde_json::json!({"change_id": change_id})
             }
             Self::SnapshotNotFound(version) => serde_json::json!({"version": version}),
             _ => serde_json::json!({}),

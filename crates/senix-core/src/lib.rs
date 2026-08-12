@@ -9,7 +9,10 @@ mod state;
 mod store;
 mod traffic;
 
-pub use config::{AppliedChange, ChangePlan, ConfigDiff, ConfigEngine, ConfigIssue};
+pub use config::{
+    AppliedChange, ChangeActor, ChangeKind, ChangePlan, ChangeStatus, ConfigDiff, ConfigEngine,
+    ConfigIssue, ConfigSnapshot,
+};
 pub use diagnostic::{DiagnosticEngine, DiagnosticOutcome, DiagnosticReport, DiagnosticStep};
 pub use error::{Error, Result};
 pub use runtime::{GatewayRuntime, HealthTarget, RequestLease};

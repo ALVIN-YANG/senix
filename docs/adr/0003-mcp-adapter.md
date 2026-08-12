@@ -17,7 +17,7 @@ MCP 挂载在管理端口的 `/mcp`。Bearer Key 由与 REST 相同的 HTTP 中�
 
 `tools/list` 是 Capability-shaped Tool Catalog。它按当前 Principal 的 Management Action 和可见 Instance 裁剪工具，并在新协议中标记为 private、零 TTL 缓存。这个目录用于减少 AI 误调用，不构成授权边界；每次 `tools/call` 仍重新执行领域授权，越权结果使用与 REST 相同的稳定错误码和 evidence。
 
-首版工具不包含 Credential 管理、任意配置写入、Shell、SSH、Docker 或 Kubernetes。`plan_change` 只预检；在人工批准链路完成前，不暴露配置 apply/rollback。
+首版工具不包含 Credential 管理、批准、任意配置写入、Shell、SSH、Docker 或 Kubernetes。`plan_change` 和 `plan_rollback` 持久化不可修改的 Change Plan；`apply_approved_change` 只能应用 Owner 已批准且仍在有效期内的精确计划，不能修改或自行批准计划。
 
 MCP 默认只允许 loopback Host。私网或反向代理域名必须通过启动参数显式加入 Host 允许列表；浏览器来源必须加入 Origin 允许列表。管理面 TLS 仍由后续内置能力或受信反向代理解决。
 

@@ -35,3 +35,13 @@ Service 仍未成为当前网关模型中的真实实体，因此首版不虚构
 | Issue | 创建受限 API Key，并只在该次响应中返回完整密钥。 | 之后仍可查询明文密钥。 |
 | Revoke | 立即让一个 Credential 失效，同时保留其身份和审计关联。 | 删除所有历史记录。 |
 | Rotate | 签发新 Key、切换调用方、再撤销旧 Key 的用户或脚本流程。 | 网关自动替用户决定切换时间。 |
+
+## Change control
+
+| Term | Meaning | Not this |
+| --- | --- | --- |
+| Snapshot | 一份已经生效且不可修改的完整网关配置版本。 | 可以原地编辑的草稿。 |
+| Change Plan | 一份不可修改的配置提案，绑定创建时的 Snapshot、完整候选配置、差异和校验结果。 | 已经生效的配置，或只包含零散字段的补丁。 |
+| Approval | Owner 对某一份 Change Plan 精确内容的短期放行决定。 | 对同类后续变更的长期授权。 |
+| Apply | 在所绑定 Snapshot 仍为当前版本时，把已批准的 Change Plan 发布成新 Snapshot。 | 重新提交或暗中修改候选配置。 |
+| Rollback Plan | 以历史 Snapshot 为候选配置创建的 Change Plan。 | 绕过批准链路的紧急写入。 |

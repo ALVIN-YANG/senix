@@ -132,8 +132,8 @@ flowchart LR
 | BackendPool | 一组可承载同类请求的后端 | 包含多个 Instance |
 | Instance | 一个实际后端地址 | 具有稳定 ID、部署代次、权重和状态 |
 | Certificate | TLS 证书及其生命周期信息 | 被一个或多个 Route 引用 |
-| ChangeSet | 一次配置变更及其完整验证过程 | 生成一个 RuntimeSnapshot |
-| RuntimeSnapshot | 数据面使用的不可变配置版本 | 原子替换上一版本 |
+| Change Plan | 绑定当前 Snapshot 的不可修改配置提案 | 批准后生成一个新 Snapshot |
+| Snapshot | 数据面使用的不可变配置版本 | 原子替换上一版本 |
 | Operation | 摘流、回接等长操作的执行记录 | 支持幂等、查询和审计 |
 | Credential | 所有者身份或受限 API Key | 绑定资源范围和动作权限 |
 | AuditEvent | 谁在何时对什么资源做了什么 | 不可由普通 API 修改 |
@@ -319,10 +319,12 @@ POST  /api/v1/instances/{id}/disable
 建议的变更与诊断接口：
 
 ```text
+GET  /api/v1/config
+GET  /api/v1/changes
 POST /api/v1/changes/plan
-POST /api/v1/changes/{id}/apply
 POST /api/v1/changes/{id}/approve
-POST /api/v1/snapshots/{id}/rollback
+POST /api/v1/changes/{id}/apply
+POST /api/v1/snapshots/{id}/rollback-plan
 POST /api/v1/diagnostics/requests
 GET  /api/v1/audit-events
 ```
@@ -344,8 +346,10 @@ GET  /api/v1/audit-events
 - `get_instance_health`
 - `diagnose_request`
 - `plan_change`
-- `apply_change`
-- `rollback_change`
+- `plan_rollback`
+- `list_changes`
+- `get_change`
+- `apply_approved_change`
 - `drain_instance`
 - `get_drain_status`
 - `rejoin_instance`
@@ -384,7 +388,7 @@ GET  /api/v1/audit-events
 - 查看、诊断和模拟变更可以直接执行。
 - 服务范围内、可回滚且 Credential 已授权的操作可以自动执行。
 - 删除资源、修改公共入口、降低安全策略、读取或替换证书私钥等操作需要人工批准。
-- 批准生成短期令牌，只能执行预检时确认的那一份变更。
+- Approval 默认 15 分钟有效，只能执行预检时确认的那一份 Change Plan；MCP 和 API Key 不能批准。
 
 ### 12.4 密钥与隐私
 
