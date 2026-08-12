@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="590" viewBox="0 0 1200 590" role="img" aria-labelledby="title desc">
+  <title id="title">Senix 运行架构</title>
+  <desc id="desc">Owner、部署脚本和 AI 通过同一安全边界进入控制面，控制面发布不可变快照给 Pingora 数据面，业务请求不读取 SQLite。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2d9c83"/>
+    </marker>
+    <marker id="arrow-muted" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9eaeab"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="590" rx="22" fill="#edf3f2"/>
+  <text x="54" y="62" fill="#173a45" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="38" font-weight="750">一套规则，三个管理入口</text>
+  <text x="54" y="96" fill="#67777b" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="19">浏览器、脚本与 AI 共享授权、领域操作和审计；业务请求只读取已发布快照。</text>
+
+  <g id="management-actors" transform="translate(54 132)">
+    <g>
+      <rect width="210" height="82" rx="12" fill="#ffffff" stroke="#d5dfdc"/>
+      <circle cx="28" cy="28" r="8" fill="#2d9c83"/>
+      <text x="48" y="35" fill="#173a45" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="21" font-weight="700">Owner</text>
+      <text x="28" y="63" fill="#67777b" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17">React console</text>
+    </g>
+    <g transform="translate(240 0)">
+      <rect width="210" height="82" rx="12" fill="#ffffff" stroke="#d5dfdc"/>
+      <circle cx="28" cy="28" r="8" fill="#65b6c8"/>
+      <text x="48" y="35" fill="#173a45" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="21" font-weight="700">CI / 脚本</text>
+      <text x="28" y="63" fill="#67777b" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17">REST + scoped key</text>
+    </g>
+    <g transform="translate(480 0)">
+      <rect width="210" height="82" rx="12" fill="#ffffff" stroke="#d5dfdc"/>
+      <circle cx="28" cy="28" r="8" fill="#d38b35"/>
+      <text x="48" y="35" fill="#173a45" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="21" font-weight="700">AI 客户端</text>
+      <text x="28" y="63" fill="#67777b" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17">Stateless MCP</text>
+    </g>
+    <path d="M105 82 V118 H585 V82" fill="none" stroke="#9eaeab" stroke-width="2"/>
+    <path d="M345 82 V118" stroke="#9eaeab" stroke-width="2"/>
+  </g>
+
+  <g id="security-boundary" transform="translate(54 262)">
+    <rect width="690" height="118" rx="14" fill="#173a45"/>
+    <text x="28" y="35" fill="#65d4b6" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" font-weight="700" letter-spacing="2">ONE MANAGEMENT BOUNDARY</text>
+    <text x="28" y="72" fill="#f2f8f6" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="24" font-weight="700">SecurityController</text>
+    <text x="28" y="99" fill="#a9bfbd" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="18">默认拒绝 · 动作与实例范围 · 执行时再授权 · 无秘密审计</text>
+    <path d="M690 59 H746" stroke="#2d9c83" stroke-width="3" marker-end="url(#arrow)"/>
+  </g>
+
+  <g id="domain-modules" transform="translate(800 132)">
+    <rect width="346" height="248" rx="14" fill="#ffffff" stroke="#d5dfdc"/>
+    <text x="24" y="34" fill="#67777b" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="2">DOMAIN MODULES</text>
+    <g transform="translate(24 58)">
+      <rect width="298" height="48" rx="8" fill="#dcefe9"/>
+      <text x="18" y="31" fill="#176c57" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="19" font-weight="700">ConfigEngine</text>
+    </g>
+    <g transform="translate(24 116)">
+      <rect width="298" height="48" rx="8" fill="#dcefe9"/>
+      <text x="18" y="31" fill="#176c57" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="19" font-weight="700">TrafficController</text>
+    </g>
+    <g transform="translate(24 174)">
+      <rect width="298" height="48" rx="8" fill="#dcefe9"/>
+      <text x="18" y="31" fill="#176c57" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="19" font-weight="700">DiagnosticEngine</text>
+    </g>
+  </g>
+
+  <g id="state-and-data-plane" transform="translate(54 428)">
+    <g>
+      <rect width="238" height="102" rx="12" fill="#ffffff" stroke="#d5dfdc"/>
+      <text x="22" y="34" fill="#173a45" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="21" font-weight="700">SQLite 控制状态</text>
+      <text x="22" y="64" fill="#67777b" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">plans · keys · audit</text>
+      <text x="22" y="86" fill="#67777b" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">traffic intent</text>
+    </g>
+    <path d="M238 51 H314" stroke="#9eaeab" stroke-width="2" marker-end="url(#arrow-muted)"/>
+    <g transform="translate(330 0)">
+      <rect width="264" height="102" rx="12" fill="#ffffff" stroke="#2d9c83" stroke-width="2"/>
+      <text x="22" y="35" fill="#173a45" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="21" font-weight="700">不可变运行快照</text>
+      <text x="22" y="68" fill="#2d9c83" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17" font-weight="700">ATOMIC PUBLISH</text>
+    </g>
+    <path d="M594 51 H670" stroke="#2d9c83" stroke-width="3" marker-end="url(#arrow)"/>
+    <g transform="translate(686 0)">
+      <rect width="190" height="102" rx="12" fill="#102b34"/>
+      <text x="95" y="43" text-anchor="middle" fill="#f2f8f6" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="24" font-weight="750">Pingora</text>
+      <text x="95" y="72" text-anchor="middle" fill="#65d4b6" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">DATA PLANE</text>
+    </g>
+    <path d="M876 51 H932" stroke="#2d9c83" stroke-width="3" marker-end="url(#arrow)"/>
+    <g transform="translate(948 0)">
+      <rect width="198" height="102" rx="12" fill="#ffffff" stroke="#d5dfdc"/>
+      <circle cx="24" cy="36" r="7" fill="#2d9c83"/>
+      <text x="44" y="43" fill="#173a45" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="19" font-weight="700">instance-a</text>
+      <circle cx="24" cy="70" r="7" fill="#d38b35"/>
+      <text x="44" y="77" fill="#173a45" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="19" font-weight="700">instance-b</text>
+    </g>
+  </g>
+
+  <text x="54" y="566" fill="#67777b" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">REQUEST PATH NEVER QUERIES SQLITE</text>
+</svg>

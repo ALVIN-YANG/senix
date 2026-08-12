@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" role="img" aria-labelledby="title desc">
+  <title id="title">Senix 纯 Rust 网关</title>
+  <desc id="desc">Senix 使用 Pingora 代理流量，通过受限的管理入口控制实例摘流、回接和配置变更。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#65d4b6"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="420" rx="24" fill="#102b34"/>
+  <path d="M0 338 H1200" stroke="#31505a" stroke-width="1"/>
+
+  <g id="title-block" transform="translate(62 54)">
+    <g aria-hidden="true" transform="translate(0 2)">
+      <rect x="0" y="16" width="10" height="28" rx="5" fill="#2d9c83" opacity=".45"/>
+      <rect x="18" y="5" width="10" height="39" rx="5" fill="#2d9c83" opacity=".72"/>
+      <rect x="36" y="-7" width="10" height="51" rx="5" fill="#65d4b6"/>
+    </g>
+    <text x="68" y="20" fill="#65d4b6" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="700" letter-spacing="3">RUST + PINGORA GATEWAY</text>
+    <text x="0" y="128" fill="#f2f8f6" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="88" font-weight="750" letter-spacing="-5">Senix</text>
+    <text x="2" y="180" fill="#d7e5e1" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="28" font-weight="650">一个人 + AI，也能管好网关流量</text>
+    <text x="2" y="225" fill="#89a3a8" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="20">单二进制 · 无 Nginx · 安全变更 · 可审计 MCP</text>
+  </g>
+
+  <g id="traffic-proof" transform="translate(720 48)">
+    <text x="0" y="18" fill="#89a3a8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="2">LIVE TRAFFIC TRACK</text>
+    <rect x="0" y="40" width="420" height="228" rx="14" fill="#173a45" stroke="#31505a"/>
+
+    <g transform="translate(26 68)">
+      <text x="0" y="18" fill="#89a3a8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">REQUEST</text>
+      <path d="M80 13 H150" stroke="#65d4b6" stroke-width="3" marker-end="url(#arrow)"/>
+      <rect x="164" y="-10" width="110" height="46" rx="8" fill="#102b34" stroke="#65d4b6"/>
+      <text x="219" y="19" text-anchor="middle" fill="#f2f8f6" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="700">PINGORA</text>
+      <path d="M274 13 H315 V74" fill="none" stroke="#65d4b6" stroke-width="3"/>
+      <path d="M315 74 V144" fill="none" stroke="#d38b35" stroke-width="3"/>
+      <circle cx="315" cy="74" r="6" fill="#65d4b6"/>
+      <circle cx="315" cy="144" r="6" fill="#d38b35"/>
+    </g>
+
+    <g transform="translate(26 154)">
+      <circle cx="8" cy="18" r="7" fill="#65d4b6"/>
+      <text x="28" y="24" fill="#f2f8f6" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" font-weight="700">instance-a</text>
+      <rect x="174" y="0" width="100" height="36" rx="7" fill="#204b4d"/>
+      <text x="224" y="24" text-anchor="middle" fill="#65d4b6" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" font-weight="700">SERVING</text>
+      <text x="296" y="23" fill="#89a3a8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">w 100</text>
+    </g>
+    <g transform="translate(26 214)">
+      <circle cx="8" cy="18" r="7" fill="#d38b35"/>
+      <text x="28" y="24" fill="#f2f8f6" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" font-weight="700">instance-b</text>
+      <rect x="174" y="0" width="100" height="36" rx="7" fill="#4a3c2a"/>
+      <text x="224" y="24" text-anchor="middle" fill="#e5ad67" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" font-weight="700">DRAINED</text>
+      <text x="296" y="23" fill="#89a3a8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">in 0</text>
+    </g>
+
+    <g transform="translate(0 260)">
+      <text x="0" y="18" fill="#89a3a8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="2">CONTROL BOUNDARY</text>
+      <rect x="0" y="34" width="420" height="52" rx="10" fill="#173a45" stroke="#31505a"/>
+      <circle cx="26" cy="60" r="7" fill="#65d4b6"/>
+      <text x="46" y="67" fill="#d7e5e1" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="19" font-weight="650">Owner</text>
+      <path d="M130 49 V72" stroke="#31505a"/>
+      <text x="154" y="67" fill="#d7e5e1" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="19" font-weight="650">REST</text>
+      <path d="M235 49 V72" stroke="#31505a"/>
+      <text x="260" y="67" fill="#d7e5e1" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="19" font-weight="650">MCP</text>
+      <text x="326" y="66" fill="#65d4b6" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15">SCOPED</text>
+    </g>
+  </g>
+
+  <g id="metadata" transform="translate(62 374)">
+    <text x="0" y="0" fill="#89a3a8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">DATA PLANE: IMMUTABLE SNAPSHOTS</text>
+    <circle cx="342" cy="-6" r="4" fill="#31505a"/>
+    <text x="362" y="0" fill="#89a3a8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">CONTROL PLANE: SQLITE</text>
+  </g>
+</svg>
