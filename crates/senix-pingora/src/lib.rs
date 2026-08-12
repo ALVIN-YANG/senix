@@ -92,11 +92,25 @@ impl ProxyHttp for SenixProxy {
     }
 }
 
-pub fn add_http_proxy(server: &mut Server, listen: &str, runtime: Arc<GatewayRuntime>) {
+/// Adds the HTTP listener and an optional TLS listener to one proxy service.
+///
+/// # Errors
+///
+/// Returns an error when Pingora cannot load the certificate or private key.
+pub fn add_http_proxy(
+    server: &mut Server,
+    listen: &str,
+    tls: Option<(&str, &str, &str)>,
+    runtime: Arc<GatewayRuntime>,
+) -> PingoraResult<()> {
     let mut proxy =
         pingora_proxy::http_proxy_service(&server.configuration, SenixProxy::new(runtime));
     proxy.add_tcp(listen);
+    if let Some((tls_listen, cert, key)) = tls {
+        proxy.add_tls(tls_listen, cert, key)?;
+    }
     server.add_service(proxy);
+    Ok(())
 }
 
 fn strip_port(host: &str) -> &str {

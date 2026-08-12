@@ -47,7 +47,7 @@ jobs:
           key: release-${{ matrix.target }}
       - name: Install Linux build tools
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install --yes cmake clang pkg-config libssl-dev
+        run: sudo apt-get update && sudo apt-get install --yes cmake clang perl pkg-config libssl-dev
       - name: Install macOS build tools
         if: runner.os == 'macOS'
         run: |

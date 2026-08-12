@@ -40,6 +40,15 @@ struct Args {
     #[arg(long, default_value = "127.0.0.1:8080")]
     listen: SocketAddr,
 
+    #[arg(long, requires_all = ["tls_cert", "tls_key"])]
+    tls_listen: Option<SocketAddr>,
+
+    #[arg(long, requires_all = ["tls_listen", "tls_key"])]
+    tls_cert: Option<PathBuf>,
+
+    #[arg(long, requires_all = ["tls_listen", "tls_cert"])]
+    tls_key: Option<PathBuf>,
+
     #[arg(long, default_value = "127.0.0.1:9080")]
     admin_listen: SocketAddr,
 
@@ -295,8 +304,25 @@ fn main() -> Result<()> {
 
     let mut server = Server::new(None).context("create Pingora server")?;
     server.bootstrap();
-    senix_pingora::add_http_proxy(&mut server, &args.listen.to_string(), runtime);
-    info!(proxy = %args.listen, admin = %args.admin_listen, "senixd started");
+    let tls_listen = args.tls_listen.map(|listen| listen.to_string());
+    let tls_cert = args
+        .tls_cert
+        .as_ref()
+        .map(|path| path.to_str().context("--tls-cert path is not valid UTF-8"))
+        .transpose()?;
+    let tls_key = args
+        .tls_key
+        .as_ref()
+        .map(|path| path.to_str().context("--tls-key path is not valid UTF-8"))
+        .transpose()?;
+    let tls = tls_listen
+        .as_deref()
+        .zip(tls_cert)
+        .zip(tls_key)
+        .map(|((listen, cert), key)| (listen, cert, key));
+    senix_pingora::add_http_proxy(&mut server, &args.listen.to_string(), tls, runtime)
+        .context("configure proxy listeners")?;
+    info!(proxy = %args.listen, tls = ?args.tls_listen, admin = %args.admin_listen, "senixd started");
     server.run_forever();
 }
 

@@ -13,6 +13,15 @@ use std::{
     time::{Duration, Instant},
 };
 
+use openssl::{
+    asn1::Asn1Time,
+    bn::BigNum,
+    hash::MessageDigest,
+    pkey::PKey,
+    rsa::Rsa,
+    ssl::{SslConnector, SslMethod, SslVerifyMode},
+    x509::{X509, X509NameBuilder},
+};
 use serde_json::{Value, json};
 
 struct ChildGuard(Child);
@@ -36,7 +45,7 @@ fn bootstrap_owner_key_protects_every_management_route() {
 
     let api_key = bootstrap_owner_key(&db);
     let senix = spawn_senix(proxy, admin, &db, &config);
-    wait_until_ready(admin);
+    wait_until_ready(admin, proxy);
 
     let (status, denied) = admin_response(admin, "GET", "/api/v1/instances/instance-a", None, None);
     assert_eq!(status, 401);
@@ -68,7 +77,7 @@ fn owner_can_login_to_embedded_admin_and_manage_keys_with_csrf_protection() {
     let bootstrap_key = bootstrap_owner_key(&db);
     bootstrap_owner_account(&db, "admin", "correct horse battery staple");
     let senix = spawn_senix(proxy, admin, &db, &config);
-    wait_until_ready(admin);
+    wait_until_ready(admin, proxy);
 
     let (status, revoked_bootstrap) = admin_response_with_bearer(
         admin,
@@ -175,7 +184,7 @@ fn an_ai_key_can_apply_only_the_exact_change_plan_approved_by_the_owner() {
     bootstrap_owner_key(&db);
     bootstrap_owner_account(&db, "admin", "correct horse battery staple");
     let senix = spawn_senix(proxy, admin, &db, &config);
-    wait_until_ready(admin);
+    wait_until_ready(admin, proxy);
     let cookie = login_owner_cookie(admin, "correct horse battery staple");
 
     let mut candidate: Value = serde_json::from_slice(&fs::read(&config).unwrap()).unwrap();
@@ -287,7 +296,7 @@ fn restricted_key_is_scoped_revocable_and_audited_without_secret_leakage() {
 
     let owner_key = bootstrap_owner_key(&db);
     let senix = spawn_senix(proxy, admin, &db, &config);
-    wait_until_ready(admin);
+    wait_until_ready(admin, proxy);
 
     let (credential_id, deploy_key) = issue_api_key(
         admin,
@@ -396,7 +405,7 @@ fn stateless_mcp_reuses_the_same_key_scope_and_traffic_controller() {
 
     let owner_key = bootstrap_owner_key(&db);
     let senix = spawn_senix(proxy, admin, &db, &config);
-    wait_until_ready(admin);
+    wait_until_ready(admin, proxy);
     let (_, mcp_key) = issue_api_key(
         admin,
         &owner_key,
@@ -505,7 +514,7 @@ fn pingora_drains_one_backend_and_restores_that_state_after_restart() {
     let owner_key = bootstrap_owner_key(&db);
 
     let mut senix = spawn_senix(proxy, admin, &db, &config);
-    wait_until_ready(admin);
+    wait_until_ready(admin, proxy);
 
     let slow = thread::spawn(move || proxy_get(proxy, "/slow"));
     thread::sleep(Duration::from_millis(120));
@@ -534,7 +543,7 @@ fn pingora_drains_one_backend_and_restores_that_state_after_restart() {
     let proxy_after_restart = free_address();
     let admin_after_restart = free_address();
     senix = spawn_senix(proxy_after_restart, admin_after_restart, &db, &config);
-    wait_until_ready(admin_after_restart);
+    wait_until_ready(admin_after_restart, proxy_after_restart);
     let restored_operation = admin_json_with_bearer(
         admin_after_restart,
         "GET",
@@ -582,7 +591,7 @@ fn drain_identifies_a_grpc_stream_as_long_lived() {
     let owner_key = bootstrap_owner_key(&db);
 
     let senix = spawn_senix(proxy, admin, &db, &config);
-    wait_until_ready(admin);
+    wait_until_ready(admin, proxy);
 
     let stream = thread::spawn(move || {
         raw_http(
@@ -627,7 +636,7 @@ fn active_http_health_checks_remove_and_restore_a_backend() {
     let owner_key = bootstrap_owner_key(&db);
 
     let senix = spawn_senix(proxy, admin, &db, &config);
-    wait_until_ready(admin);
+    wait_until_ready(admin, proxy);
     wait_for_health_state(admin, "instance-a", "HEALTHY", &owner_key);
     wait_for_health_state(admin, "instance-b", "HEALTHY", &owner_key);
 
@@ -659,7 +668,7 @@ fn drain_api_requires_force_for_the_last_backend_and_returns_structured_evidence
     write_single_backend_config(&config, backend);
     let owner_key = bootstrap_owner_key(&db);
     let senix = spawn_senix(proxy, admin, &db, &config);
-    wait_until_ready(admin);
+    wait_until_ready(admin, proxy);
 
     let (status, blocked) = admin_response_with_bearer(
         admin,
@@ -687,6 +696,29 @@ fn drain_api_requires_force_for_the_last_backend_and_returns_structured_evidence
     drop(senix);
 }
 
+#[test]
+fn pingora_terminates_tls_with_a_configured_certificate() {
+    let backend = spawn_backend("A", Duration::ZERO);
+    let proxy = free_address();
+    let tls = free_address();
+    let admin = free_address();
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("senix.db");
+    let config = dir.path().join("gateway.json");
+    let cert = dir.path().join("cert.pem");
+    let key = dir.path().join("key.pem");
+    write_single_backend_config(&config, backend);
+    write_test_certificate(&cert, &key);
+
+    let senix = spawn_senix_with_tls(proxy, tls, admin, &db, &config, &cert, &key);
+    wait_until_ready(admin, proxy);
+
+    let response = tls_get(tls, "example.test", "/secure");
+    assert!(response.starts_with("HTTP/1.1 200"));
+    assert!(response.ends_with("\r\n\r\nA"));
+    drop(senix);
+}
+
 fn spawn_senix(proxy: SocketAddr, admin: SocketAddr, db: &Path, config: &Path) -> ChildGuard {
     let child = Command::new(env!("CARGO_BIN_EXE_senixd"))
         .args([
@@ -704,6 +736,89 @@ fn spawn_senix(proxy: SocketAddr, admin: SocketAddr, db: &Path, config: &Path) -
         .spawn()
         .unwrap();
     ChildGuard(child)
+}
+
+fn spawn_senix_with_tls(
+    proxy: SocketAddr,
+    tls: SocketAddr,
+    admin: SocketAddr,
+    db: &Path,
+    config: &Path,
+    cert: &Path,
+    key: &Path,
+) -> ChildGuard {
+    let child = Command::new(env!("CARGO_BIN_EXE_senixd"))
+        .args([
+            "--listen",
+            &proxy.to_string(),
+            "--tls-listen",
+            &tls.to_string(),
+            "--tls-cert",
+            cert.to_str().unwrap(),
+            "--tls-key",
+            key.to_str().unwrap(),
+            "--admin-listen",
+            &admin.to_string(),
+            "--db",
+            db.to_str().unwrap(),
+            "--config",
+            config.to_str().unwrap(),
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    ChildGuard(child)
+}
+
+fn write_test_certificate(cert: &Path, key: &Path) {
+    let key_pair = PKey::from_rsa(Rsa::generate(2048).unwrap()).unwrap();
+    let mut name = X509NameBuilder::new().unwrap();
+    name.append_entry_by_text("CN", "example.test").unwrap();
+    let name = name.build();
+    let serial = BigNum::from_u32(1).unwrap().to_asn1_integer().unwrap();
+    let not_before = Asn1Time::days_from_now(0).unwrap();
+    let not_after = Asn1Time::days_from_now(1).unwrap();
+    let mut certificate = X509::builder().unwrap();
+    certificate.set_version(2).unwrap();
+    certificate.set_serial_number(&serial).unwrap();
+    certificate.set_subject_name(&name).unwrap();
+    certificate.set_issuer_name(&name).unwrap();
+    certificate.set_pubkey(&key_pair).unwrap();
+    certificate.set_not_before(&not_before).unwrap();
+    certificate.set_not_after(&not_after).unwrap();
+    certificate
+        .sign(&key_pair, MessageDigest::sha256())
+        .unwrap();
+    fs::write(cert, certificate.build().to_pem().unwrap()).unwrap();
+    fs::write(key, key_pair.private_key_to_pem_pkcs8().unwrap()).unwrap();
+}
+
+fn tls_get(address: SocketAddr, host: &str, path: &str) -> String {
+    let mut builder = SslConnector::builder(SslMethod::tls()).unwrap();
+    builder.set_verify(SslVerifyMode::NONE);
+    let connector = builder.build();
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        if let Ok(tcp) = TcpStream::connect_timeout(&address, Duration::from_millis(100))
+            && let Ok(mut stream) = connector.connect(host, tcp)
+        {
+            stream
+                .write_all(
+                    format!("GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n")
+                        .as_bytes(),
+                )
+                .unwrap();
+            let mut response = String::new();
+            stream.read_to_string(&mut response).unwrap();
+            return response;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "TLS listener did not become ready"
+        );
+        thread::sleep(Duration::from_millis(40));
+    }
 }
 
 fn bootstrap_owner_key(db: &Path) -> String {
@@ -967,10 +1082,12 @@ fn spawn_controllable_backend(label: &'static str) -> (SocketAddr, Arc<AtomicBoo
     (address, healthy)
 }
 
-fn wait_until_ready(admin: SocketAddr) {
+fn wait_until_ready(admin: SocketAddr, proxy: SocketAddr) {
     let deadline = Instant::now() + Duration::from_secs(8);
     loop {
-        if TcpStream::connect_timeout(&admin, Duration::from_millis(100)).is_ok() {
+        let admin_ready = TcpStream::connect_timeout(&admin, Duration::from_millis(100)).is_ok();
+        let proxy_ready = TcpStream::connect_timeout(&proxy, Duration::from_millis(100)).is_ok();
+        if admin_ready && proxy_ready {
             return;
         }
         assert!(Instant::now() < deadline, "senixd did not become ready");

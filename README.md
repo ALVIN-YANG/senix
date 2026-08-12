@@ -109,6 +109,21 @@ open http://127.0.0.1:9080/admin/
 
 数据库为空时必须提供 `--config`。已有 Snapshot 时，Senix 从 SQLite 恢复最新版本并忽略启动配置，避免重启覆盖已经生效的状态。
 
+已有 PEM 证书时，可以让同一个数据面同时监听 HTTP 和 HTTPS：
+
+```bash
+senixd \
+  --listen 0.0.0.0:80 \
+  --tls-listen 0.0.0.0:443 \
+  --tls-cert /etc/senix/tls/fullchain.pem \
+  --tls-key /etc/senix/tls/privkey.pem \
+  --admin-listen 127.0.0.1:9080 \
+  --db /var/lib/senix/senix.db \
+  --config /etc/senix/gateway.json
+```
+
+三个 TLS 参数必须一起提供。当前加载一组静态证书；证书申请、续期、按 SNI 动态选证书和无重启切换仍在后续范围。
+
 </details>
 
 <details>
@@ -243,7 +258,7 @@ senixd \
 
 ## 当前限制
 
-- 当前数据面纵切只验证了 HTTP 代理，尚未实现 TLS 终止、ACME 和证书管理。
+- 已支持使用 PEM 证书终止 TLS；ACME、证书管理、SNI 多证书和热切换尚未实现。
 - WebSocket、SSE 和 gRPC 会单独计入长连接在途数；摘流超时只报告状态，不会强杀连接或迁移已有连接。
 - 当前是单节点 SQLite 控制面，没有多节点一致性或网关集群管理。
 - Service 还不是可授权的真实领域实体，Key 只支持全局或明确的 Instance 范围。

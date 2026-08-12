@@ -9,7 +9,7 @@ RUN npm run build
 FROM rust:1.88-slim-bookworm AS builder
 
 RUN apt-get update \
-    && apt-get install --yes --no-install-recommends build-essential cmake clang pkg-config libssl-dev \
+    && apt-get install --yes --no-install-recommends build-essential cmake clang perl pkg-config libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
