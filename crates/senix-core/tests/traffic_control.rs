@@ -192,6 +192,7 @@ fn draining_stops_new_requests_and_survives_restart() {
             health: HealthState::Healthy,
             health_override: false,
             in_flight: 0,
+            long_lived_in_flight: 0,
         }
     );
 
@@ -488,6 +489,41 @@ fn drain_operation_is_idempotent_queryable_and_survives_restart() {
         reopened.drain_status(&started.operation_id).unwrap(),
         completed
     );
+}
+
+#[test]
+fn drain_reports_ordinary_and_long_lived_requests_separately() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Arc::new(SqliteStateStore::open(dir.path().join("senix.db")).unwrap());
+    let runtime = Arc::new(GatewayRuntime::new());
+    runtime.publish(test_config(), vec![]);
+    let traffic = TrafficController::new(Arc::clone(&runtime), store);
+
+    let ordinary = runtime.acquire("example.test", "/ordinary").unwrap();
+    let mut long_lived = runtime.acquire("example.test", "/events").unwrap();
+    assert_eq!(ordinary.instance_id(), "instance-a");
+    assert_eq!(long_lived.instance_id(), "instance-b");
+    long_lived.mark_long_lived();
+    long_lived.mark_long_lived();
+
+    let operation = traffic
+        .begin_drain(
+            "instance-b",
+            DrainOptions {
+                force: false,
+                timeout_ms: 1_000,
+            },
+            "drain-with-long-lived",
+        )
+        .unwrap();
+    assert_eq!(operation.ordinary_in_flight, 0);
+    assert_eq!(operation.long_lived_in_flight, 1);
+
+    drop(long_lived);
+    let completed = traffic.drain_status(&operation.operation_id).unwrap();
+    assert_eq!(completed.status, DrainOperationStatus::Drained);
+    assert_eq!(completed.long_lived_in_flight, 0);
+    drop(ordinary);
 }
 
 #[test]

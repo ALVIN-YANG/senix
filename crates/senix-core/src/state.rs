@@ -86,6 +86,8 @@ pub struct InstanceState {
     #[serde(default)]
     pub health_override: bool,
     pub in_flight: u64,
+    #[serde(default)]
+    pub long_lived_in_flight: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

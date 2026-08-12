@@ -110,8 +110,8 @@ impl TrafficController {
             instance_id: id.to_owned(),
             generation: state.generation,
             status,
-            ordinary_in_flight: state.in_flight,
-            long_lived_in_flight: 0,
+            ordinary_in_flight: state.in_flight.saturating_sub(state.long_lived_in_flight),
+            long_lived_in_flight: state.long_lived_in_flight,
             started_at_ms,
             deadline_at_ms: started_at_ms.saturating_add(options.timeout_ms),
             force: options.force,
@@ -141,8 +141,9 @@ impl TrafficController {
         let before = operation.clone();
         let state = self.runtime.instance_state(&operation.instance_id)?;
         if state.generation == operation.generation {
-            operation.ordinary_in_flight = state.in_flight;
-            operation.long_lived_in_flight = 0;
+            operation.ordinary_in_flight =
+                state.in_flight.saturating_sub(state.long_lived_in_flight);
+            operation.long_lived_in_flight = state.long_lived_in_flight;
             if operation.status == DrainOperationStatus::Draining && state.in_flight == 0 {
                 operation.status = DrainOperationStatus::Drained;
             } else if operation.status == DrainOperationStatus::Draining

@@ -16,6 +16,7 @@ struct InstanceGate {
     health: HealthState,
     health_override: bool,
     in_flight: u64,
+    long_lived_in_flight: u64,
 }
 
 #[derive(Debug)]
@@ -49,6 +50,7 @@ impl LiveInstance {
             health: gate.health,
             health_override: gate.health_override,
             in_flight: gate.in_flight,
+            long_lived_in_flight: gate.long_lived_in_flight,
         }
     }
 
@@ -77,6 +79,7 @@ impl LiveInstance {
         Some(RequestLease {
             instance: Arc::clone(self),
             generation,
+            long_lived: false,
         })
     }
 }
@@ -159,6 +162,7 @@ impl GatewayRuntime {
                                 health,
                                 health_override: saved.is_some_and(|state| state.health_override),
                                 in_flight: 0,
+                                long_lived_in_flight: 0,
                             }),
                         }),
                     })
@@ -418,6 +422,7 @@ fn initial_health(check: Option<&HealthCheckConfig>) -> HealthState {
 pub struct RequestLease {
     instance: Arc<LiveInstance>,
     generation: u64,
+    long_lived: bool,
 }
 
 impl RequestLease {
@@ -435,12 +440,24 @@ impl RequestLease {
     pub fn generation(&self) -> u64 {
         self.generation
     }
+
+    /// Moves this request from the ordinary bucket into the long-lived bucket.
+    pub fn mark_long_lived(&mut self) {
+        if self.long_lived {
+            return;
+        }
+        self.long_lived = true;
+        self.instance.control.gate.lock().long_lived_in_flight += 1;
+    }
 }
 
 impl Drop for RequestLease {
     fn drop(&mut self) {
         let mut gate = self.instance.control.gate.lock();
         gate.in_flight = gate.in_flight.saturating_sub(1);
+        if self.long_lived {
+            gate.long_lived_in_flight = gate.long_lived_in_flight.saturating_sub(1);
+        }
         if gate.in_flight == 0 && gate.traffic == TrafficState::Draining {
             gate.traffic = TrafficState::Drained;
         }

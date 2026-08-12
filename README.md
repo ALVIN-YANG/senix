@@ -244,7 +244,7 @@ senixd \
 ## 当前限制
 
 - 当前数据面纵切只验证了 HTTP 代理，尚未实现 TLS 终止、ACME 和证书管理。
-- 尚未识别 WebSocket、SSE 和 gRPC 长连接，`long_lived_in_flight` 目前固定为 `0`；摘流超时不会强杀连接。
+- WebSocket、SSE 和 gRPC 会单独计入长连接在途数；摘流超时只报告状态，不会强杀连接或迁移已有连接。
 - 当前是单节点 SQLite 控制面，没有多节点一致性或网关集群管理。
 - Service 还不是可授权的真实领域实体，Key 只支持全局或明确的 Instance 范围。
 - 被动健康信号、MCP stdio 桥、插件 Adapter 和系统服务安装尚未实现。

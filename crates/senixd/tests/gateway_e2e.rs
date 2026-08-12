@@ -570,6 +570,51 @@ fn pingora_drains_one_backend_and_restores_that_state_after_restart() {
 }
 
 #[test]
+fn drain_identifies_a_grpc_stream_as_long_lived() {
+    let backend_a = spawn_backend("A", Duration::from_millis(600));
+    let backend_b = spawn_backend("B", Duration::ZERO);
+    let proxy = free_address();
+    let admin = free_address();
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("senix.db");
+    let config = dir.path().join("gateway.json");
+    write_config(&config, backend_a, backend_b);
+    let owner_key = bootstrap_owner_key(&db);
+
+    let senix = spawn_senix(proxy, admin, &db, &config);
+    wait_until_ready(admin);
+
+    let stream = thread::spawn(move || {
+        raw_http(
+            proxy,
+            "GET /slow HTTP/1.1\r\nHost: example.test\r\nContent-Type: application/grpc\r\nConnection: close\r\n\r\n",
+        )
+    });
+    thread::sleep(Duration::from_millis(120));
+
+    let operation = admin_json_with_bearer(
+        admin,
+        "POST",
+        "/api/v1/instances/instance-a/drain",
+        Some("drain-grpc-stream"),
+        Some(json!({"timeout_ms": 1_000})),
+        &owner_key,
+    );
+    assert_eq!(operation["status"], "DRAINING");
+    assert_eq!(operation["ordinary_in_flight"], 0);
+    assert_eq!(operation["long_lived_in_flight"], 1);
+
+    assert!(stream.join().unwrap().ends_with("\r\n\r\nA"));
+    wait_for_operation_state(
+        admin,
+        operation["operation_id"].as_str().unwrap(),
+        "DRAINED",
+        &owner_key,
+    );
+    drop(senix);
+}
+
+#[test]
 fn active_http_health_checks_remove_and_restore_a_backend() {
     let (backend_a, backend_a_healthy) = spawn_controllable_backend("A");
     let backend_b = spawn_backend("B", Duration::ZERO);
