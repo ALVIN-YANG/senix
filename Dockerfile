@@ -20,6 +20,10 @@ RUN cargo build --release --locked -p senixd
 
 FROM debian:bookworm-slim
 
+LABEL org.opencontainers.image.source="https://github.com/ALVIN-YANG/senix" \
+      org.opencontainers.image.description="A self-contained Rust gateway with safe traffic control and scoped MCP" \
+      org.opencontainers.image.licenses="Apache-2.0"
+
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends ca-certificates libssl3 \
     && rm -rf /var/lib/apt/lists/* \

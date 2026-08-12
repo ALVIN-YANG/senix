@@ -68,16 +68,65 @@ jobs:
           path: dist/*.tar.gz
           if-no-files-found: error
 
-  image:
-    name: Publish container image
+  image-build:
+    name: Build container image (${{ matrix.platform }})
     if: startsWith(github.ref, 'refs/tags/') || inputs.publish_edge_image
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            platform: linux/amd64
+            slug: amd64
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            slug: arm64
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        id: build
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=ghcr.io/alvin-yang/senix,push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=image-${{ matrix.slug }}
+          cache-to: type=gha,mode=max,scope=image-${{ matrix.slug }}
+      - name: Export image digest
+        run: |
+          mkdir -p /tmp/digests
+          digest='${{ steps.build.outputs.digest }}'
+          touch "/tmp/digests/${digest#sha256:}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: image-digest-${{ matrix.slug }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  image:
+    name: Publish container image
+    if: startsWith(github.ref, 'refs/tags/') || inputs.publish_edge_image
+    needs: image-build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: image-digest-*
+          path: /tmp/digests
+          merge-multiple: true
       - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v4
         with:
@@ -92,15 +141,21 @@ jobs:
             type=raw,value=edge,enable=${{ github.event_name == 'workflow_dispatch' }}
             type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             type=semver,pattern={{major}}.{{minor}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-      - uses: docker/build-push-action@v7
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Merge platform images
+        env:
+          IMAGE: ghcr.io/alvin-yang/senix
+        run: |
+          mapfile -t tags < <(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          args=()
+          for tag in "${tags[@]}"; do
+            args+=(--tag "$tag")
+          done
+          for digest in /tmp/digests/*; do
+            args+=("${IMAGE}@sha256:${digest##*/}")
+          done
+          docker buildx imagetools create "${args[@]}"
+      - name: Inspect published image
+        run: docker buildx imagetools inspect '${{ fromJSON(steps.meta.outputs.json).tags[0] }}'
 
   release:
     name: Publish GitHub Release
