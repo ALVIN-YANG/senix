@@ -30,6 +30,7 @@ async function api(path, options = {}) {
   if (!response.ok) {
     const error = new Error(data?.message || `请求失败（${response.status}）`);
     error.code = data?.code;
+    error.evidence = data?.evidence;
     error.status = response.status;
     throw error;
   }
@@ -50,6 +51,10 @@ function stateTone(value) {
   if (["SERVING", "HEALTHY", "SUCCEEDED"].includes(value)) return "good";
   if (["DRAINING", "UNKNOWN"].includes(value)) return "warn";
   return "bad";
+}
+
+function idempotencyKey() {
+  return globalThis.crypto?.randomUUID?.() || `admin-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 function BrandMark({ compact = false }) {
@@ -119,7 +124,175 @@ function Sidebar({ owner, page, onPage, onLogout }) {
   </aside>;
 }
 
-function Overview({ instances }) {
+function MaintenancePanel({ instance, onReload, notify, onClose }) {
+  const [weight, setWeight] = useState(String(instance.weight));
+  const [timeoutSeconds, setTimeoutSeconds] = useState("60");
+  const [forceDrain, setForceDrain] = useState(false);
+  const [generation, setGeneration] = useState(String(instance.generation + 1));
+  const [rejoinWeight, setRejoinWeight] = useState(String(instance.weight || 100));
+  const [forceRejoin, setForceRejoin] = useState(false);
+  const [confirmDisable, setConfirmDisable] = useState(false);
+  const [operation, setOperation] = useState(null);
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setWeight(String(instance.weight));
+    setGeneration(String(instance.generation + 1));
+    setRejoinWeight(String(instance.weight || 100));
+    if (instance.traffic !== "DRAINING") setOperation(null);
+  }, [instance.id, instance.generation, instance.weight, instance.traffic]);
+
+  useEffect(() => {
+    if (!operation || operation.status !== "DRAINING") return undefined;
+    let cancelled = false;
+    const timer = window.setInterval(async () => {
+      try {
+        const next = await api(`/api/v1/operations/${encodeURIComponent(operation.operation_id)}`);
+        if (cancelled) return;
+        setOperation(next);
+        if (next.status !== "DRAINING") {
+          window.clearInterval(timer);
+          notify(next.status === "DRAINED" ? "实例已完成摘流" : "摘流等待超时，实例仍不会接收新请求");
+          await onReload();
+        }
+      } catch (requestError) {
+        if (!cancelled) setError(requestError.message);
+      }
+    }, 800);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [operation?.operation_id, operation?.status, notify, onReload]);
+
+  function explain(requestError) {
+    if (requestError.code === "LAST_AVAILABLE_BACKEND") {
+      return `这是路由 ${requestError.evidence?.route_id || ""} 最后一个可用后端。确认业务可中断后，勾选 force 再摘流。`;
+    }
+    if (requestError.code === "INVALID_STATE" && requestError.message.includes("not healthy")) {
+      return "健康检查尚未通过。人工确认实例可用后，可以勾选强制回接。";
+    }
+    return requestError.message;
+  }
+
+  async function run(name, path, method, body) {
+    setBusy(name);
+    setError("");
+    try {
+      const result = await api(path, {
+        method,
+        body,
+        headers: { "Idempotency-Key": idempotencyKey() }
+      });
+      await onReload();
+      return result;
+    } catch (requestError) {
+      setError(explain(requestError));
+      return null;
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function beginDrain(event) {
+    event.preventDefault();
+    const seconds = Number(timeoutSeconds);
+    if (!Number.isFinite(seconds) || seconds < 1 || seconds > 86400) {
+      setError("摘流等待时间必须在 1 秒到 24 小时之间。");
+      return;
+    }
+    const result = await run(
+      "drain",
+      `/api/v1/instances/${encodeURIComponent(instance.id)}/drain`,
+      "POST",
+      { timeout_ms: Math.round(seconds * 1000), force: forceDrain }
+    );
+    if (result) {
+      setOperation(result);
+      notify(result.status === "DRAINED" ? "实例已摘流" : "已停止分配新请求，正在等待在途请求结束");
+    }
+  }
+
+  async function changeWeight(event) {
+    event.preventDefault();
+    const nextWeight = Number(weight);
+    if (!Number.isInteger(nextWeight) || nextWeight < 0 || nextWeight > 10000) {
+      setError("权重必须是 0 到 10000 之间的整数。");
+      return;
+    }
+    if (await run("weight", `/api/v1/instances/${encodeURIComponent(instance.id)}/weight`, "PATCH", { weight: nextWeight })) {
+      notify("权重已更新");
+    }
+  }
+
+  async function rejoin(event) {
+    event.preventDefault();
+    const nextGeneration = Number(generation);
+    const nextWeight = Number(rejoinWeight);
+    if (!Number.isSafeInteger(nextGeneration) || nextGeneration <= instance.generation) {
+      setError(`新代次必须大于 ${instance.generation}。`);
+      return;
+    }
+    if (!Number.isInteger(nextWeight) || nextWeight < 0 || nextWeight > 10000) {
+      setError("回接权重必须是 0 到 10000 之间的整数。");
+      return;
+    }
+    if (await run(
+      "rejoin",
+      `/api/v1/instances/${encodeURIComponent(instance.id)}/rejoin`,
+      "POST",
+      { generation: nextGeneration, weight: nextWeight, force: forceRejoin }
+    )) notify("实例已按新代次回接");
+  }
+
+  async function disable() {
+    if (await run("disable", `/api/v1/instances/${encodeURIComponent(instance.id)}/disable`, "POST")) {
+      setConfirmDisable(false);
+      notify("实例已禁用，只有显式回接才会恢复流量");
+    }
+  }
+
+  const canRejoin = ["DRAINED", "DISABLED"].includes(instance.traffic);
+  return <div className="maintenance-panel">
+    <div className="maintenance-heading">
+      <div><p className="eyebrow">Manual control</p><h3>实例维护 / {instance.id}</h3></div>
+      <button className="panel-close" onClick={onClose} type="button" aria-label="关闭实例维护">关闭</button>
+    </div>
+    {operation && <div className={`drain-progress ${stateTone(operation.status)}`}>
+      <div><span>摘流进度</span><strong>{operation.status}</strong></div>
+      <div><span>普通在途</span><strong>{operation.ordinary_in_flight}</strong></div>
+      <div><span>长连接</span><strong>{operation.long_lived_in_flight}</strong></div>
+      <div><span>截止时间</span><strong>{formatTime(operation.deadline_at_ms)}</strong></div>
+    </div>}
+    {instance.traffic === "DRAINING" && !operation && <p className="maintenance-note">实例正在摘流。当前页面没有发起这次操作，因此不持有 operation_id；脚本仍可用原 operation_id 查询进度。</p>}
+    <div className="maintenance-grid">
+      {instance.traffic === "SERVING" && <form className="maintenance-unit" onSubmit={changeWeight}>
+        <div><span className="unit-number">01</span><h4>调整权重</h4><p>只影响后续新请求，不改变现有连接。</p></div>
+        <label>新权重<input type="number" min="0" max="10000" step="1" value={weight} onChange={(event) => setWeight(event.target.value)} /></label>
+        <button className="quiet-button" disabled={Boolean(busy) || Number(weight) === instance.weight} type="submit">保存权重</button>
+      </form>}
+      {instance.traffic === "SERVING" && <form className="maintenance-unit drain-unit" onSubmit={beginDrain}>
+        <div><span className="unit-number">02</span><h4>开始摘流</h4><p>立即停止新请求，等待当前请求自然结束。</p></div>
+        <label>最长等待（秒）<input type="number" min="1" max="86400" step="1" value={timeoutSeconds} onChange={(event) => setTimeoutSeconds(event.target.value)} /></label>
+        <label className="maintenance-check"><input type="checkbox" checked={forceDrain} onChange={(event) => setForceDrain(event.target.checked)} /><span><b>force</b> 允许最后一个后端进入维护</span></label>
+        <button className="primary-button" disabled={Boolean(busy)} type="submit">{busy === "drain" ? "正在摘流…" : "开始摘流"}</button>
+      </form>}
+      {canRejoin && <form className="maintenance-unit rejoin-unit" onSubmit={rejoin}>
+        <div><span className="unit-number">01</span><h4>以新代次回接</h4><p>不会因健康恢复自动接流，必须在这里或通过脚本显式回接。</p></div>
+        <div className="maintenance-fields"><label>新代次<input type="number" min={instance.generation + 1} step="1" value={generation} onChange={(event) => setGeneration(event.target.value)} /></label><label>权重<input type="number" min="0" max="10000" step="1" value={rejoinWeight} onChange={(event) => setRejoinWeight(event.target.value)} /></label></div>
+        <label className="maintenance-check"><input type="checkbox" checked={forceRejoin} onChange={(event) => setForceRejoin(event.target.checked)} /><span>人工确认健康，强制回接</span></label>
+        <button className="primary-button" disabled={Boolean(busy)} type="submit">{busy === "rejoin" ? "正在回接…" : "以新代次回接"}</button>
+      </form>}
+      {instance.traffic !== "DISABLED" && <div className="maintenance-unit danger-unit">
+        <div><span className="unit-number">{instance.traffic === "SERVING" ? "03" : "02"}</span><h4>禁用实例</h4><p>持续阻止新请求，健康恢复也不会自动启用。</p></div>
+        {confirmDisable ? <div className="danger-confirm"><p>确定禁用 {instance.id}？</p><button className="quiet-button" onClick={() => setConfirmDisable(false)} type="button">取消</button><button className="danger-button" disabled={Boolean(busy)} onClick={disable} type="button">确认禁用</button></div>
+          : <button className="danger-button" disabled={Boolean(busy)} onClick={() => setConfirmDisable(true)} type="button">禁用实例</button>}
+      </div>}
+    </div>
+    <p className="maintenance-error" role="alert">{error}</p>
+  </div>;
+}
+
+function Overview({ instances, onReload, notify }) {
+  const [openInstance, setOpenInstance] = useState("");
   const serving = instances.filter((item) => item.traffic === "SERVING").length;
   const attention = instances.filter((item) => item.traffic !== "SERVING" || item.health === "UNHEALTHY").length;
   return <section className="page">
@@ -130,14 +303,18 @@ function Overview({ instances }) {
     </div>
     <div className="section-heading"><div><h2>实例轨道</h2><p>流量状态和健康状态分别显示，避免把健康恢复误当成自动回接。</p></div></div>
     <div className="traffic-board" aria-live="polite">
-      {instances.length ? instances.map((item) => <article className="traffic-row" key={item.id}>
-        <div className="traffic-rail" aria-label={`流量 ${item.traffic}，健康 ${item.health}`}>
-          <i className={stateTone(item.traffic)} /><i className={stateTone(item.health)} />
+      {instances.length ? instances.map((item) => <article className={`instance-bay${openInstance === item.id ? " open" : ""}`} key={item.id}>
+        <div className="traffic-row">
+          <div className="traffic-rail" aria-label={`流量 ${item.traffic}，健康 ${item.health}`}>
+            <i className={stateTone(item.traffic)} /><i className={stateTone(item.health)} />
+          </div>
+          <div className="traffic-name"><strong>{item.id}</strong><code>generation {item.generation}{item.health_override ? " · health override" : ""}</code></div>
+          <div className="metric metric-traffic"><span>流量</span><b className={`state-${stateTone(item.traffic)}`}>{item.traffic}</b></div>
+          <div className="metric metric-health"><span>健康</span><b className={`state-${stateTone(item.health)}`}>{item.health}</b></div>
+          <div className="metric metric-weight"><span>权重</span><b>{item.weight}</b></div>
+          <button className={`control-button${openInstance === item.id ? " active" : ""}`} aria-expanded={openInstance === item.id} onClick={() => setOpenInstance(openInstance === item.id ? "" : item.id)} type="button">维护</button>
         </div>
-        <div className="traffic-name"><strong>{item.id}</strong><code>generation {item.generation}</code></div>
-        <div className="metric"><span>流量</span><b className={`state-${stateTone(item.traffic)}`}>{item.traffic}</b></div>
-        <div className="metric"><span>健康</span><b className={`state-${stateTone(item.health)}`}>{item.health}</b></div>
-        <div className="metric"><span>权重</span><b>{item.weight}</b></div>
+        {openInstance === item.id && <MaintenancePanel instance={item} onReload={onReload} notify={notify} onClose={() => setOpenInstance("")} />}
       </article>) : <div className="empty-state">还没有实例。先通过配置快照加入后端实例。</div>}
     </div>
   </section>;
@@ -435,7 +612,7 @@ function ControlDesk({ owner, onExpired }) {
     <Sidebar owner={owner} page={page} onPage={setPage} onLogout={logout} />
     <main>
       <header className="topbar"><div><p className="eyebrow">{labels[page][0]}</p><h1>{labels[page][1]}</h1></div><div className="top-actions"><span className="last-updated">{updated ? `更新于 ${updated.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}` : "尚未刷新"}</span><button className="quiet-button" onClick={loadAll} type="button">刷新</button></div></header>
-      {page === "overview" && <Overview instances={instances} />}
+      {page === "overview" && <Overview instances={instances} onReload={loadAll} notify={notify} />}
       {page === "changes" && <Changes current={current} changes={changes} onReload={loadAll} notify={notify} />}
       {page === "credentials" && <Credentials credentials={credentials} instances={instances} onReload={loadAll} onSecret={setSecret} notify={notify} />}
       {page === "audit" && <Audit events={audit} />}

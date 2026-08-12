@@ -690,6 +690,16 @@ fn assert_embedded_admin_page(admin: SocketAddr) {
     assert!(response.starts_with("HTTP/1.1 200"));
     assert!(response.contains("Senix control desk"));
     assert!(response_header(&response, "content-security-policy").is_some());
+
+    let script = raw_http(
+        admin,
+        "GET /admin/admin.js HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+    );
+    assert!(script.starts_with("HTTP/1.1 200"));
+    assert!(script.contains("开始摘流"));
+    assert!(script.contains("以新代次回接"));
+    assert!(script.contains("调整权重"));
+    assert!(script.contains("禁用实例"));
 }
 
 fn assert_owner_login_denied(admin: SocketAddr, password: &str) {
