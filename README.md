@@ -5,6 +5,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Rust-1.88-173a45?logo=rust&logoColor=white" alt="Rust 1.88">
   <img src="https://img.shields.io/badge/Pingora-0.8.1-2d9c83" alt="Pingora 0.8.1">
+  <a href="https://github.com/ALVIN-YANG/senix/releases"><img src="https://img.shields.io/github/v/release/ALVIN-YANG/senix?display_name=tag&color=2d9c83" alt="GitHub Release"></a>
   <img src="https://img.shields.io/badge/license-Apache--2.0-67777b" alt="Apache-2.0 license">
 </p>
 
@@ -39,6 +40,28 @@ Senix 是一个面向个人开发者和小团队的独立 Rust 网关。一个�
 更完整的产品边界见 [需求文档](./docs/requirements.md)，关键设计决定见 [ADR](./docs/adr)。
 
 ## 快速开始
+
+有 Docker 时，直接启动一个 Senix 和两个演示后端：
+
+```bash
+git clone https://github.com/ALVIN-YANG/senix.git
+cd senix
+./scripts/demo.sh
+```
+
+脚本会生成 Owner 密码，并输出管理后台地址和一次真实代理结果。停止演示不会删除数据；执行输出中的重置命令才会清空演示卷。
+
+只安装二进制时：
+
+```bash
+curl --proto '=https' --tlsv1.2 -LsSf \
+  https://raw.githubusercontent.com/ALVIN-YANG/senix/main/install.sh | sh
+```
+
+安装器支持 Linux 和 macOS 的 x86_64、ARM64，下载 GitHub Release 并校验 SHA-256。Linux 需要 glibc 2.34 或更新版本；也可以先下载并检查 [`install.sh`](./install.sh) 再执行。
+
+<details>
+<summary><strong>从源码构建</strong></summary>
 
 需要 Rust `1.88`、C/C++ 编译器和 CMake。示例配置假定本机已有两个 HTTP 后端，分别监听 `4101` 和 `4102`。
 
@@ -85,6 +108,8 @@ open http://127.0.0.1:9080/admin/
 ```
 
 数据库为空时必须提供 `--config`。已有 Snapshot 时，Senix 从 SQLite 恢复最新版本并忽略启动配置，避免重启覆盖已经生效的状态。
+
+</details>
 
 <details>
 <summary><strong>使用 Docker 构建和运行</strong></summary>
@@ -222,7 +247,7 @@ senixd \
 - 尚未识别 WebSocket、SSE 和 gRPC 长连接，`long_lived_in_flight` 目前固定为 `0`；摘流超时不会强杀连接。
 - 当前是单节点 SQLite 控制面，没有多节点一致性或网关集群管理。
 - Service 还不是可授权的真实领域实体，Key 只支持全局或明确的 Instance 范围。
-- 被动健康信号、MCP stdio 桥、插件 Adapter、安装器和正式发布包尚未实现。
+- 被动健康信号、MCP stdio 桥、插件 Adapter 和系统服务安装尚未实现。
 - HTTP/3 不在当前 Pingora 数据面能力内。
 
 详细取舍和后续候选范围见 [需求文档](./docs/requirements.md)。
