@@ -242,6 +242,45 @@ main { min-width: 0; padding: 0 clamp(24px, 5vw, 76px) 64px; }
 .maintenance-error { min-height: 16px; margin: 11px 0 -5px; color: var(--danger); font-size: 10px; line-height: 1.45; }
 .empty-state { padding: 46px 24px; color: var(--muted); text-align: center; line-height: 1.6; }
 
+.diagnostic-console { display: grid; grid-template-columns: minmax(240px,.75fr) minmax(420px,1.25fr); gap: 28px; padding: 27px; border-radius: 10px; color: white; background: var(--harbor); box-shadow: var(--shadow); }
+.diagnostic-intro h2 { margin: 0; font-size: 22px; letter-spacing: -.03em; }
+.diagnostic-intro > p:last-child { max-width: 400px; margin: 9px 0 0; color: rgba(255,255,255,.62); font-size: 11px; line-height: 1.6; }
+.diagnostic-inputs { display: grid; grid-template-columns: 1.2fr 1fr auto; align-items: end; gap: 10px; }
+.diagnostic-inputs label { color: rgba(255,255,255,.72); font-size: 9px; font-weight: 700; letter-spacing: .05em; }
+.diagnostic-inputs input { border-color: rgba(255,255,255,.18); color: white; background: rgba(255,255,255,.08); }
+.diagnostic-inputs input::placeholder { color: rgba(255,255,255,.32); }
+.diagnostic-inputs input:focus { border-color: #65d4b6; box-shadow: 0 0 0 3px rgba(101,212,182,.13); }
+.diagnostic-inputs .primary-button { color: var(--harbor); background: #78d6bd; white-space: nowrap; }
+.diagnostic-console .form-error { grid-column: 2; color: #ffb3ad; }
+.diagnostic-report { margin-top: 18px; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+.diagnostic-outcome { position: relative; padding: 20px 22px 20px 27px; display: grid; grid-template-columns: 180px minmax(0,1fr) auto; align-items: center; gap: 20px; border-bottom: 1px solid var(--line); }
+.diagnostic-outcome::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 5px; background: var(--danger); }
+.diagnostic-outcome.good::before { background: var(--signal); }
+.diagnostic-outcome.warn::before { background: var(--amber); }
+.diagnostic-outcome span { display: block; color: var(--muted); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+.diagnostic-outcome strong { display: block; margin-top: 4px; color: var(--danger); font: 700 12px/1.3 "SFMono-Regular", Consolas, monospace; }
+.diagnostic-outcome.good strong { color: var(--signal); }
+.diagnostic-outcome.warn strong { color: var(--amber); }
+.diagnostic-outcome p { margin: 0; color: var(--ink); font-size: 12px; line-height: 1.55; }
+.diagnostic-outcome code { padding: 7px 9px; border-radius: 5px; color: var(--harbor); background: var(--fog); font-size: 9px; overflow-wrap: anywhere; }
+.evidence-list { padding: 21px 22px 6px; }
+.evidence-step { position: relative; display: grid; grid-template-columns: 28px 16px minmax(0,1fr); gap: 10px; min-height: 78px; }
+.evidence-step:not(:last-child)::after { content: ""; position: absolute; left: 35px; top: 23px; bottom: -4px; width: 1px; background: var(--line); }
+.evidence-index { padding-top: 3px; color: #9ca9a8; font: 700 9px/1.2 "SFMono-Regular", Consolas, monospace; }
+.evidence-step > i { z-index: 1; width: 11px; height: 11px; margin-top: 2px; border: 3px solid var(--paper); border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 1px var(--line); }
+.evidence-step.good > i { background: var(--signal); }
+.evidence-step.warn > i { background: var(--amber); }
+.evidence-step b { color: var(--harbor); font-size: 12px; }
+.evidence-step small { margin-left: 8px; color: var(--muted); font: 8px/1.2 "SFMono-Regular", Consolas, monospace; text-transform: uppercase; }
+.evidence-step code { display: block; margin-top: 7px; color: var(--muted); font-size: 9px; line-height: 1.55; white-space: normal; overflow-wrap: anywhere; }
+.raw-evidence { padding: 14px 20px; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-top: 1px solid var(--line); background: #f7faf9; }
+.raw-evidence details { min-width: 0; flex: 1; }
+.raw-evidence summary { padding: 8px 0; color: var(--muted); font-size: 10px; cursor: pointer; }
+.raw-evidence pre { max-height: 320px; overflow: auto; padding: 14px; border-radius: 7px; color: #dceae6; background: var(--harbor-deep); font: 9px/1.55 "SFMono-Regular", Consolas, monospace; }
+.diagnostic-empty { min-height: 280px; margin-top: 18px; display: grid; place-content: center; justify-items: center; border: 1px dashed #bccbc7; border-radius: 10px; color: var(--muted); background: rgba(255,255,255,.35); text-align: center; }
+.diagnostic-empty span { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 50%; color: var(--signal); font: 700 10px/1 "SFMono-Regular", Consolas, monospace; background: var(--paper); }
+.diagnostic-empty p { max-width: 320px; margin: 14px 24px 0; font-size: 11px; line-height: 1.6; }
+
 .key-workbench { margin-bottom: 18px; padding: 24px; border: 1px solid var(--signal); border-radius: 9px; background: #f7fbfa; box-shadow: 0 10px 28px rgba(45,156,131,.08); }
 .form-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 18px; }
 fieldset { margin: 24px 0 0; padding: 0; border: 0; }
@@ -300,6 +339,8 @@ dialog p { color: var(--muted); line-height: 1.6; }
   .metric-weight { display: none; }
   .maintenance-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .maintenance-unit:nth-child(3) { grid-column: 1 / -1; border-top: 1px solid var(--line); border-left: 0; }
+  .diagnostic-console { grid-template-columns: 1fr; }
+  .diagnostic-console .form-error { grid-column: 1; }
   .credential-row { grid-template-columns: 1fr auto; }
   .credential-actions, .credential-scope { grid-column: 1 / -1; }
   .change-card { grid-template-columns: 108px minmax(0,1fr); }
@@ -335,6 +376,13 @@ dialog p { color: var(--muted); line-height: 1.6; }
   .maintenance-grid { grid-template-columns: 1fr; }
   .maintenance-unit + .maintenance-unit, .maintenance-unit:nth-child(3) { grid-column: auto; border-top: 1px solid var(--line); border-left: 0; }
   .maintenance-unit > div:first-child { min-height: auto; }
+  .diagnostic-console { padding: 20px; gap: 20px; }
+  .diagnostic-inputs { grid-template-columns: 1fr; }
+  .diagnostic-inputs .primary-button { width: 100%; }
+  .diagnostic-outcome { grid-template-columns: 1fr; gap: 9px; }
+  .diagnostic-outcome code { justify-self: start; }
+  .raw-evidence { display: grid; }
+  .raw-evidence .quiet-button { width: 100%; }
   .credential-row { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .credential-actions, .credential-scope { grid-column: auto; }
   .credential-main code { overflow-wrap: anywhere; }

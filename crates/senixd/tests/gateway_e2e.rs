@@ -700,6 +700,7 @@ fn assert_embedded_admin_page(admin: SocketAddr) {
     assert!(script.contains("以新代次回接"));
     assert!(script.contains("调整权重"));
     assert!(script.contains("禁用实例"));
+    assert!(script.contains("请求诊断"));
 }
 
 fn assert_owner_login_denied(admin: SocketAddr, password: &str) {

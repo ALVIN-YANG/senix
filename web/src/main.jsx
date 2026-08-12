@@ -48,8 +48,8 @@ function formatTime(value) {
 }
 
 function stateTone(value) {
-  if (["SERVING", "HEALTHY", "SUCCEEDED"].includes(value)) return "good";
-  if (["DRAINING", "UNKNOWN"].includes(value)) return "warn";
+  if (["SERVING", "HEALTHY", "SUCCEEDED", "READY", "PASSED", "DRAINED"].includes(value)) return "good";
+  if (["DRAINING", "UNKNOWN", "BLOCKED"].includes(value)) return "warn";
   return "bad";
 }
 
@@ -113,7 +113,7 @@ function Sidebar({ owner, page, onPage, onLogout }) {
   return <aside className="sidebar">
     <div className="sidebar-brand"><BrandMark compact /><div><strong>Senix</strong><span>Control desk</span></div></div>
     <nav aria-label="控制台导航">
-      {[["overview", "流量状态", "状态", "1"], ["changes", "配置变更", "变更", "2"], ["credentials", "访问 Key", "Key", "3"], ["audit", "审计记录", "审计", "4"]].map(([id, label, short, key]) =>
+      {[["overview", "流量状态", "状态", "1"], ["changes", "配置变更", "变更", "2"], ["diagnostics", "请求诊断", "诊断", "3"], ["credentials", "访问 Key", "Key", "4"], ["audit", "审计记录", "审计", "5"]].map(([id, label, short, key]) =>
         <button key={id} className={`nav-item${page === id ? " active" : ""}`} onClick={() => onPage(id)} type="button"><span data-short={short}>{label}</span><kbd>{key}</kbd></button>)}
     </nav>
     <div className="sidebar-foot">
@@ -317,6 +317,91 @@ function Overview({ instances, onReload, notify }) {
         {openInstance === item.id && <MaintenancePanel instance={item} onReload={onReload} notify={notify} onClose={() => setOpenInstance("")} />}
       </article>) : <div className="empty-state">还没有实例。先通过配置快照加入后端实例。</div>}
     </div>
+  </section>;
+}
+
+function Diagnostics({ current, notify }) {
+  const [host, setHost] = useState("");
+  const [path, setPath] = useState("/");
+  const [report, setReport] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const firstRoute = current?.config?.routes?.[0];
+    if (!host && firstRoute) {
+      setHost(firstRoute.host);
+      setPath(firstRoute.path_prefix || "/");
+    }
+  }, [current?.version, host]);
+
+  async function diagnose(event) {
+    event.preventDefault();
+    const targetHost = host.trim();
+    const targetPath = path.trim();
+    if (!targetHost || !targetPath.startsWith("/")) {
+      setError("Host 不能为空，路径必须以 / 开头。");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      setReport(await api("/api/v1/diagnostics/requests", {
+        method: "POST",
+        body: { host: targetHost, path: targetPath }
+      }));
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyReport() {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(report, null, 2));
+      notify("原始诊断 JSON 已复制");
+    } catch {
+      notify("复制失败，请展开原始证据后手动复制");
+    }
+  }
+
+  const outcomeCopy = {
+    READY: "当前运行快照中有后端可以接收新请求。",
+    ROUTE_NOT_FOUND: "当前配置没有匹配这个 Host 与路径。",
+    NO_AVAILABLE_BACKEND: "路由已命中，但所有后端都被流量状态、健康状态或权重挡住。"
+  };
+  const stageLabels = {
+    route_match: "路由匹配",
+    backend_state: "后端状态",
+    backend_selection: "后端选择"
+  };
+
+  return <section className="page diagnostics-page">
+    <form className="diagnostic-console" onSubmit={diagnose}>
+      <div className="diagnostic-intro"><p className="eyebrow">Evidence, not guesses</p><h2>模拟一个请求</h2><p>使用当前正在接流的 Snapshot 检查路由命中和后端资格，不会向业务后端发送请求。</p></div>
+      <div className="diagnostic-inputs">
+        <label>Host<input value={host} onChange={(event) => setHost(event.target.value)} placeholder="api.example.com" required /></label>
+        <label>路径<input value={path} onChange={(event) => setPath(event.target.value)} placeholder="/api/users" required /></label>
+        <button className="primary-button" disabled={busy} type="submit">{busy ? "正在检查…" : "请求诊断"}</button>
+      </div>
+      <p className="form-error" role="alert">{error}</p>
+    </form>
+    {report ? <div className="diagnostic-report" aria-live="polite">
+      <div className={`diagnostic-outcome ${stateTone(report.outcome)}`}>
+        <div><span>诊断结果</span><strong>{report.outcome}</strong></div>
+        <p>{outcomeCopy[report.outcome]}</p>
+        <code>{report.host}{report.path}</code>
+      </div>
+      <div className="evidence-list">
+        {report.steps.map((step, index) => <article className={`evidence-step ${stateTone(step.status.toUpperCase())}`} key={`${step.stage}-${index}`}>
+          <span className="evidence-index">{String(index + 1).padStart(2, "0")}</span>
+          <i aria-hidden="true" />
+          <div><b>{stageLabels[step.stage] || step.stage}</b><small>{step.status}</small><code>{step.detail}</code></div>
+        </article>)}
+      </div>
+      <div className="raw-evidence"><details><summary>查看原始证据 JSON</summary><pre>{JSON.stringify(report, null, 2)}</pre></details><button className="quiet-button" onClick={copyReport} type="button">复制原始 JSON</button></div>
+    </div> : <div className="diagnostic-empty"><span>01</span><p>输入 Host 和路径后，证据链会按实际决策顺序出现在这里。</p></div>}
   </section>;
 }
 
@@ -590,7 +675,7 @@ function ControlDesk({ owner, onExpired }) {
   useEffect(() => {
     function keyboard(event) {
       if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
-      if (["1", "2", "3", "4"].includes(event.key)) setPage(["overview", "changes", "credentials", "audit"][Number(event.key) - 1]);
+      if (["1", "2", "3", "4", "5"].includes(event.key)) setPage(["overview", "changes", "diagnostics", "credentials", "audit"][Number(event.key) - 1]);
     }
     document.addEventListener("keydown", keyboard);
     return () => document.removeEventListener("keydown", keyboard);
@@ -604,6 +689,7 @@ function ControlDesk({ owner, onExpired }) {
   const labels = {
     overview: ["Live traffic", "流量状态"],
     changes: ["Approval queue", "配置变更"],
+    diagnostics: ["Routing evidence", "请求诊断"],
     credentials: ["Access boundary", "访问 Key"],
     audit: ["Recorded actions", "审计记录"]
   };
@@ -614,6 +700,7 @@ function ControlDesk({ owner, onExpired }) {
       <header className="topbar"><div><p className="eyebrow">{labels[page][0]}</p><h1>{labels[page][1]}</h1></div><div className="top-actions"><span className="last-updated">{updated ? `更新于 ${updated.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}` : "尚未刷新"}</span><button className="quiet-button" onClick={loadAll} type="button">刷新</button></div></header>
       {page === "overview" && <Overview instances={instances} onReload={loadAll} notify={notify} />}
       {page === "changes" && <Changes current={current} changes={changes} onReload={loadAll} notify={notify} />}
+      {page === "diagnostics" && <Diagnostics current={current} notify={notify} />}
       {page === "credentials" && <Credentials credentials={credentials} instances={instances} onReload={loadAll} onSecret={setSecret} notify={notify} />}
       {page === "audit" && <Audit events={audit} />}
     </main>
