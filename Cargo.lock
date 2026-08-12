@@ -1995,7 +1995,7 @@ version = "0.1.0"
 dependencies = [
  "arc-swap",
  "argon2",
- "base64 0.22.1",
+ "base64 0.23.1",
  "hmac",
  "parking_lot",
  "rusqlite",
