@@ -1,0 +1,35 @@
+services:
+  backend-a:
+    image: traefik/whoami:v1.11
+    hostname: backend-a
+    networks:
+      senix-demo:
+        ipv4_address: 172.28.0.11
+
+  backend-b:
+    image: traefik/whoami:v1.11
+    hostname: backend-b
+    networks:
+      senix-demo:
+        ipv4_address: 172.28.0.12
+
+  senix:
+    image: ${SENIX_IMAGE:-ghcr.io/alvin-yang/senix:edge}
+    ports:
+      - "8080:8080"
+      - "127.0.0.1:9080:9080"
+    volumes:
+      - senix-data:/var/lib/senix
+      - ./gateway.json:/etc/senix/gateway.json:ro
+    networks:
+      senix-demo:
+        ipv4_address: 172.28.0.10
+
+volumes:
+  senix-data:
+
+networks:
+  senix-demo:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24

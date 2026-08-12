@@ -1,0 +1,39 @@
+{
+  "routes": [
+    {
+      "id": "demo-route",
+      "host": "demo.senix.local",
+      "path_prefix": "/",
+      "backends": [
+        {
+          "id": "backend-a",
+          "address": "172.28.0.11:80",
+          "generation": 1,
+          "weight": 100,
+          "health_check": {
+            "protocol": "http",
+            "path": "/health",
+            "interval_ms": 1000,
+            "timeout_ms": 500,
+            "healthy_threshold": 1,
+            "unhealthy_threshold": 2
+          }
+        },
+        {
+          "id": "backend-b",
+          "address": "172.28.0.12:80",
+          "generation": 1,
+          "weight": 100,
+          "health_check": {
+            "protocol": "http",
+            "path": "/health",
+            "interval_ms": 1000,
+            "timeout_ms": 500,
+            "healthy_threshold": 1,
+            "unhealthy_threshold": 2
+          }
+        }
+      ]
+    }
+  ]
+}
