@@ -31,5 +31,7 @@ pub use state::{
     InstanceState, PersistedInstanceState, RouteConfig, TrafficState, UpstreamAlpn,
     UpstreamTlsConfig,
 };
-pub use store::{ConfigStateStore, InstanceStateStore, SqliteStateStore};
+pub use store::{
+    ConfigStateStore, DatabaseStatus, InstanceStateStore, SQLITE_SCHEMA_VERSION, SqliteStateStore,
+};
 pub use traffic::{DrainOperation, DrainOperationStatus, DrainOptions, TrafficController};

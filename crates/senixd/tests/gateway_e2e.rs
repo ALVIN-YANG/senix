@@ -1092,6 +1092,139 @@ fn secret_key_generation_never_overwrites_an_existing_file() {
     }
 }
 
+#[test]
+fn backup_cli_verifies_the_master_key_and_restores_without_overwriting() {
+    let directory = tempfile::tempdir().unwrap();
+    let db = directory.path().join("senix.db");
+    let backup = directory.path().join("senix.backup.db");
+    let restored = directory.path().join("restored.db");
+    let secret_key = directory.path().join("secret.key");
+    let wrong_key = directory.path().join("wrong.key");
+
+    let encoded_key = senix_core::SecretVault::generate_base64();
+    write_private_file(&secret_key, &encoded_key);
+    write_private_file(&wrong_key, &senix_core::SecretVault::generate_base64());
+    let store = Arc::new(senix_core::SqliteStateStore::open(&db).unwrap());
+    let security = senix_core::SecurityController::new(Arc::clone(&store));
+    let owner_key = security.bootstrap_owner_key("backup-owner").unwrap();
+    let certificates = senix_core::CertificateController::new(
+        Arc::clone(&store),
+        senix_core::SecretVault::from_base64(&encoded_key).unwrap(),
+    );
+    certificates
+        .save_secret("acme-account", b"encrypted-account-state")
+        .unwrap();
+    drop(certificates);
+    drop(security);
+    drop(store);
+
+    let created = Command::new(env!("CARGO_BIN_EXE_senixd"))
+        .args(["backup", "create", "--db"])
+        .arg(&db)
+        .arg("--output")
+        .arg(&backup)
+        .arg("--secret-key-file")
+        .arg(&secret_key)
+        .output()
+        .unwrap();
+    assert!(
+        created.status.success(),
+        "backup create failed: {}",
+        String::from_utf8_lossy(&created.stderr)
+    );
+    assert!(backup.is_file());
+    let backup_before = fs::read(&backup).unwrap();
+
+    let verified = Command::new(env!("CARGO_BIN_EXE_senixd"))
+        .args(["backup", "verify", "--input"])
+        .arg(&backup)
+        .arg("--secret-key-file")
+        .arg(&secret_key)
+        .output()
+        .unwrap();
+    assert!(
+        verified.status.success(),
+        "backup verify failed: {}",
+        String::from_utf8_lossy(&verified.stderr)
+    );
+    let report: Value = serde_json::from_slice(&verified.stdout).unwrap();
+    assert_eq!(report["schema_version"], 1);
+    assert_eq!(report["master_key_verified"], true);
+
+    let wrong = Command::new(env!("CARGO_BIN_EXE_senixd"))
+        .args(["backup", "verify", "--input"])
+        .arg(&backup)
+        .arg("--secret-key-file")
+        .arg(&wrong_key)
+        .output()
+        .unwrap();
+    assert!(!wrong.status.success());
+
+    let overwrite = Command::new(env!("CARGO_BIN_EXE_senixd"))
+        .args(["backup", "create", "--db"])
+        .arg(&db)
+        .arg("--output")
+        .arg(&backup)
+        .arg("--secret-key-file")
+        .arg(&secret_key)
+        .output()
+        .unwrap();
+    assert!(!overwrite.status.success());
+    assert_eq!(fs::read(&backup).unwrap(), backup_before);
+
+    let restored_output = Command::new(env!("CARGO_BIN_EXE_senixd"))
+        .args(["backup", "restore", "--input"])
+        .arg(&backup)
+        .arg("--db")
+        .arg(&restored)
+        .arg("--secret-key-file")
+        .arg(&secret_key)
+        .output()
+        .unwrap();
+    assert!(
+        restored_output.status.success(),
+        "backup restore failed: {}",
+        String::from_utf8_lossy(&restored_output.stderr)
+    );
+    assert_restored_backup(&restored, &owner_key.api_key, &encoded_key);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        assert_eq!(
+            fs::metadata(&restored).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
+}
+
+fn assert_restored_backup(restored: &Path, owner_key: &str, encoded_key: &str) {
+    let store = Arc::new(senix_core::SqliteStateStore::open(restored).unwrap());
+    senix_core::SecurityController::new(Arc::clone(&store))
+        .authenticate(owner_key)
+        .unwrap();
+    let certificates = senix_core::CertificateController::new(
+        store,
+        senix_core::SecretVault::from_base64(encoded_key).unwrap(),
+    );
+    assert_eq!(
+        certificates
+            .load_secret("acme-account")
+            .unwrap()
+            .unwrap()
+            .expose(),
+        b"encrypted-account-state"
+    );
+}
+
+fn write_private_file(path: &Path, value: &str) {
+    fs::write(path, format!("{value}\n")).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o600)).unwrap();
+    }
+}
+
 fn spawn_senix(proxy: SocketAddr, admin: SocketAddr, db: &Path, config: &Path) -> ChildGuard {
     let child = Command::new(env!("CARGO_BIN_EXE_senixd"))
         .args([

@@ -2696,6 +2696,7 @@ dependencies = [
  "h2",
  "openssl",
  "pingora-core",
+ "rusqlite",
  "senix-acme",
  "senix-core",
  "senix-mcp",

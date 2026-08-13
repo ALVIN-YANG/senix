@@ -1,7 +1,13 @@
-use std::{path::Path, sync::Arc};
+use std::{
+    path::Path,
+    sync::Arc,
+    thread,
+    time::{Duration, Instant},
+};
 
 use parking_lot::Mutex;
-use rusqlite::{Connection, OptionalExtension, Row, params, types::Type};
+use rusqlite::{Connection, OpenFlags, OptionalExtension, Row, params, types::Type};
+use serde::Serialize;
 
 use crate::{
     AuditEvent, AuditOutcome, ChangePlan, CredentialKind, CredentialSummary, DrainOperation, Error,
@@ -11,8 +17,14 @@ use crate::{
     security::{StoredCredential, StoredOwnerAccount},
 };
 
+pub const SQLITE_SCHEMA_VERSION: i64 = 1;
+
 const SCHEMA: &str = "PRAGMA journal_mode = WAL;
+    PRAGMA synchronous = FULL;
+    PRAGMA wal_autocheckpoint = 1000;
+    PRAGMA journal_size_limit = 67108864;
     PRAGMA foreign_keys = ON;
+    PRAGMA trusted_schema = OFF;
     CREATE TABLE IF NOT EXISTS instance_states (
         id TEXT PRIMARY KEY,
         generation INTEGER NOT NULL,
@@ -94,7 +106,16 @@ const SCHEMA: &str = "PRAGMA journal_mode = WAL;
         active INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS managed_certificates_active_created
-        ON managed_certificates(active, created_at_ms, certificate_id);";
+        ON managed_certificates(active, created_at_ms, certificate_id);
+    PRAGMA user_version = 1;";
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+pub struct DatabaseStatus {
+    pub schema_version: i64,
+    pub snapshot_version: Option<u64>,
+    pub managed_secret_count: u64,
+    pub managed_certificate_count: u64,
+}
 
 pub trait InstanceStateStore: Send + Sync {
     /// Loads all durable instance states.
@@ -254,6 +275,13 @@ impl SqliteStateStore {
     /// Returns an error when the database cannot be opened or migrated.
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let connection = Connection::open(path)?;
+        connection.busy_timeout(Duration::from_secs(5))?;
+        let schema_version = schema_version(&connection)?;
+        if schema_version > SQLITE_SCHEMA_VERSION {
+            return Err(Error::InvalidState(format!(
+                "database schema version {schema_version} is newer than supported version {SQLITE_SCHEMA_VERSION}"
+            )));
+        }
         connection.execute_batch(SCHEMA)?;
         let has_health_override = {
             let mut statement = connection.prepare("PRAGMA table_info(instance_states)")?;
@@ -275,6 +303,116 @@ impl SqliteStateStore {
         }
         Ok(Self {
             connection: Mutex::new(connection),
+        })
+    }
+
+    /// Opens an existing database without applying migrations or changing journal settings.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the database is missing, unreadable, or uses another schema version.
+    pub fn open_read_only(path: impl AsRef<Path>) -> Result<Self> {
+        let connection = Connection::open_with_flags(
+            path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        connection.busy_timeout(Duration::from_secs(5))?;
+        let version = schema_version(&connection)?;
+        if version != SQLITE_SCHEMA_VERSION {
+            return Err(Error::InvalidState(format!(
+                "database schema version {version} does not match supported version {SQLITE_SCHEMA_VERSION}"
+            )));
+        }
+        Ok(Self {
+            connection: Mutex::new(connection),
+        })
+    }
+
+    /// Creates a consistent online backup using `SQLite`'s backup API.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the destination cannot be opened or the backup cannot complete.
+    pub fn backup_to(&self, destination: impl AsRef<Path>) -> Result<()> {
+        let source = self.connection.lock();
+        let mut destination = Connection::open(destination)?;
+        let backup = rusqlite::backup::Backup::new(&source, &mut destination)?;
+        let mut last_remaining = i32::MAX;
+        let mut stalled_since = Instant::now();
+        loop {
+            let result = backup.step(100)?;
+            let remaining = backup.progress().remaining;
+            if remaining < last_remaining {
+                last_remaining = remaining;
+                stalled_since = Instant::now();
+            } else if stalled_since.elapsed() >= Duration::from_secs(30) {
+                return Err(Error::InvalidState(
+                    "SQLite backup made no progress for 30 seconds".to_owned(),
+                ));
+            }
+            match result {
+                rusqlite::backup::StepResult::Done => return Ok(()),
+                rusqlite::backup::StepResult::More
+                | rusqlite::backup::StepResult::Busy
+                | rusqlite::backup::StepResult::Locked => {
+                    thread::sleep(Duration::from_millis(10));
+                }
+                _ => thread::sleep(Duration::from_millis(10)),
+            }
+        }
+    }
+
+    /// Runs `SQLite`'s full integrity check.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `SQLite` reports corruption or cannot complete the check.
+    pub fn verify_integrity(&self) -> Result<()> {
+        let result: String =
+            self.connection
+                .lock()
+                .query_row("PRAGMA integrity_check(1)", [], |row| row.get(0))?;
+        if result != "ok" {
+            return Err(Error::InvalidState(format!(
+                "SQLite integrity check failed: {result}"
+            )));
+        }
+        Ok(())
+    }
+
+    /// Returns non-secret inventory used to validate and describe a backup.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when metadata cannot be read or contains invalid integer values.
+    pub fn database_status(&self) -> Result<DatabaseStatus> {
+        let connection = self.connection.lock();
+        let schema_version = schema_version(&connection)?;
+        let snapshot_version = connection
+            .query_row("SELECT MAX(version) FROM config_snapshots", [], |row| {
+                row.get::<_, Option<i64>>(0)
+            })?
+            .map(|version| {
+                u64::try_from(version).map_err(|_| {
+                    Error::InvalidState("stored snapshot version is negative".to_owned())
+                })
+            })
+            .transpose()?;
+        let managed_secret_count = sqlite_count(
+            connection.query_row("SELECT COUNT(*) FROM managed_secrets", [], |row| row.get(0))?,
+            "managed secret",
+        )?;
+        let managed_certificate_count = sqlite_count(
+            connection.query_row("SELECT COUNT(*) FROM managed_certificates", [], |row| {
+                row.get(0)
+            })?,
+            "managed certificate",
+        )?;
+        Ok(DatabaseStatus {
+            schema_version,
+            snapshot_version,
+            managed_secret_count,
+            managed_certificate_count,
         })
     }
 
@@ -620,6 +758,23 @@ impl SqliteStateStore {
             .map_err(Error::from)
     }
 
+    pub(crate) fn managed_secret_rows(&self) -> Result<Vec<(String, SealedSecret)>> {
+        let connection = self.connection.lock();
+        let mut statement = connection
+            .prepare("SELECT name, nonce, ciphertext FROM managed_secrets ORDER BY name")?;
+        let rows = statement.query_map([], |row| {
+            Ok((
+                row.get(0)?,
+                SealedSecret {
+                    nonce: row.get(1)?,
+                    ciphertext: row.get(2)?,
+                },
+            ))
+        })?;
+        rows.collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Error::from)
+    }
+
     pub(crate) fn replace_managed_certificate(
         &self,
         certificate: &StoredCertificateRow,
@@ -666,7 +821,7 @@ impl SqliteStateStore {
         self.read_managed_certificates(
             "SELECT certificate_id, domains_json, certificate_chain_pem, private_key_nonce,
                     private_key_ciphertext, not_before_ms, not_after_ms, created_at_ms, active
-             FROM managed_certificates ORDER BY created_at_ms DESC, certificate_id DESC",
+             FROM managed_certificates ORDER BY created_at_ms DESC, rowid DESC",
         )
     }
 
@@ -1227,6 +1382,17 @@ const fn change_status_name(status: crate::ChangeStatus) -> &'static str {
 fn sqlite_version(version: u64) -> Result<i64> {
     i64::try_from(version)
         .map_err(|_| Error::InvalidState(format!("snapshot version {version} is too large")))
+}
+
+fn schema_version(connection: &Connection) -> Result<i64> {
+    connection
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .map_err(Error::from)
+}
+
+fn sqlite_count(value: i64, label: &str) -> Result<u64> {
+    u64::try_from(value)
+        .map_err(|_| Error::InvalidState(format!("stored {label} count is negative")))
 }
 
 fn traffic_name(state: TrafficState) -> &'static str {

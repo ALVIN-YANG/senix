@@ -256,6 +256,27 @@ impl CertificateController {
             .map(|row| Ok(row.summary()))
             .collect()
     }
+
+    /// Verifies that the configured master key can authenticate every encrypted database value.
+    ///
+    /// Plaintext is held only for the duration of this check and is never returned.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a row is malformed or the master key cannot decrypt it.
+    pub fn verify_protected_material(&self) -> Result<()> {
+        for (name, sealed) in self.store.managed_secret_rows()? {
+            self.vault
+                .open(&format!("managed-secret:{name}"), &sealed)?;
+        }
+        for row in self.store.managed_certificate_rows()? {
+            self.vault.open(
+                &format!("certificate:{}:private-key", row.certificate_id),
+                &row.sealed_private_key,
+            )?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug)]

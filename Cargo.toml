@@ -33,7 +33,7 @@ parking_lot = "0.12"
 pingora-core = { version = "0.8.1", features = ["openssl"] }
 pingora-http = "0.8.1"
 pingora-proxy = { version = "0.8.1", features = ["openssl"] }
-rusqlite = { version = "0.40", features = ["bundled"] }
+rusqlite = { version = "0.40", features = ["backup", "bundled"] }
 rmcp = { version = "3.1.2", default-features = false, features = ["macros", "server", "transport-streamable-http-server"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

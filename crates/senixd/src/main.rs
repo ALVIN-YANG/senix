@@ -103,6 +103,10 @@ enum Command {
         #[command(subcommand)]
         command: SecretKeyCommand,
     },
+    Backup {
+        #[command(subcommand)]
+        command: BackupCommand,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -142,6 +146,37 @@ enum SecretKeyCommand {
     Generate {
         #[arg(long)]
         output: PathBuf,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum BackupCommand {
+    Create {
+        #[arg(long, default_value = "senix.db")]
+        db: PathBuf,
+
+        #[arg(long)]
+        output: PathBuf,
+
+        #[arg(long)]
+        secret_key_file: Option<PathBuf>,
+    },
+    Verify {
+        #[arg(long)]
+        input: PathBuf,
+
+        #[arg(long)]
+        secret_key_file: Option<PathBuf>,
+    },
+    Restore {
+        #[arg(long)]
+        input: PathBuf,
+
+        #[arg(long)]
+        db: PathBuf,
+
+        #[arg(long)]
+        secret_key_file: Option<PathBuf>,
     },
 }
 
@@ -423,6 +458,15 @@ struct HealthResponse {
     status: &'static str,
 }
 
+#[derive(Debug, Serialize)]
+struct BackupReport {
+    schema_version: i64,
+    snapshot_version: Option<u64>,
+    managed_secret_count: u64,
+    managed_certificate_count: u64,
+    master_key_verified: bool,
+}
+
 struct CertificateServices {
     tls: senix_pingora::TlsCertificateRegistry,
     challenges: Http01ChallengeRegistry,
@@ -648,7 +692,181 @@ fn run_command(command: Command) -> Result<()> {
         Command::SecretKey {
             command: SecretKeyCommand::Generate { output },
         } => generate_secret_key(&output),
+        Command::Backup {
+            command:
+                BackupCommand::Create {
+                    db,
+                    output,
+                    secret_key_file,
+                },
+        } => create_backup(&db, &output, secret_key_file.as_deref()),
+        Command::Backup {
+            command:
+                BackupCommand::Verify {
+                    input,
+                    secret_key_file,
+                },
+        } => {
+            let report = inspect_backup(&input, secret_key_file.as_deref())?;
+            println!("{}", serde_json::to_string_pretty(&report)?);
+            Ok(())
+        }
+        Command::Backup {
+            command:
+                BackupCommand::Restore {
+                    input,
+                    db,
+                    secret_key_file,
+                },
+        } => restore_backup(&input, &db, secret_key_file.as_deref()),
     }
+}
+
+fn create_backup(
+    db: &std::path::Path,
+    output: &std::path::Path,
+    key: Option<&std::path::Path>,
+) -> Result<()> {
+    anyhow::ensure!(
+        db.is_file(),
+        "state database does not exist: {}",
+        db.display()
+    );
+    ensure_new_output(output)?;
+    let store = Arc::new(SqliteStateStore::open(db).context("open state database")?);
+    store.verify_integrity().context("verify source database")?;
+    verify_master_key(Arc::clone(&store), key)?;
+
+    let temporary = temporary_output(output)?;
+    store
+        .backup_to(&temporary)
+        .context("create consistent SQLite backup")?;
+    let report = inspect_backup(&temporary, key)?;
+    persist_private_file(temporary, output)?;
+    println!("{}", serde_json::to_string_pretty(&report)?);
+    Ok(())
+}
+
+fn restore_backup(
+    input: &std::path::Path,
+    db: &std::path::Path,
+    key: Option<&std::path::Path>,
+) -> Result<()> {
+    ensure_new_output(db)?;
+    let source = Arc::new(
+        SqliteStateStore::open_read_only(input).context("open backup database read-only")?,
+    );
+    source
+        .verify_integrity()
+        .context("verify backup database")?;
+    let report = backup_report(&source, key)?;
+
+    let temporary = temporary_output(db)?;
+    source
+        .backup_to(&temporary)
+        .context("copy verified backup")?;
+    inspect_backup(&temporary, key).context("verify restored database")?;
+    persist_private_file(temporary, db)?;
+    println!("{}", serde_json::to_string_pretty(&report)?);
+    Ok(())
+}
+
+fn inspect_backup(input: &std::path::Path, key: Option<&std::path::Path>) -> Result<BackupReport> {
+    anyhow::ensure!(
+        input.is_file(),
+        "backup does not exist: {}",
+        input.display()
+    );
+    let store = Arc::new(
+        SqliteStateStore::open_read_only(input).context("open backup database read-only")?,
+    );
+    store
+        .verify_integrity()
+        .context("verify backup integrity")?;
+    backup_report(&store, key)
+}
+
+fn backup_report(
+    store: &Arc<SqliteStateStore>,
+    key: Option<&std::path::Path>,
+) -> Result<BackupReport> {
+    let status = store.database_status().context("read backup inventory")?;
+    let master_key_verified = verify_master_key(Arc::clone(store), key)?;
+    Ok(BackupReport {
+        schema_version: status.schema_version,
+        snapshot_version: status.snapshot_version,
+        managed_secret_count: status.managed_secret_count,
+        managed_certificate_count: status.managed_certificate_count,
+        master_key_verified,
+    })
+}
+
+fn verify_master_key(store: Arc<SqliteStateStore>, key: Option<&std::path::Path>) -> Result<bool> {
+    let status = store
+        .database_status()
+        .context("read protected inventory")?;
+    if status.managed_secret_count == 0 && status.managed_certificate_count == 0 {
+        return Ok(false);
+    }
+    let key = key.context(
+        "--secret-key-file is required because the database contains encrypted material",
+    )?;
+    let vault = load_secret_vault(key)?;
+    senix_core::CertificateController::new(store, vault)
+        .verify_protected_material()
+        .context("master key cannot decrypt all protected backup material")?;
+    Ok(true)
+}
+
+fn ensure_new_output(path: &std::path::Path) -> Result<()> {
+    anyhow::ensure!(
+        !path.exists(),
+        "refusing to overwrite existing file: {}",
+        path.display()
+    );
+    let parent = path.parent().unwrap_or_else(|| std::path::Path::new("."));
+    anyhow::ensure!(
+        parent.is_dir(),
+        "output directory does not exist: {}",
+        parent.display()
+    );
+    Ok(())
+}
+
+fn temporary_output(destination: &std::path::Path) -> Result<tempfile::TempPath> {
+    let parent = destination
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."));
+    Ok(tempfile::NamedTempFile::new_in(parent)
+        .with_context(|| format!("create temporary file in {}", parent.display()))?
+        .into_temp_path())
+}
+
+fn persist_private_file(
+    temporary: tempfile::TempPath,
+    destination: &std::path::Path,
+) -> Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        fs::set_permissions(&temporary, fs::Permissions::from_mode(0o600))?;
+    }
+    fs::OpenOptions::new()
+        .write(true)
+        .open(&temporary)?
+        .sync_all()?;
+    temporary
+        .persist_noclobber(destination)
+        .map_err(|error| error.error)
+        .with_context(|| format!("persist {} without overwriting", destination.display()))?;
+    #[cfg(unix)]
+    {
+        let parent = destination
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new("."));
+        fs::File::open(parent)?.sync_all()?;
+    }
+    Ok(())
 }
 
 fn generate_secret_key(output: &std::path::Path) -> Result<()> {

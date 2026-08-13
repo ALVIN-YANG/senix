@@ -277,6 +277,32 @@ curl -H "Authorization: Bearer $SENIX_METRICS_KEY" \
 
 当前导出请求总量、响应状态类别、代理错误、配置版本，以及每个实例的流量状态、健康状态和普通/长连接在途数。标签不包含 Host、URL、Key 或请求体，避免高基数和秘密泄漏。`/healthz` 仍保持公开，只用于进程存活探测。
 
+## 备份与恢复
+
+备份可在 Senix 运行时在线创建。命令使用 SQLite 一致性 Backup API，完成完整性和 Schema 校验后以 `0600` 原子落盘，已存在的目标文件不会被覆盖：
+
+```bash
+senixd backup create \
+  --db /var/lib/senix/senix.db \
+  --output /var/backups/senix-$(date +%F).db \
+  --secret-key-file /etc/senix/secret.key
+
+senixd backup verify \
+  --input /var/backups/senix-2026-08-14.db \
+  --secret-key-file /etc/senix/secret.key
+```
+
+数据库包含 Key 摘要、审计、配置快照，以及加密后的 ACME 账户和证书私钥；主密钥文件不会被打进同一份备份，必须单独安全备份。数据库含加密材料时，创建、校验和恢复都会要求主密钥并实际解密全部材料。
+
+恢复只创建新数据库，不覆盖现场文件。先停止目标实例，再恢复到新路径并用该路径启动；确认无误后再自行归档旧库：
+
+```bash
+senixd backup restore \
+  --input /var/backups/senix-2026-08-14.db \
+  --db /var/lib/senix/restored.db \
+  --secret-key-file /etc/senix/secret.key
+```
+
 ## 安全变更
 
 配置不会从编辑器直接进入数据面：
