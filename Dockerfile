@@ -6,7 +6,7 @@ RUN npm ci --ignore-scripts
 COPY web/ ./
 RUN npm run build
 
-FROM rust:1.88-slim-bookworm AS builder
+FROM rust:1.96-slim-bookworm AS builder
 
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends build-essential cmake clang perl pkg-config libssl-dev \
