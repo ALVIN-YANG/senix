@@ -7,6 +7,7 @@ rust-version.workspace = true
 
 [dependencies]
 async-trait.workspace = true
+bytes.workspace = true
 http.workspace = true
 pingora-core.workspace = true
 pingora-http.workspace = true

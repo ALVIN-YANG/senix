@@ -3,11 +3,13 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use bytes::Bytes;
+use http::Method;
 use pingora_core::upstreams::peer::HttpPeer;
 use pingora_core::{Error as PingoraError, HTTPStatus, Result as PingoraResult, server::Server};
 use pingora_http::{RequestHeader, ResponseHeader};
 use pingora_proxy::{ProxyHttp, Session};
-use senix_core::{Error as CoreError, GatewayRuntime, RequestLease};
+use senix_core::{Error as CoreError, GatewayRuntime, Http01ChallengeRegistry, RequestLease};
 
 #[derive(Debug, Default)]
 pub struct RequestContext {
@@ -17,12 +19,23 @@ pub struct RequestContext {
 #[derive(Clone, Debug)]
 pub struct SenixProxy {
     runtime: Arc<GatewayRuntime>,
+    http01_challenges: Http01ChallengeRegistry,
 }
 
 impl SenixProxy {
     #[must_use]
-    pub fn new(runtime: Arc<GatewayRuntime>) -> Self {
-        Self { runtime }
+    pub fn new(runtime: Arc<GatewayRuntime>, http01_challenges: Http01ChallengeRegistry) -> Self {
+        Self {
+            runtime,
+            http01_challenges,
+        }
+    }
+
+    fn http01_response(&self, method: &Method, host: &str, path: &str) -> Option<Arc<str>> {
+        if method != Method::GET && method != Method::HEAD {
+            return None;
+        }
+        self.http01_challenges.resolve(host, path)
     }
 }
 
@@ -32,6 +45,37 @@ impl ProxyHttp for SenixProxy {
 
     fn new_ctx(&self) -> Self::CTX {
         RequestContext::default()
+    }
+
+    async fn request_filter(
+        &self,
+        session: &mut Session,
+        _context: &mut Self::CTX,
+    ) -> PingoraResult<bool> {
+        let request = session.req_header();
+        let host = request
+            .headers
+            .get("host")
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or_default();
+        let Some(response) = self.http01_response(&request.method, host, request.uri.path()) else {
+            return Ok(false);
+        };
+
+        let mut header = ResponseHeader::build(200, None)?;
+        header.insert_header("content-type", "application/octet-stream")?;
+        header.insert_header("cache-control", "no-store")?;
+        header.insert_header("content-length", response.len().to_string())?;
+        let head_only = request.method == Method::HEAD;
+        session
+            .write_response_header(Box::new(header), head_only)
+            .await?;
+        if !head_only {
+            session
+                .write_response_body(Some(Bytes::copy_from_slice(response.as_bytes())), true)
+                .await?;
+        }
+        Ok(true)
     }
 
     async fn upstream_peer(
@@ -102,9 +146,12 @@ pub fn add_http_proxy(
     listen: &str,
     tls: Option<(&str, &str, &str)>,
     runtime: Arc<GatewayRuntime>,
+    http01_challenges: Http01ChallengeRegistry,
 ) -> PingoraResult<()> {
-    let mut proxy =
-        pingora_proxy::http_proxy_service(&server.configuration, SenixProxy::new(runtime));
+    let mut proxy = pingora_proxy::http_proxy_service(
+        &server.configuration,
+        SenixProxy::new(runtime, http01_challenges),
+    );
     proxy.add_tcp(listen);
     if let Some((tls_listen, cert, key)) = tls {
         proxy.add_tls(tls_listen, cert, key)?;
@@ -161,8 +208,39 @@ fn has_header_token(headers: &http::HeaderMap, name: &str, expected: &str) -> bo
 
 #[cfg(test)]
 mod tests {
-    use super::{is_long_lived_request, is_long_lived_response};
+    use std::sync::Arc;
+
+    use super::{SenixProxy, is_long_lived_request, is_long_lived_response};
+    use http::Method;
     use pingora_http::{RequestHeader, ResponseHeader};
+    use senix_core::{GatewayRuntime, Http01ChallengeRegistry};
+
+    #[test]
+    fn serves_only_the_active_domain_bound_http01_response() {
+        let challenges = Http01ChallengeRegistry::new();
+        let _guard = challenges
+            .publish("example.test", "token_42", "token_42.thumbprint")
+            .unwrap();
+        let proxy = SenixProxy::new(Arc::new(GatewayRuntime::new()), challenges);
+        let path = "/.well-known/acme-challenge/token_42";
+
+        assert_eq!(
+            proxy
+                .http01_response(&Method::GET, "example.test:80", path)
+                .as_deref(),
+            Some("token_42.thumbprint")
+        );
+        assert!(
+            proxy
+                .http01_response(&Method::POST, "example.test", path)
+                .is_none()
+        );
+        assert!(
+            proxy
+                .http01_response(&Method::GET, "other.test", path)
+                .is_none()
+        );
+    }
 
     #[test]
     fn classifies_websocket_and_grpc_requests() {

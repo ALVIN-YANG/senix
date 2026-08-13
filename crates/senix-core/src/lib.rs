@@ -1,5 +1,6 @@
 //! Core domain modules for the Senix gateway.
 
+mod certificate;
 mod config;
 mod diagnostic;
 mod error;
@@ -9,6 +10,7 @@ mod state;
 mod store;
 mod traffic;
 
+pub use certificate::{Http01ChallengeGuard, Http01ChallengeRegistry};
 pub use config::{
     AppliedChange, ChangeActor, ChangeKind, ChangePlan, ChangeStatus, ConfigDiff, ConfigEngine,
     ConfigIssue, ConfigSnapshot,

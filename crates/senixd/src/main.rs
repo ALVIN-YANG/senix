@@ -22,8 +22,8 @@ use clap::{Parser, Subcommand};
 use pingora_core::server::Server;
 use senix_core::{
     AccessPolicy, AuditOutcome, ChangePlan, ConfigEngine, DiagnosticEngine, DrainOptions,
-    GatewayConfig, GatewayRuntime, ManagementAction, Principal, ResourceRef, RiskLevel,
-    SecurityController, SqliteStateStore, TrafficController,
+    GatewayConfig, GatewayRuntime, Http01ChallengeRegistry, ManagementAction, Principal,
+    ResourceRef, RiskLevel, SecurityController, SqliteStateStore, TrafficController,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -320,8 +320,14 @@ fn main() -> Result<()> {
         .zip(tls_cert)
         .zip(tls_key)
         .map(|((listen, cert), key)| (listen, cert, key));
-    senix_pingora::add_http_proxy(&mut server, &args.listen.to_string(), tls, runtime)
-        .context("configure proxy listeners")?;
+    senix_pingora::add_http_proxy(
+        &mut server,
+        &args.listen.to_string(),
+        tls,
+        runtime,
+        Http01ChallengeRegistry::new(),
+    )
+    .context("configure proxy listeners")?;
     info!(proxy = %args.listen, tls = ?args.tls_listen, admin = %args.admin_listen, "senixd started");
     server.run_forever();
 }

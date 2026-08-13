@@ -2161,6 +2161,7 @@ name = "senix-pingora"
 version = "0.1.2"
 dependencies = [
  "async-trait",
+ "bytes",
  "http",
  "pingora-core",
  "pingora-http",
