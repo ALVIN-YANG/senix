@@ -9,7 +9,7 @@ usage() {
   cat <<'EOF'
 Install the latest Senix release from GitHub.
 
-Usage: install.sh [--version v0.2.0] [--install-dir PATH]
+Usage: install.sh [--version v0.2.1] [--install-dir PATH]
 
 Environment variables:
   SENIX_VERSION       Release tag to install

@@ -59,11 +59,7 @@ impl ProxyHttp for SenixProxy {
         _context: &mut Self::CTX,
     ) -> PingoraResult<bool> {
         let request = session.req_header();
-        let host = request
-            .headers
-            .get("host")
-            .and_then(|value| value.to_str().ok())
-            .unwrap_or_default();
+        let host = request_host(request);
         let Some(response) = self.http01_response(&request.method, host, request.uri.path()) else {
             return Ok(false);
         };
@@ -92,12 +88,7 @@ impl ProxyHttp for SenixProxy {
         context.lease.take();
         let header = session.req_header();
         let long_lived = is_long_lived_request(header);
-        let host = header
-            .headers
-            .get("host")
-            .and_then(|value| value.to_str().ok())
-            .map(strip_port)
-            .unwrap_or_default();
+        let host = request_host(header);
         let mut lease = self
             .runtime
             .acquire(host, header.uri.path())
@@ -177,6 +168,17 @@ fn strip_port(host: &str) -> &str {
     }
 }
 
+fn request_host(header: &RequestHeader) -> &str {
+    header.uri.host().unwrap_or_else(|| {
+        header
+            .headers
+            .get("host")
+            .and_then(|value| value.to_str().ok())
+            .map(strip_port)
+            .unwrap_or_default()
+    })
+}
+
 fn is_long_lived_request(header: &RequestHeader) -> bool {
     is_content_type(&header.headers, "application/grpc")
         || (has_header_token(&header.headers, "connection", "upgrade")
@@ -219,10 +221,26 @@ fn has_header_token(headers: &http::HeaderMap, name: &str, expected: &str) -> bo
 mod tests {
     use std::sync::Arc;
 
-    use super::{SenixProxy, is_long_lived_request, is_long_lived_response};
+    use super::{SenixProxy, is_long_lived_request, is_long_lived_response, request_host};
     use http::Method;
     use pingora_http::{RequestHeader, ResponseHeader};
     use senix_core::{GatewayRuntime, Http01ChallengeRegistry};
+
+    #[test]
+    fn reads_authority_from_http2_request_uri() {
+        let mut request = RequestHeader::build("GET", b"/resource", None).unwrap();
+        request.uri = "https://example.test:8443/resource".parse().unwrap();
+
+        assert_eq!(request_host(&request), "example.test");
+    }
+
+    #[test]
+    fn reads_host_header_from_http1_request() {
+        let mut request = RequestHeader::build("GET", b"/resource", None).unwrap();
+        request.append_header("host", "example.test:8080").unwrap();
+
+        assert_eq!(request_host(&request), "example.test");
+    }
 
     #[test]
     fn serves_only_the_active_domain_bound_http01_response() {
