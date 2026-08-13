@@ -23,6 +23,7 @@ Senix 是一个面向个人开发者和小团队的独立 Rust 网关。一个�
 | 安全改配置 | 不可修改的 Change Plan、结构化差异、15 分钟 Owner 批准、原子 Snapshot 发布、回滚计划 |
 | 一个人管理 | Owner 控制台、受限 API Key、操作审计、实例维护控制舱、请求证据链 |
 | AI 协作 | 无会话 Streamable HTTP MCP；工具按 Key 权限裁剪，调用时再次授权 |
+| TLS 证书 | 静态 PEM、HTTP-01 手动签发、加密持久化、SNI 多证书、无重启热切换 |
 
 ## 怎么工作
 
@@ -30,12 +31,13 @@ Senix 是一个面向个人开发者和小团队的独立 Rust 网关。一个�
   <img src="./assets/readme/architecture.svg" width="100%" alt="Senix 架构：Owner、部署脚本和 AI 通过同一安全边界控制领域模块，控制面向 Pingora 数据面发布不可变快照">
 </p>
 
-核心逻辑集中在四个 Module：
+核心逻辑按领域拆成独立 Module：
 
 - `ConfigEngine` 负责预检、差异、批准、发布与回滚计划。
 - `TrafficController` 负责摘流、回接、权重、禁用、幂等和持久化。
 - `GatewayRuntime` 负责不可变 Snapshot、请求选路和在途计数。
 - `DiagnosticEngine` 从同一运行快照产生结构化证据，不从日志猜状态。
+- `CertificateController` 加密保存账户凭据和证书私钥，Pingora 只读取已发布的证书快照。
 
 更完整的产品边界见 [需求文档](./docs/requirements.md)，关键设计决定见 [ADR](./docs/adr)。
 
@@ -122,7 +124,37 @@ senixd \
   --config /etc/senix/gateway.json
 ```
 
-三个 TLS 参数必须一起提供。当前加载一组静态证书；证书申请、续期、按 SNI 动态选证书和无重启切换仍在后续范围。
+`--tls-cert` 与 `--tls-key` 必须一起提供。证书会在启动时完整校验，并作为默认 SNI 证书加载。
+
+使用 ACME HTTP-01 时，先生成独立于数据库的主密钥文件：
+
+```bash
+sudo install -d -m 700 /etc/senix
+senixd secret-key generate --output /etc/senix/secret.key
+
+senixd \
+  --listen 0.0.0.0:80 \
+  --tls-listen 0.0.0.0:443 \
+  --secret-key-file /etc/senix/secret.key \
+  --acme-directory-url https://acme-v02.api.letsencrypt.org/directory \
+  --acme-contact mailto:ops@example.com \
+  --acme-accept-terms \
+  --admin-listen 127.0.0.1:9080 \
+  --db /var/lib/senix/senix.db \
+  --config /etc/senix/gateway.json
+```
+
+域名解析到这个 HTTP 入口后，可在管理后台手动签发，也可由脚本调用：
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer $SENIX_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"domains":["api.example.com"],"timeout_seconds":90}' \
+  http://127.0.0.1:9080/api/v1/certificates/issue
+```
+
+API Key 需要全局 `certificate.issue` 权限。ACME 账户和证书私钥使用主密钥加密后写入 SQLite；签发成功会原子切换 SNI 证书，不重启网关。当前不会自行安排续期，仍由用户或脚本触发。
 
 </details>
 
@@ -166,6 +198,7 @@ docker run --rm \
 - 编辑完整候选配置，核对差异和摘要后批准精确计划；
 - 模拟 Host 与路径的选路结果，复制原始诊断 JSON；
 - 创建最小权限 Key、吊销 Key，并查看无秘密审计记录。
+- 查看证书有效期，手动发起 HTTP-01 签发并热切换。
 
 最后一个可用后端和不健康实例回接不会被静默绕过。只有操作者显式选择 `force` 才能继续，操作会被标记为高风险。
 
@@ -251,6 +284,7 @@ senixd \
 | --- | --- | --- |
 | Owner Account | 浏览器管理后台 | Argon2id 密码、短期签名 Cookie、同源 CSRF 头 |
 | API Key | REST 脚本与 MCP | 完整值只展示一次、服务端仅存摘要、动作与实例范围、有效期、撤销 |
+| Secret Key File | ACME 账户与证书私钥 | 外部 `0600` 文件；SQLite 只保存 XChaCha20-Poly1305 密文 |
 
 管理端口默认应只绑定本机或私网。当前未内置管理面 TLS，不要把 `9080` 直接暴露到公网；通过受信 TLS 入口访问时增加 `--admin-secure-cookie`。
 
@@ -258,7 +292,7 @@ senixd \
 
 ## 当前限制
 
-- 已支持使用 PEM 证书终止 TLS；ACME、证书管理、SNI 多证书和热切换尚未实现。
+- ACME 当前只支持 HTTP-01；DNS-01、自动续期、手动上传托管证书和到期告警尚未实现。
 - WebSocket、SSE 和 gRPC 会单独计入长连接在途数；摘流超时只报告状态，不会强杀连接或迁移已有连接。
 - 当前是单节点 SQLite 控制面，没有多节点一致性或网关集群管理。
 - Service 还不是可授权的真实领域实体，Key 只支持全局或明确的 Instance 范围。
@@ -271,6 +305,7 @@ senixd \
 
 ```text
 crates/senix-core      配置、流量、运行时、安全和诊断 Module
+crates/senix-acme      HTTP-01 ACME 协议 Adapter
 crates/senix-pingora   Pingora 数据面 Adapter
 crates/senix-mcp       MCP Streamable HTTP Adapter
 crates/senixd          单进程入口、健康检查、REST 与嵌入后台
@@ -288,7 +323,7 @@ cargo test --workspace --locked
 docker build --check .
 ```
 
-端到端测试使用真实 HTTP 后端和 `senixd` 子进程，覆盖代理、流量控制、健康检查、鉴权、审计、MCP 和批准应用。
+端到端测试使用真实 HTTP/TLS 后端和 `senixd` 子进程，覆盖代理、流量控制、健康检查、鉴权、审计、MCP、批准应用及加密证书跨进程恢复。
 
 ## 参与开发
 

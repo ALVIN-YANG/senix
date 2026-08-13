@@ -186,8 +186,8 @@ main { min-width: 0; padding: 0 clamp(24px, 5vw, 76px) 64px; }
 .change-actions { margin-top: 16px; display: flex; justify-content: flex-end; align-items: center; gap: 9px; }
 .blocked-label { color: var(--danger); font-size: 10px; }
 
-.traffic-board, .credential-list, .audit-list { overflow: hidden; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); }
-.instance-bay + .instance-bay, .credential-row + .credential-row, .audit-row + .audit-row { border-top: 1px solid var(--line); }
+.traffic-board, .credential-list, .certificate-list, .audit-list { overflow: hidden; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); }
+.instance-bay + .instance-bay, .credential-row + .credential-row, .certificate-row + .certificate-row, .audit-row + .audit-row { border-top: 1px solid var(--line); }
 .instance-bay.open { background: #f7faf9; }
 .traffic-row { display: grid; grid-template-columns: 38px minmax(160px, 1.4fr) repeat(3, minmax(90px, .7fr)) auto; align-items: center; gap: 16px; padding: 17px 20px; }
 .traffic-rail { position: relative; width: 12px; height: 42px; }
@@ -306,6 +306,37 @@ legend { margin-bottom: 11px; color: var(--harbor); font-size: 13px; font-weight
 .danger-button { padding: 7px 9px; border: 0; border-radius: 6px; color: var(--danger); background: #faeded; font-size: 11px; font-weight: 700; }
 .danger-button:hover { background: #f5dada; }
 
+.certificate-issue { margin-bottom: 18px; padding: 22px; display: grid; grid-template-columns: minmax(190px,.8fr) minmax(280px,1.2fr); gap: 18px 28px; border: 1px solid var(--line); border-left: 4px solid var(--signal); border-radius: 9px; background: var(--paper); box-shadow: 0 8px 24px rgba(28,44,49,.04); }
+.certificate-issue h3 { margin: 0; color: var(--harbor); font-size: 17px; letter-spacing: -.025em; }
+.certificate-issue p:not(.eyebrow, .form-error) { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.certificate-issue label { color: var(--harbor); font-size: 13px; font-weight: 700; }
+.certificate-issue textarea { display: block; width: 100%; min-height: 98px; margin-top: 7px; resize: vertical; padding: 12px 13px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); background: #f8faf9; font: 11px/1.6 "SFMono-Regular", Consolas, monospace; }
+.certificate-issue .form-error, .certificate-issue .form-actions { grid-column: 2; }
+.certificate-issue .form-actions { margin-top: -7px; }
+.certificate-row { display: grid; grid-template-columns: minmax(190px,1fr) minmax(320px,1.8fr) 82px; align-items: center; gap: 28px; padding: 19px 20px; }
+.certificate-row.muted { opacity: .55; }
+.certificate-domains { min-width: 0; }
+.certificate-domains strong { display: block; overflow: hidden; color: var(--harbor); font-size: 14px; text-overflow: ellipsis; }
+.certificate-domains code { display: inline-block; margin: 5px 6px 0 0; color: var(--muted); font-size: 9px; }
+.certificate-horizon { min-width: 0; }
+.horizon-track { position: relative; height: 2px; margin: 7px 4px 10px; background: var(--line); }
+.horizon-track::before, .horizon-track::after { content: ""; position: absolute; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.horizon-track::before { left: -4px; }
+.horizon-track::after { right: -4px; }
+.horizon-track i { position: absolute; z-index: 1; left: var(--elapsed); top: -5px; width: 12px; height: 12px; border: 3px solid var(--paper); border-radius: 50%; background: var(--signal); box-shadow: 0 0 0 1px var(--signal); transform: translateX(-50%); }
+.certificate-row.warn .horizon-track i { background: var(--amber); box-shadow: 0 0 0 1px var(--amber); }
+.certificate-row.bad .horizon-track i { background: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
+.certificate-horizon > div:last-child { display: flex; justify-content: space-between; gap: 14px; color: var(--muted); font: 9px/1.4 "SFMono-Regular", Consolas, monospace; }
+.certificate-state { justify-self: end; padding: 5px 7px; border-radius: 4px; font: 700 9px/1 "SFMono-Regular", Consolas, monospace; }
+.certificate-state.good { color: #176c57; background: var(--signal-soft); }
+.certificate-state.warn { color: #8a5a1f; background: #f8ecd9; }
+.certificate-state.bad { color: #9d3838; background: #fae6e6; }
+.certificate-state.muted { color: var(--muted); background: var(--fog); }
+.certificate-disabled { padding: clamp(28px,6vw,64px); border: 1px dashed #adbfba; border-radius: 9px; background: rgba(255,255,255,.46); }
+.certificate-disabled h2 { margin: 0; color: var(--harbor); font-size: 22px; letter-spacing: -.03em; }
+.certificate-disabled p:last-child { max-width: 620px; margin: 10px 0 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.certificate-disabled code { color: var(--harbor); }
+
 .audit-row { display: grid; grid-template-columns: 150px minmax(160px,1fr) minmax(140px,.8fr) 90px; gap: 18px; align-items: center; padding: 15px 20px; }
 .audit-time { color: var(--muted); font: 10px/1.5 "SFMono-Regular", Consolas, monospace; }
 .audit-action strong { display: block; color: var(--harbor); font: 11px/1.3 "SFMono-Regular", Consolas, monospace; }
@@ -343,6 +374,7 @@ dialog p { color: var(--muted); line-height: 1.6; }
   .diagnostic-console .form-error { grid-column: 1; }
   .credential-row { grid-template-columns: 1fr auto; }
   .credential-actions, .credential-scope { grid-column: 1 / -1; }
+  .certificate-row { grid-template-columns: minmax(160px,.8fr) minmax(260px,1.2fr) auto; gap: 18px; }
   .change-card { grid-template-columns: 108px minmax(0,1fr); }
 }
 
@@ -387,6 +419,11 @@ dialog p { color: var(--muted); line-height: 1.6; }
   .credential-actions, .credential-scope { grid-column: auto; }
   .credential-main code { overflow-wrap: anywhere; }
   .danger-button { justify-self: start; }
+  .certificate-issue { grid-template-columns: 1fr; padding: 18px; }
+  .certificate-issue .form-error, .certificate-issue .form-actions { grid-column: 1; }
+  .certificate-row { grid-template-columns: 1fr auto; gap: 13px; padding: 16px; }
+  .certificate-horizon { grid-column: 1 / -1; grid-row: 2; }
+  .certificate-state { grid-column: 2; grid-row: 1; }
   .audit-row { grid-template-columns: 1fr auto; gap: 8px; }
   .audit-time, .audit-resource { grid-column: 1 / -1; }
   .snapshot-banner { grid-template-columns: 110px minmax(0,1fr); }

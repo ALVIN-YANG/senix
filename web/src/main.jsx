@@ -11,6 +11,8 @@ const ACTIONS = [
   ["change.plan", "规划变更"],
   ["change.read", "查看变更"],
   ["change.apply", "应用已批准变更"],
+  ["certificate.read", "查看证书"],
+  ["certificate.issue", "签发证书"],
   ["audit.read", "查看审计"]
 ];
 
@@ -113,7 +115,7 @@ function Sidebar({ owner, page, onPage, onLogout }) {
   return <aside className="sidebar">
     <div className="sidebar-brand"><BrandMark compact /><div><strong>Senix</strong><span>Control desk</span></div></div>
     <nav aria-label="控制台导航">
-      {[["overview", "流量状态", "状态", "1"], ["changes", "配置变更", "变更", "2"], ["diagnostics", "请求诊断", "诊断", "3"], ["credentials", "访问 Key", "Key", "4"], ["audit", "审计记录", "审计", "5"]].map(([id, label, short, key]) =>
+      {[["overview", "流量状态", "状态", "1"], ["changes", "配置变更", "变更", "2"], ["diagnostics", "请求诊断", "诊断", "3"], ["credentials", "访问 Key", "Key", "4"], ["certificates", "TLS 证书", "证书", "5"], ["audit", "审计记录", "审计", "6"]].map(([id, label, short, key]) =>
         <button key={id} className={`nav-item${page === id ? " active" : ""}`} onClick={() => onPage(id)} type="button"><span data-short={short}>{label}</span><kbd>{key}</kbd></button>)}
     </nav>
     <div className="sidebar-foot">
@@ -527,13 +529,13 @@ function KeyForm({ instances, onCancel, onIssued }) {
     const form = new FormData(event.currentTarget);
     const actions = form.getAll("actions");
     const instanceIds = allResources ? [] : form.getAll("instance_ids");
-    const needsGlobalScope = actions.some((action) => ["diagnostics.read", "change.plan", "change.read", "change.apply", "audit.read"].includes(action));
+    const needsGlobalScope = actions.some((action) => ["diagnostics.read", "change.plan", "change.read", "change.apply", "certificate.read", "certificate.issue", "audit.read"].includes(action));
     if (!actions.length || (!allResources && !instanceIds.length)) {
       setError("至少选择一个动作和一个实例范围。");
       return;
     }
     if (needsGlobalScope && !allResources) {
-      setError("诊断、配置变更和审计动作必须选择“所有当前和未来实例”。");
+      setError("诊断、配置变更、证书和审计动作必须选择“所有当前和未来实例”。");
       return;
     }
     setBusy(true);
@@ -598,6 +600,68 @@ function Credentials({ credentials, instances, onReload, onSecret, notify }) {
   </section>;
 }
 
+function certificateState(item) {
+  if (!item.active) return { label: "历史版本", tone: "muted" };
+  const remaining = item.not_after_ms - Date.now();
+  if (remaining <= 0) return { label: "已过期", tone: "bad" };
+  if (remaining <= 30 * 24 * 60 * 60 * 1000) return { label: "即将到期", tone: "warn" };
+  return { label: "使用中", tone: "good" };
+}
+
+function CertificateRow({ item }) {
+  const state = certificateState(item);
+  const lifetime = Math.max(1, item.not_after_ms - item.not_before_ms);
+  const elapsed = Math.min(100, Math.max(0, ((Date.now() - item.not_before_ms) / lifetime) * 100));
+  return <article className={`certificate-row ${state.tone}`}>
+    <div className="certificate-domains"><strong>{item.domains[0]}</strong>{item.domains.slice(1).map((domain) => <code key={domain}>{domain}</code>)}</div>
+    <div className="certificate-horizon">
+      <div className="horizon-track" style={{ "--elapsed": `${elapsed}%` }} role="progressbar" aria-label="证书有效期进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(elapsed)}><i /></div>
+      <div><span>签发 {formatTime(item.not_before_ms)}</span><span>到期 {formatTime(item.not_after_ms)}</span></div>
+    </div>
+    <span className={`certificate-state ${state.tone}`}>{state.label}</span>
+  </article>;
+}
+
+function Certificates({ certificates, enabled, onReload, notify }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function issue(event) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const domains = String(form.get("domains") || "").split(/[\s,]+/).map((domain) => domain.trim()).filter(Boolean);
+    if (!domains.length) {
+      setError("至少填写一个域名。");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api("/api/v1/certificates/issue", { method: "POST", body: { domains, timeout_seconds: 90 } });
+      notify(`证书已签发并切换到 TLS generation ${result.tls_generation}`);
+      setOpen(false);
+      await onReload();
+    } catch (requestError) {
+      setError(requestError.code === "ACME_DISABLED" ? "服务端尚未配置 ACME 目录、联系人和条款确认。" : requestError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!enabled) return <section className="page"><div className="certificate-disabled"><p className="eyebrow">Encrypted storage required</p><h2>证书存储尚未启用</h2><p>先在服务端配置 <code>--secret-key-file</code>。主密钥只放在外部文件，数据库只保存密文。</p></div></section>;
+  return <section className="page certificates-page">
+    <div className="section-heading split"><div><h2>TLS 证书</h2><p>查看当前与历史版本。签发由用户或脚本触发，Senix 不会自行安排续期。</p></div>{!open && <button className="primary-button" onClick={() => setOpen(true)} type="button">签发证书</button>}</div>
+    {open && <form className="certificate-issue" onSubmit={issue}>
+      <div><p className="eyebrow">HTTP-01</p><h3>签发并热切换</h3><p>域名必须先解析到这台网关的 HTTP 入口；每行一个域名，不支持通配符。</p></div>
+      <label>域名<textarea name="domains" placeholder={"api.example.com\nwww.example.com"} required autoFocus spellCheck="false" /></label>
+      <p className="form-error" role="alert">{error}</p>
+      <div className="form-actions"><button className="quiet-button" onClick={() => { setOpen(false); setError(""); }} type="button">取消</button><button className="primary-button" disabled={busy} type="submit">{busy ? "正在验证并签发…" : "开始签发"}</button></div>
+    </form>}
+    <div className="certificate-list" aria-live="polite">{certificates.length ? certificates.map((item) => <CertificateRow item={item} key={item.certificate_id} />) : <div className="empty-state">还没有托管证书。配置 ACME 后可在这里手动签发。</div>}</div>
+  </section>;
+}
+
 function Audit({ events }) {
   return <section className="page">
     <div className="section-heading"><div><h2>审计记录</h2><p>这里记录操作者、动作、资源和结果，不保存 Key 或请求密文。</p></div></div>
@@ -643,6 +707,8 @@ function ControlDesk({ owner, onExpired }) {
   const [current, setCurrent] = useState(null);
   const [changes, setChanges] = useState([]);
   const [credentials, setCredentials] = useState([]);
+  const [certificates, setCertificates] = useState([]);
+  const [certificateStoreEnabled, setCertificateStoreEnabled] = useState(true);
   const [audit, setAudit] = useState([]);
   const [updated, setUpdated] = useState(null);
   const [secret, setSecret] = useState(null);
@@ -656,13 +722,20 @@ function ControlDesk({ owner, onExpired }) {
 
   const loadAll = useCallback(async () => {
     try {
-      const [nextInstances, nextCurrent, nextChanges, nextCredentials, nextAudit] = await Promise.all([
-        api("/api/v1/instances"), api("/api/v1/config"), api("/api/v1/changes"), api("/api/v1/credentials"), api("/api/v1/audit-events")
+      const [nextInstances, nextCurrent, nextChanges, nextCredentials, nextCertificates, nextAudit] = await Promise.all([
+        api("/api/v1/instances"), api("/api/v1/config"), api("/api/v1/changes"), api("/api/v1/credentials"),
+        api("/api/v1/certificates").then((items) => ({ enabled: true, items })).catch((error) => {
+          if (error.code === "CERTIFICATE_STORE_DISABLED") return { enabled: false, items: [] };
+          throw error;
+        }),
+        api("/api/v1/audit-events")
       ]);
       setInstances(nextInstances);
       setCurrent(nextCurrent);
       setChanges(nextChanges);
       setCredentials(nextCredentials);
+      setCertificates(nextCertificates.items);
+      setCertificateStoreEnabled(nextCertificates.enabled);
       setAudit(nextAudit);
       setUpdated(new Date());
     } catch (error) {
@@ -675,7 +748,7 @@ function ControlDesk({ owner, onExpired }) {
   useEffect(() => {
     function keyboard(event) {
       if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
-      if (["1", "2", "3", "4", "5"].includes(event.key)) setPage(["overview", "changes", "diagnostics", "credentials", "audit"][Number(event.key) - 1]);
+      if (["1", "2", "3", "4", "5", "6"].includes(event.key)) setPage(["overview", "changes", "diagnostics", "credentials", "certificates", "audit"][Number(event.key) - 1]);
     }
     document.addEventListener("keydown", keyboard);
     return () => document.removeEventListener("keydown", keyboard);
@@ -691,6 +764,7 @@ function ControlDesk({ owner, onExpired }) {
     changes: ["Approval queue", "配置变更"],
     diagnostics: ["Routing evidence", "请求诊断"],
     credentials: ["Access boundary", "访问 Key"],
+    certificates: ["Certificate horizon", "TLS 证书"],
     audit: ["Recorded actions", "审计记录"]
   };
 
@@ -702,6 +776,7 @@ function ControlDesk({ owner, onExpired }) {
       {page === "changes" && <Changes current={current} changes={changes} onReload={loadAll} notify={notify} />}
       {page === "diagnostics" && <Diagnostics current={current} notify={notify} />}
       {page === "credentials" && <Credentials credentials={credentials} instances={instances} onReload={loadAll} onSecret={setSecret} notify={notify} />}
+      {page === "certificates" && <Certificates certificates={certificates} enabled={certificateStoreEnabled} onReload={loadAll} notify={notify} />}
       {page === "audit" && <Audit events={audit} />}
     </main>
     <SecretDialog secret={secret} onClose={() => setSecret(null)} />
