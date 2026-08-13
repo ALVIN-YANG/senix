@@ -2656,6 +2656,7 @@ dependencies = [
 name = "senix-mcp"
 version = "0.1.2"
 dependencies = [
+ "async-trait",
  "http",
  "rmcp",
  "senix-core",
@@ -2686,6 +2687,7 @@ name = "senixd"
 version = "0.1.2"
 dependencies = [
  "anyhow",
+ "async-trait",
  "axum",
  "clap",
  "openssl",

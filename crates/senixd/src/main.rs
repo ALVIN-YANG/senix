@@ -571,12 +571,19 @@ fn spawn_admin(listener: StdTcpListener, state: AppState) {
 }
 
 fn admin_router(state: AppState) -> Router {
+    let mcp_certificates = state.certificates.as_ref().map(|certificates| {
+        Arc::new(certificate::McpCertificateManager::new(
+            Arc::clone(certificates),
+            state.acme.clone(),
+        )) as Arc<dyn senix_mcp::CertificateManagement>
+    });
     let mcp = senix_mcp::streamable_http_service_with_options(
         senix_mcp::McpModules {
             traffic: Arc::clone(&state.traffic),
             config: Arc::clone(&state.config),
             diagnostics: state.diagnostics.clone(),
             security: Arc::clone(&state.security),
+            certificates: mcp_certificates,
         },
         &senix_mcp::McpHttpOptions {
             allowed_hosts: state.mcp_allowed_hosts.clone(),

@@ -1,5 +1,6 @@
 use std::{collections::BTreeSet, sync::Arc};
 
+use async_trait::async_trait;
 use senix_acme::{AccountConfig, AccountSecret, Http01Issuer, IssueRequest};
 use senix_core::{
     CertificateController, CertificateMaterial, CertificateSummary, Http01ChallengeRegistry,
@@ -37,6 +38,43 @@ pub struct AcmeManager {
     challenges: Http01ChallengeRegistry,
     certificates: Arc<CertificateController>,
     tls: TlsCertificateRegistry,
+}
+
+#[derive(Debug)]
+pub struct McpCertificateManager {
+    certificates: Arc<CertificateController>,
+    acme: Option<Arc<AcmeManager>>,
+}
+
+impl McpCertificateManager {
+    #[must_use]
+    pub fn new(certificates: Arc<CertificateController>, acme: Option<Arc<AcmeManager>>) -> Self {
+        Self { certificates, acme }
+    }
+}
+
+#[async_trait]
+impl senix_mcp::CertificateManagement for McpCertificateManager {
+    fn list(&self) -> senix_core::Result<Vec<CertificateSummary>> {
+        self.certificates.list()
+    }
+
+    async fn issue(
+        &self,
+        domains: Vec<String>,
+        timeout: std::time::Duration,
+    ) -> Result<senix_mcp::CertificateIssueResult, senix_mcp::CertificateToolError> {
+        let acme = self.acme.as_ref().ok_or_else(|| {
+            senix_mcp::CertificateToolError::unavailable("ACME issuance is not configured")
+        })?;
+        let result = AcmeManager::issue(acme, IssueRequest { domains, timeout })
+            .await
+            .map_err(|_| senix_mcp::CertificateToolError::issuance_failed())?;
+        Ok(senix_mcp::CertificateIssueResult {
+            certificate: result.certificate,
+            tls_generation: result.tls_generation,
+        })
+    }
 }
 
 impl AcmeManager {

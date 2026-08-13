@@ -768,6 +768,42 @@ fn pingora_restores_an_encrypted_managed_certificate_after_restart() {
     assert_eq!(certificates.as_array().unwrap().len(), 1);
     assert_eq!(certificates[0]["domains"], json!(["example.test"]));
     assert!(certificates[0].get("private_key_pem").is_none());
+
+    let (status, issued) = admin_response_with_bearer(
+        admin,
+        "POST",
+        "/api/v1/credentials",
+        None,
+        Some(json!({
+            "label": "mcp-certificate-reader",
+            "actions": ["certificate.read"],
+            "instance_ids": [],
+            "all_resources": true
+        })),
+        Some(&owner_key),
+    );
+    assert_eq!(status, 201);
+    let mcp_key = issued["api_key"].as_str().unwrap();
+    let (_, tools) = mcp_request(admin, Some(mcp_key), 81, "tools/list", &json!({}));
+    let tool_names = tools["result"]["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|tool| tool["name"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert!(tool_names.contains(&"list_certificates"));
+    assert!(!tool_names.contains(&"issue_certificate"));
+    let (_, listed) = mcp_request(
+        admin,
+        Some(mcp_key),
+        82,
+        "tools/call",
+        &json!({"name": "list_certificates", "arguments": {}}),
+    );
+    let structured = &listed["result"]["structuredContent"];
+    assert_eq!(structured.as_array().unwrap().len(), 1);
+    assert!(structured.to_string().contains("example.test"));
+    assert!(!structured.to_string().contains("PRIVATE KEY"));
     drop(senix);
 }
 

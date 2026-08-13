@@ -1,7 +1,8 @@
 //! MCP Adapter for the Senix control-plane Modules.
 
-use std::sync::Arc;
+use std::{fmt, sync::Arc, time::Duration};
 
+use async_trait::async_trait;
 use http::request::Parts;
 use rmcp::{
     ErrorData, RoleServer, ServerHandler,
@@ -18,9 +19,9 @@ use rmcp::{
     },
 };
 use senix_core::{
-    AuditOutcome, ConfigEngine, DiagnosticEngine, DrainOptions, Error, GatewayConfig,
-    ManagementAction, Principal, ResourceRef, Result as SenixResult, RiskLevel, SecurityController,
-    TrafficController,
+    AuditOutcome, CertificateSummary, ConfigEngine, DiagnosticEngine, DrainOptions, Error,
+    GatewayConfig, ManagementAction, Principal, ResourceRef, Result as SenixResult, RiskLevel,
+    SecurityController, TrafficController,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -31,6 +32,59 @@ pub struct McpModules {
     pub config: Arc<ConfigEngine>,
     pub diagnostics: DiagnosticEngine,
     pub security: Arc<SecurityController>,
+    pub certificates: Option<Arc<dyn CertificateManagement>>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct CertificateIssueResult {
+    pub certificate: CertificateSummary,
+    pub tls_generation: u64,
+}
+
+#[derive(Clone, Debug)]
+pub struct CertificateToolError {
+    code: &'static str,
+    message: String,
+}
+
+impl CertificateToolError {
+    #[must_use]
+    pub fn unavailable(message: impl Into<String>) -> Self {
+        Self {
+            code: "ACME_DISABLED",
+            message: message.into(),
+        }
+    }
+
+    #[must_use]
+    pub fn issuance_failed() -> Self {
+        Self {
+            code: "CERTIFICATE_ISSUANCE_FAILED",
+            message: "certificate issuance failed; inspect the audit log and server diagnostics"
+                .to_owned(),
+        }
+    }
+}
+
+#[async_trait]
+pub trait CertificateManagement: Send + Sync + fmt::Debug {
+    /// Lists secret-free certificate lifecycle metadata.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the durable certificate store cannot be read.
+    fn list(&self) -> SenixResult<Vec<CertificateSummary>>;
+
+    /// Runs one bounded HTTP-01 issuance and activates the resulting certificate.
+    ///
+    /// # Errors
+    ///
+    /// Returns a public-safe error when ACME is disabled or issuance fails.
+    async fn issue(
+        &self,
+        domains: Vec<String>,
+        timeout: Duration,
+    ) -> std::result::Result<CertificateIssueResult, CertificateToolError>;
 }
 
 #[derive(Clone, Debug, Default)]
@@ -99,6 +153,22 @@ impl SenixMcp {
                     ManagementAction::AuditRead,
                     &ResourceRef::Global,
                 );
+            }
+            "list_certificates" => {
+                return self.modules.certificates.is_some()
+                    && self.modules.security.allows(
+                        principal,
+                        ManagementAction::CertificateRead,
+                        &ResourceRef::Global,
+                    );
+            }
+            "issue_certificate" => {
+                return self.modules.certificates.is_some()
+                    && self.modules.security.allows(
+                        principal,
+                        ManagementAction::CertificateIssue,
+                        &ResourceRef::Global,
+                    );
             }
             _ => return false,
         };
@@ -188,6 +258,15 @@ struct DiagnoseParams {
 struct PlanChangeParams {
     /// Complete candidate `GatewayConfig` JSON object.
     candidate: serde_json::Value,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct IssueCertificateParams {
+    /// Non-wildcard DNS names that already resolve to this gateway's HTTP listener.
+    domains: Vec<String>,
+    /// Maximum ACME validation time, between 10 and 300 seconds.
+    #[serde(default = "default_acme_timeout_seconds")]
+    timeout_seconds: u64,
 }
 
 #[tool_router(router = tool_router)]
@@ -564,6 +643,104 @@ impl SenixMcp {
         })();
         domain_result(result)
     }
+
+    #[tool(
+        description = "List TLS certificate metadata without account credentials or private keys."
+    )]
+    async fn list_certificates(&self, Extension(parts): Extension<Parts>) -> CallToolResult {
+        let result = (|| {
+            let principal = principal(&parts)?;
+            self.modules.security.authorize(
+                &principal,
+                ManagementAction::CertificateRead,
+                &ResourceRef::Global,
+            )?;
+            self.modules
+                .certificates
+                .as_ref()
+                .ok_or_else(|| Error::InvalidState("certificate storage is disabled".to_owned()))?
+                .list()
+        })();
+        domain_result(result)
+    }
+
+    #[tool(
+        description = "Issue a non-wildcard TLS certificate with HTTP-01 and atomically activate it. Never returns private keys."
+    )]
+    async fn issue_certificate(
+        &self,
+        Parameters(input): Parameters<IssueCertificateParams>,
+        Extension(parts): Extension<Parts>,
+    ) -> CallToolResult {
+        let principal = match principal(&parts) {
+            Ok(principal) => principal,
+            Err(error) => return domain_result::<serde_json::Value>(Err(error)),
+        };
+        if let Err(error) = self.modules.security.authorize(
+            &principal,
+            ManagementAction::CertificateIssue,
+            &ResourceRef::Global,
+        ) {
+            return domain_result::<serde_json::Value>(Err(error));
+        }
+        if !(10..=300).contains(&input.timeout_seconds) {
+            return CallToolResult::structured_error(json!({
+                "code": "INVALID_ACME_TIMEOUT",
+                "message": "timeout_seconds must be between 10 and 300",
+                "evidence": {"timeout_seconds": input.timeout_seconds}
+            }));
+        }
+        let domains = input.domains;
+        let Some(certificates) = &self.modules.certificates else {
+            return CallToolResult::structured_error(json!({
+                "code": "ACME_DISABLED",
+                "message": "ACME issuance is not configured",
+                "evidence": {}
+            }));
+        };
+        match certificates
+            .issue(domains.clone(), Duration::from_secs(input.timeout_seconds))
+            .await
+        {
+            Ok(result) => {
+                if let Err(error) = self.modules.security.record_action(
+                    &principal,
+                    ManagementAction::CertificateIssue.as_str(),
+                    &ResourceRef::Global,
+                    AuditOutcome::Succeeded,
+                    RiskLevel::High,
+                    json!({
+                        "certificate_id": result.certificate.certificate_id,
+                        "domains": &result.certificate.domains,
+                        "not_after_ms": result.certificate.not_after_ms,
+                        "tls_generation": result.tls_generation
+                    }),
+                ) {
+                    return domain_result::<serde_json::Value>(Err(error));
+                }
+                CallToolResult::structured(serde_json::to_value(result).unwrap_or_else(|_| {
+                    json!({"code": "INTERNAL_ERROR", "message": "failed to serialize tool result"})
+                }))
+            }
+            Err(error) => {
+                if let Err(audit_error) = self.modules.security.record_action(
+                    &principal,
+                    ManagementAction::CertificateIssue.as_str(),
+                    &ResourceRef::Global,
+                    AuditOutcome::Failed,
+                    RiskLevel::High,
+                    json!({"domains": domains}),
+                ) {
+                    return domain_result::<serde_json::Value>(Err(audit_error));
+                }
+                CallToolResult::structured_error(json!({
+                    "code": error.code,
+                    "message": error.message,
+                    "evidence": {}
+                }))
+            }
+        }
+    }
 }
 
 #[tool_handler(
@@ -666,4 +843,8 @@ where
 
 const fn default_drain_timeout_ms() -> u64 {
     60_000
+}
+
+const fn default_acme_timeout_seconds() -> u64 {
+    90
 }
