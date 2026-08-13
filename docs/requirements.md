@@ -1,559 +1,245 @@
-# Senix v2 产品需求文档
+# Senix 产品需求与交付边界
 
-> 状态：需求边界已确认
-> 日期：2026-08-11
-> 目标版本：v0.1
+> 状态：v0.3 已实现边界
+>
+> 更新：2026-08-14
+>
 > 许可证：Apache-2.0
 
 ## 1. 产品定义
 
-Senix v2 是一个基于 Rust 和 Pingora 实现的独立网关。它不再依赖 Nginx，也不是 Pingora 或 Pingap 的插件。
+Senix 是一个基于 Rust 和 Pingora 的独立网关，不依赖 Nginx，也不是 Pingora 或 Pingap 的插件。它面向个人开发者和小团队，让一个人配合 AI 客户端完成网关配置、实例摘流、故障诊断和日常维护。
 
-产品面向个人开发者和 2～10 人的小团队。核心目标是让一个人配合 AI 客户端，安全完成网关配置、应用实例摘流、故障诊断和日常维护。
+一个 `senixd` 进程承载数据面、控制面、REST、MCP 和嵌入式管理后台。数据面按不可变 Snapshot 处理请求，不查询 SQLite；控制面用本机 SQLite 持久化配置、Key 摘要、审计、证书密文和实例期望状态。
 
-Senix 不负责执行 SSH、Shell、容器更新或业务部署。外部脚本、CI 或用户负责部署过程，Senix 只提供可靠、可审计的流量控制能力。
+Senix 只管理网关和流量。SSH、Shell、容器更新、Kubernetes 操作、部署顺序和灰度判断由用户、CI 或外部脚本负责。
 
 ### 1.1 核心价值
 
-Senix v2 优先实现四项中高创新能力：
+1. 安全变更：配置先校验并生成不可修改的 Change Plan，由 Owner 批准精确内容后原子发布。
+2. 部署流量控制：向脚本提供摘流、在途查询、回接、权重调整和禁用等幂等原语。
+3. 可解释诊断：从数据面同一 Snapshot 输出路由、候选实例、健康与流量状态证据。
+4. AI 安全入口：MCP 工具按 Key 权限和 Instance 范围裁剪，调用时再次鉴权并写审计。
 
-1. **安全变更引擎**：所有配置修改都经过预检、差异确认、原子发布、结果验证和回滚。
-2. **部署流量控制**：向脚本提供摘流、在途请求查询、回接、权重调整和禁用实例等原子操作。
-3. **可解释诊断**：按入口、TLS、路由、后端选择、健康状态、连接和响应输出可验证的证据链。
-4. **AI 安全控制面**：通过 MCP 和细粒度 Key 开放任务级工具，不让 AI 直接执行服务器命令或绕过安全流程。
-
-HTTP 代理、负载均衡、自动证书和管理后台是产品成立所需的基础能力，不作为主要创新点宣传。
-
-### 1.2 成功标准
-
-- 用户不需要安装或维护 Nginx、Go 服务和外部数据库。
-- 后台、CLI、REST 和 MCP 使用同一套配置校验、权限和审计规则。
-- 部署脚本可以确定地摘除一个实例，等待普通请求结束，部署完成后再明确回接。
-- 配置错误不会直接进入数据面；运行异常时可以恢复到上一份有效快照。
-- 用户和 AI 看到相同的健康状态、流量状态与诊断证据。
-
-## 2. 用户与使用场景
-
-### 2.1 目标用户
+### 1.2 目标用户
 
 - 在一台或少量 Linux 服务器上运行多个 Web 服务的个人开发者。
-- 使用 Docker Compose、systemd 或简单 CI 脚本的小团队。
-- 希望让 Codex、Claude Code 等 AI 客户端协助排障和运维，但不愿授予服务器 Shell 权限的用户。
+- 使用 systemd、Docker Compose 或简单 CI 脚本的小团队。
+- 希望让 AI 协助排障和流量操作，但不愿授予服务器 Shell 权限的用户。
 
-### 2.2 主要场景
+## 2. v0.3 已交付能力
 
-1. 创建服务、路由和后端池，自动配置 HTTPS。
-2. 修改域名、路由或后端配置，预览差异后安全生效。
-3. CI 在发布前摘流指定实例，发布后由脚本控制回接和灰度权重。
-4. 域名无法访问时，按证据链定位失败环节。
-5. AI 使用受限 Key 查询状态、诊断问题或执行服务范围内的可回滚操作。
+### 2.1 代理与协议
 
-## 3. 产品边界
+| 能力 | v0.3 边界 |
+| --- | --- |
+| 下游 HTTP | 明文 HTTP/1.1；TLS 监听支持 HTTP/1.1 和 HTTP/2 ALPN |
+| 上游 HTTP | HTTP/1.1；HTTPS 可选择 HTTP/1.1、HTTP/2 或协商两者 |
+| TLS | 下游静态 PEM 或托管 SNI 证书；上游系统 CA、SNI 和主机名校验 |
+| WebSocket | HTTP/1.1 Upgrade 透明代理 |
+| SSE / gRPC | 按流透明代理，并单独计入长连接在途数 |
+| HTTP-01 | 优先响应当前 ACME Challenge，不进入普通路由 |
 
-### 3.1 v0.1 范围
+当前不承诺 h2c、HTTP/2 WebSocket、gRPC-Web 协议转换、下游或上游 mTLS、HTTP/3、QUIC、通用 TCP/UDP 代理。已有连接不能迁移到另一个后端或另一个网关进程。
 
-- 单个 Rust 服务端二进制，内含数据面、控制面、REST、MCP 和管理后台静态资源。
-- HTTP/HTTPS 反向代理和负载均衡。
-- 服务、路由、后端池、实例与健康检查。
-- ACME 自动证书和手动证书管理。
-- 安全变更、不可变快照、验证与回滚。
-- 实例摘流、状态查询、回接、权重调整和禁用。
-- 本地诊断、近期指标、审计和数据导出。
-- 所有者账号、细粒度 API Key 和操作批准。
-- Linux 单文件、Docker 镜像和 systemd 安装方式。
+### 2.2 路由与后端
 
-### 3.2 v0.2 候选范围
+- 精确域名和 `*.example.com` 形式的单标签通配域名。
+- 边界安全的最长路径前缀匹配；`/api` 不会误匹配 `/apix`。
+- 每条 Route 直接包含后端实例；实例有稳定 ID、地址、部署代次和权重。
+- 平滑加权轮询，不把新请求分配给摘流、禁用或不健康实例。
+- TCP 或 HTTP 主动健康检查，支持间隔、超时、连续成功和连续失败阈值。
+- HTTPS 后端的 HTTP 健康检查复用同一证书校验、SNI 和 ALPN 设置。
+- 配置拒绝未知字段、重复路由、无效 Host、重复或冲突 Instance、零总权重及不安全检查参数。
 
-- Docker 标签自动发现。
-- 旧版 Senix 数据和常见 Nginx 配置的一次性导入工具。
-- 认证、服务发现、事件通知和遥测等外部适配器示例。
-- 插件清单校验、版本协商和适配器健康状态。
+v0.3 尚无独立 Service 和 BackendPool 实体，也不支持按方法、请求头或正则匹配，以及重定向、改写和请求头修改动作。
 
-### 3.3 明确不做
-
-- Nginx 配置生成模式或 Nginx 兼容运行时。
-- WAF、API 计费、完整身份平台和服务网格。
-- 自动执行 SSH、Shell、Docker 或 Kubernetes 发布命令。
-- 由 Senix 编排整个服务的实例发布顺序。
-- 自动判断灰度成功或自动扩大新实例流量。
-- v0.1 内置 Kubernetes 控制器、多节点控制面或网关集群管理。
-- v0.1 蓝绿发布、流量镜像、WASM 插件市场和任意 Rust 动态库加载。
-
-## 4. 系统边界与架构
-
-```mermaid
-flowchart LR
-    Client["业务客户端"] --> DP["Senix 数据面<br/>Rust + Pingora"]
-    DP --> AppA["应用实例 A"]
-    DP --> AppB["应用实例 B"]
-
-    User["用户"] --> UI["React 管理后台"]
-    Script["CI / 部署脚本"] --> API["REST API"]
-    AI["AI 客户端"] --> MCP["MCP 服务"]
-
-    UI --> CP["Senix 控制面"]
-    API --> CP
-    MCP --> CP
-    CP --> Change["安全变更引擎"]
-    Change --> Store["SQLite + 审计 + 快照"]
-    Change --> Snapshot["不可变运行快照"]
-    Snapshot --> DP
-
-    Script -.->|"实际执行部署"| AppA
-```
-
-### 4.1 “无状态”的定义
-
-- **数据面无状态**：代理请求不依赖本地用户会话或可变配置对象；请求使用已发布的不可变运行快照。
-- **控制面有状态**：SQLite 持久化配置、Key 摘要、审计、快照和实例期望流量状态。
-- 实例处于摘流或禁用状态时，Senix 重启后必须保持该状态，不能自动恢复流量。
-- v0.1 的唯一可信状态位于本机 SQLite；YAML 是导入、规划和导出格式，不直接作为运行时状态源。
-
-### 4.2 进程与端口
-
-- 单个 `senix` 二进制承载代理、控制 API、MCP 和嵌入式管理后台。
-- 公共数据面默认监听 `80/443`。
-- 管理面使用独立端口，默认只允许本机或私网访问。
-- 管理面如需公网开放，必须显式启用 TLS 和访问限制。
-- 管理面故障不得主动修改已经发布的数据面快照。
-
-### 4.3 首版拓扑
-
-- v0.1 以单个 Senix 网关管理多个应用实例为目标。
-- 数据面设计不得依赖单节点专有会话，为以后多网关节点留下同步接口。
-- v0.1 不宣称 Senix 网关自身具备节点级高可用。
-
-## 5. 核心领域模型
-
-| 对象 | 含义 | 主要关系 |
-| --- | --- | --- |
-| Service | 一个可独立管理和授权的业务服务 | 包含多个 Route |
-| Route | 将入口请求匹配到后端池的规则 | 属于 Service，指向 BackendPool |
-| BackendPool | 一组可承载同类请求的后端 | 包含多个 Instance |
-| Instance | 一个实际后端地址 | 具有稳定 ID、部署代次、权重和状态 |
-| Certificate | TLS 证书及其生命周期信息 | 被一个或多个 Route 引用 |
-| Change Plan | 绑定当前 Snapshot 的不可修改配置提案 | 批准后生成一个新 Snapshot |
-| Snapshot | 数据面使用的不可变配置版本 | 原子替换上一版本 |
-| Operation | 摘流、回接等长操作的执行记录 | 支持幂等、查询和审计 |
-| Credential | 所有者身份或受限 API Key | 绑定资源范围和动作权限 |
-| AuditEvent | 谁在何时对什么资源做了什么 | 不可由普通 API 修改 |
-
-旧版“站点”只存在于迁移工具中。导入后转换为 Service、Route、BackendPool 和 Instance，不在新 API 中长期保留双重概念。
-
-## 6. 流量与协议要求
-
-### 6.1 首版支持
-
-- 下游和上游 HTTP/1.1。
-- 下游和上游 HTTP/2，支持显式配置 h2c。
-- 基于 HTTP/1.1 Upgrade 的 WebSocket。
-- gRPC 和 gRPC-Web 转发。
-- TLS 终止、上游 TLS 和 mTLS。
-- 普通 HTTP、SSE、下载和 gRPC 流式转发。
-
-### 6.2 首版不承诺
-
-- HTTP/3 和 QUIC。
-- HTTP/2 WebSocket。
-- 通用 TCP 或 UDP 网关。
-- 把 WebSocket、SSE、长时间 gRPC 或下载连接从一个后端迁移到另一个后端。
-
-### 6.3 路由能力
-
-路由匹配至少支持：
-
-- 精确域名和通配域名。
-- 精确路径、路径前缀和正则路径。
-- HTTP 方法和请求头条件。
-
-路由动作至少支持：
-
-- 转发到后端池。
-- HTTP 重定向。
-- 路径改写。
-- 请求头增加、替换和删除。
-- 后端实例权重调整。
-
-v0.1 不提供任意脚本或通用表达式执行环境。
-
-## 7. 配置变更引擎
-
-后台、CLI、REST 和 MCP 的所有写操作必须进入同一条变更链路：
-
-```mermaid
-stateDiagram-v2
-    [*] --> Draft
-    Draft --> Validated: 结构和语义校验通过
-    Validated --> Approved: 权限满足或人工批准
-    Approved --> Published: 原子发布新快照
-    Published --> Verified: 观察窗口正常
-    Published --> RolledBack: 验证失败
-    Draft --> Rejected: 校验失败
-    Validated --> Rejected: 拒绝批准
-```
-
-### 7.1 必须满足
-
-- 生成变更前后的结构化差异。
-- 校验域名冲突、路由歧义、证书引用、后端地址和权限范围。
-- 编译完整的新运行快照，不在原对象上逐项修改。
-- 新请求在原子切换后使用新快照；已开始的请求继续使用旧快照。
-- 发布后进入观察窗口，失败时恢复上一份有效快照。
-- 所有失败都保留原因和证据，不只返回通用错误信息。
-- 默认保留最近 100 份变更快照。
-- `/api/v1` 内不存在绕过变更引擎的配置写接口。
-
-### 7.2 CLI
-
-```bash
-senix plan -f gateway.yaml
-senix apply -f gateway.yaml
-senix export
-senix rollback <version>
-```
-
-CLI、后台和 MCP 只是不同入口，不能各自实现配置生效逻辑。
-
-## 8. 实例状态与健康状态
-
-流量状态和健康状态必须分开表示。
-
-### 8.1 期望流量状态
-
-- `SERVING`：可以根据权重接收新请求。
-- `DRAINING`：不再接收新请求，等待已有请求或连接结束。
-- `DRAINED`：已经摘流，普通在途请求为零。
-- `DISABLED`：被用户或脚本明确禁用，不因发现或健康恢复自动接流量。
-
-### 8.2 运行健康状态
-
-- `UNKNOWN`：尚无足够检查结果。
-- `HEALTHY`：主动和被动健康信号正常。
-- `UNHEALTHY`：达到失败阈值。
-
-健康状态变化不能覆盖期望流量状态。例如，`DISABLED + HEALTHY` 的实例仍然不能接流量。
-
-### 8.3 实例身份
-
-- 每个实例具有稳定的 `instance_id`。
-- 每次应用部署后产生新的 `generation`。
-- 回接新代次时不得复用上一代次遗留的上游连接池。
-- IP 和端口不能单独作为长期实例身份。
-
-### 8.4 健康检查
-
-- 主动 HTTP 和 TCP 检查。
-- 可配置间隔、超时、成功阈值和失败阈值。
-- 被动记录真实请求的连接失败、超时和错误率。
-- 部署脚本的 `ready` 信号只能表示“可以开始验证”，不能替代健康检查。
-
-## 9. 外部脚本控制的部署流程
-
-Senix 不维护整个服务的滚动发布计划。外部脚本决定实例顺序、观察时间、灰度是否通过以及下一步权重。
-
-```mermaid
-sequenceDiagram
-    participant CI as 部署脚本
-    participant S as Senix
-    participant App as 应用实例
-
-    CI->>S: drain(instance, timeout, idempotency_key)
-    S-->>CI: operation_id
-    loop 查询状态
-        CI->>S: get_drain_status(operation_id)
-        S-->>CI: 普通请求数、长连接数、状态
-    end
-    CI->>App: 执行实际部署
-    CI->>S: rejoin(instance, generation, weight)
-    S->>App: 健康检查
-    S-->>CI: 成功或拒绝原因
-    CI->>S: set_weight(instance, new_weight)
-```
-
-### 9.1 原子操作
-
-Senix 必须提供：
-
-- `drain(instance)`：立即停止向实例分配新请求。
-- `get_drain_status(operation)`：查询普通请求、长连接和截止状态。
-- `rejoin(instance, generation, weight)`：以新部署代次和指定权重回接。
-- `set_weight(instance, weight)`：由用户或脚本调整灰度流量。
-- `disable(instance)`：明确禁用实例。
-
-所有写操作都必须支持幂等键。重复调用返回原操作结果，不得重复创建相互冲突的状态。
-
-### 9.2 摘流超时
-
-- 普通 HTTP 默认等待 60 秒。
-- WebSocket、SSE、长时间 gRPC 和下载默认等待 15 分钟。
-- 到达截止时间后进入 `DRAIN_TIMEOUT`，默认暂停，不自动强制断开。
-- 用户或脚本必须明确选择继续等待、强制结束或取消摘流。
-- 单实例服务默认拒绝摘流；显式 `force=true` 后才允许进入维护状态。
-
-### 9.3 回接规则
-
-- 默认要求主动健康检查通过。
-- 健康检查失败时拒绝回接，并返回具体证据。
-- 用户或脚本可以显式使用 `force=true` 覆盖健康底线，操作必须进入高风险审计。
-- Senix 不自动判断灰度成功，不自动扩大流量。
-- 摘流或禁用后的实例保持隔离，直到收到明确回接指令。
-
-## 10. REST API 要求
-
-- 稳定接口统一位于 `/api/v1`。
-- v1 内保持向后兼容；实验接口必须使用明确标记。
-- 写接口支持 `Idempotency-Key`。
-- 长操作立即返回 `operation_id`，通过查询接口获得进度和结果。
-- 错误响应包含稳定错误码、面向人的说明和可供自动化处理的结构化证据。
-
-建议的流量控制接口：
+### 2.3 配置变更
 
 ```text
-POST  /api/v1/instances/{id}/drain
-GET   /api/v1/operations/{operation_id}
-POST  /api/v1/instances/{id}/rejoin
-PATCH /api/v1/instances/{id}/weight
-POST  /api/v1/instances/{id}/disable
+candidate
+  -> validate + structured route diff + content digest
+  -> immutable Change Plan
+  -> Owner approval, valid for 15 minutes
+  -> apply against the same base Snapshot
+  -> SQLite commit
+  -> atomic data-plane publish
 ```
 
-建议的变更与诊断接口：
+- 计划绑定基线版本和候选内容摘要，持久化后不能修改。
+- 无效计划可以查看，但不能批准或应用。
+- 基线变化、批准过期或内容摘要不一致时拒绝应用。
+- 回滚先从历史 Snapshot 创建新计划，再走相同批准和应用流程。
+- MCP 可以规划，也可以在有 `change.apply` 权限时应用已由 Owner 批准的计划；MCP 和 API Key 不能批准。
+- 数据库为空时从 JSON 初始化第一份 Snapshot；已有 Snapshot 时忽略启动 JSON，避免重启覆盖现场状态。
 
-```text
-GET  /api/v1/config
-GET  /api/v1/changes
-POST /api/v1/changes/plan
-POST /api/v1/changes/{id}/approve
-POST /api/v1/changes/{id}/apply
-POST /api/v1/snapshots/{id}/rollback-plan
-POST /api/v1/diagnostics/requests
-GET  /api/v1/audit-events
-```
+### 2.4 实例流量控制
 
-## 11. MCP 服务要求
+期望流量状态与健康状态分开保存：
 
-### 11.1 连接方式
+- `SERVING`：按权重接收新请求。
+- `DRAINING`：停止新请求，等待在途请求结束。
+- `DRAINED`：普通请求已清零；长连接可能仍存在。
+- `DISABLED`：保持隔离，直到收到明确回接。
+- `UNKNOWN`、`HEALTHY`、`UNHEALTHY`：独立表示主动健康结果。
 
-- 远程 Streamable HTTP MCP 为主要方式。
-- 提供本机 stdio 桥接，连接同一套控制 API。
-- 远程 MCP 默认只能通过管理面访问，并使用后台生成的受限 Key。
+写操作包括 `drain`、`rejoin`、`set_weight` 和 `disable`，全部要求 `Idempotency-Key`。重复请求返回原结果。默认拒绝摘除最后一个可用后端，也拒绝回接不健康实例；只有显式 `force=true` 才能覆盖，并记录高风险审计。
 
-### 11.2 首版工具
+摘流返回持久化 `operation_id`。到期只进入 `DRAIN_TIMEOUT`，不强杀或迁移连接。部署脚本根据普通和长连接在途数决定继续等待还是执行后续动作。
 
-- `get_overview`
-- `list_services`
-- `get_service`
-- `list_instances`
-- `get_instance_health`
+### 2.5 身份、权限和审计
+
+- 服务器本机 CLI 创建一次性 Owner Credential，再从标准输入建立唯一 Owner 账号；账号建立后引导 Credential 在同一事务失效。
+- Owner 密码使用 Argon2id；浏览器会话使用短期签名 Cookie、`HttpOnly`、`SameSite=Strict` 和同源 CSRF 检查。
+- 登录失败按真实 TCP 来源限速，不信任 `X-Forwarded-For`；5 分钟内失败 5 次锁定 15 分钟，同时最多执行 2 次 Argon2 校验。
+- API Key 完整值只展示一次，数据库只保存摘要；Key 有动作、Instance 范围、有效期和撤销状态。
+- REST、管理后台和 MCP 共用 `SecurityController` 的认证、授权和审计规则。
+- 审计记录操作者、动作、资源、结果和风险，不保存密码、Cookie、Key、Authorization、私钥或请求正文。
+- 所有管理错误和登录响应禁止缓存。
+
+管理端口默认绑定 `127.0.0.1:9080`。v0.3 不内置管理面 TLS；不要直接暴露到公网。通过受信 TLS 入口访问时启用 `--admin-secure-cookie`，并显式配置 MCP 允许的 Host 和 Origin。
+
+### 2.6 MCP
+
+MCP 使用无会话 Streamable HTTP，挂载在管理端口 `/mcp`。每个请求独立携带 Bearer Key，不接受浏览器 Cookie。
+
+当前工具：
+
+- `list_instances`、`get_instance_health`
+- `drain_instance`、`get_drain_status`、`rejoin_instance`
+- `set_instance_weight`、`disable_instance`
 - `diagnose_request`
-- `plan_change`
-- `plan_rollback`
-- `list_changes`
-- `get_change`
+- `plan_change`、`plan_rollback`、`list_changes`、`get_change`
 - `apply_approved_change`
-- `drain_instance`
-- `get_drain_status`
-- `rejoin_instance`
-- `set_instance_weight`
-- `disable_instance`
+- `list_certificates`、`issue_certificate`
 - `list_audit_events`
 
-### 11.3 能力限制
+工具目录按当前 Key 的动作和范围裁剪；每次调用仍重新授权。MCP 不提供 Key 创建、计划批准、Shell、SSH、Docker、Kubernetes、数据库或私钥工具。
 
-- MCP 暴露面向任务的工具，不暴露数据库、内部命令或任意配置写入。
-- MCP 不能读取证书私钥、密码或 API Key 明文。
-- MCP 不能创建权限高于当前 Credential 的新 Key。
-- MCP 不能执行 Shell、SSH、Docker 或 Kubernetes 命令。
-- MCP、REST 和后台必须经过相同的授权、审批、变更和审计模块。
+### 2.7 证书
 
-## 12. 身份、权限与审批
+- 静态 PEM 在启动时校验证书和私钥，并作为默认 SNI 证书。
+- ACME HTTP-01 由后台、REST 或 MCP 显式触发，成功后原子热切换，不重启网关。
+- ACME 账户和证书私钥使用 XChaCha20-Poly1305 加密后写入 SQLite。
+- 主密钥位于独立普通文件；Unix 上拒绝 group 或 others 可读写的文件。
+- 后台允许对当前证书再次显式签发；Prometheus 暴露过期、30 天内到期和最早到期时间。
 
-### 12.1 首次初始化
+续期由用户或脚本控制。v0.3 不做自动调度、DNS-01、证书上传或 DNS 提供商集成。
 
-- 首次启动由服务器本机 CLI 创建一次性 Owner Credential，再创建所有者账号。
-- 所有者账号创建后，Owner Credential 在同一事务中立即失效。
-- 忘记所有者密码只能通过服务器本机 CLI 重置。
-- 不提供默认用户名和默认密码。
+### 2.8 可观测性与备份
 
-### 12.2 Credential
+- `/healthz` 是公开的进程探针；`senixd healthcheck` 和容器 HEALTHCHECK 使用同一入口。
+- `/metrics` 需要带全局 `metrics.read` 的 Bearer Key。
+- 指标覆盖请求、响应状态类别、代理错误、配置版本、实例状态、普通和长连接在途数、证书到期风险。
+- 指标不使用 Host、域名、URL、Key 或请求体标签，避免秘密泄漏和高基数。
+- 请求诊断从运行 Snapshot 输出结构化路由证据，不依赖访问日志猜测。
+- SQLite 使用 WAL、`synchronous=FULL`、忙等待、完整性检查和明确 Schema 版本。
+- `backup create` 在线创建一致性备份；`verify` 校验 Schema、完整性和全部加密材料；`restore` 只创建新库，不覆盖现场文件。
+- 备份文件以 `0600` 原子落盘，主密钥必须单独备份。
 
-- 首版支持一个所有者账号和多把受限 API Key。
-- 密码使用 Argon2id 保存。
-- API Key 只展示一次，服务端只保存不可逆摘要。
-- Key 支持有效期、撤销和轮换。
-- Key 可以限制到具体 Service、Instance 和动作集合。
-- 部署 Key 可以进一步限制为 `drain`、`status`、`rejoin` 和 `set_weight`。
+## 3. 外部脚本部署协议
 
-### 12.3 操作分级
+Senix 不维护整套发布计划。推荐脚本流程：
 
-- 查看、诊断和模拟变更可以直接执行。
-- 服务范围内、可回滚且 Credential 已授权的操作可以自动执行。
-- 删除资源、修改公共入口、降低安全策略、读取或替换证书私钥等操作需要人工批准。
-- Approval 默认 15 分钟有效，只能执行预检时确认的那一份 Change Plan；MCP 和 API Key 不能批准。
+```text
+drain(instance, timeout, idempotency_key)
+  -> poll(operation_id)
+  -> script deploys the application instance
+  -> rejoin(instance, new_generation, initial_weight)
+  -> script observes application evidence
+  -> set_weight(instance, next_weight)
+```
 
-### 12.4 密钥与隐私
+代次变化会建立新的上游 Peer 身份，避免复用上一代部署的连接池。Senix 不执行部署，不自动判定灰度结果，也不自行扩大流量。
 
-- 证书私钥和外部服务凭据加密保存。
-- 日志默认清除密码、API Key、Authorization、Cookie 和证书私钥。
-- 默认不记录请求正文和响应正文。
-- 审计事件不得保存秘密值，只保存字段发生了变更。
+## 4. 公开接口
 
-## 13. 证书管理
+稳定管理接口位于 `/api/v1`：
 
-- 支持 ACME HTTP-01 和 DNS-01。
-- 支持手动上传证书。
-- 内置 Cloudflare、阿里云和腾讯云 DNS 适配器。
-- 提供通用 DNS Webhook 接口，其他提供商通过外部适配器接入。
-- 续期由用户或脚本显式触发；Prometheus 必须暴露已过期、30 天内到期和最早到期时间，不能静默过期。
-- 证书切换通过新运行快照原子生效，不重启网关。
+```text
+POST   /api/v1/auth/login
+GET    /api/v1/auth/session
+DELETE /api/v1/auth/session
 
-## 14. 诊断与可观测性
+GET    /api/v1/instances
+GET    /api/v1/instances/{id}
+POST   /api/v1/instances/{id}/drain
+GET    /api/v1/operations/{operation_id}
+POST   /api/v1/instances/{id}/rejoin
+PATCH  /api/v1/instances/{id}/weight
+POST   /api/v1/instances/{id}/disable
 
-### 14.1 诊断证据链
+GET    /api/v1/config
+GET    /api/v1/changes
+POST   /api/v1/changes/plan
+GET    /api/v1/changes/{id}
+POST   /api/v1/changes/{id}/approve
+POST   /api/v1/changes/{id}/apply
+POST   /api/v1/snapshots/{version}/rollback-plan
 
-对一个域名或模拟请求，至少输出：
+POST   /api/v1/diagnostics/requests
+GET    /api/v1/credentials
+POST   /api/v1/credentials
+DELETE /api/v1/credentials/{id}
+GET    /api/v1/certificates
+POST   /api/v1/certificates/issue
+GET    /api/v1/audit-events
+GET    /metrics
+```
 
-1. 入口端口是否监听。
-2. TLS 握手、SNI 和证书选择结果。
-3. 命中的 Service 和 Route，以及未命中原因。
-4. BackendPool 和 Instance 的选择过程。
-5. 实例期望流量状态和健康状态。
-6. DNS、连接、TLS 和上游响应结果。
-7. 相关变更、部署操作和审计事件。
+错误响应包含稳定 `code`、面向人的 `message` 和结构化 `evidence`。v1 新增字段必须向后兼容；删除字段或改变语义需要新主版本。
 
-AI 可以根据证据提出解释和建议，但界面必须允许用户直接查看、复制和导出原始事实。
+## 5. 运行与交付
 
-### 14.2 本地保留
+- 正式构建目标为 Linux x86_64、Linux ARM64、macOS x86_64 和 macOS ARM64。
+- GitHub Release 提供压缩包和 SHA-256 清单；安装脚本先校验再写入目标目录。
+- GHCR 镜像以非 root UID 10001 运行，内置进程健康检查。
+- Docker Demo 包含两个真实后端、持久化卷、Owner 初始化和代理验证。
+- CI 在 Rust 1.88 上运行格式检查、严格 Clippy、全部测试、前端构建、嵌入产物校验和交付文件检查。
+- RustSec 定期扫描依赖；Dependabot 覆盖 Cargo、npm、Docker 和 GitHub Actions。
 
-- 诊断事件默认保留 7 天。
-- 分钟级指标默认保留 30 天。
-- 审计记录默认保留 180 天。
-- 保留时间可配置。
-- Prometheus 指标使用受保护的 `/metrics` 导出；OpenTelemetry 与结构化日志外送后续实现。
-- 本地不以永久保存全量访问日志为目标。
+Senix 收到 `SIGTERM` 后停止接收新连接，给已有连接配置的宽限时间，再等待运行时退出。超过期限的长连接仍可能被终止。v0.3 不承诺单机进程间的既有连接迁移，也不内置多节点高可用。
 
-## 15. 管理后台
+## 6. 验收要求
 
-管理后台使用 React 构建，产物嵌入 Rust 二进制。服务端、网关和 MCP 使用 Rust；“纯 Rust”不要求把浏览器界面重写为 Rust/WASM。
+发布前必须满足：
 
-v0.1 已实现的后台纵切为登录、流量状态、访问 Key 和审计记录。其余一级入口随对应领域能力落地后加入，不先制作无真实数据的空页面。
+1. `cargo fmt --all -- --check`、严格 Clippy 和全部测试通过。
+2. 真实子进程 E2E 覆盖 HTTP/TLS 代理、主动健康、摘流与重启恢复、登录、Key Scope、审计、MCP、配置批准、证书恢复、指标和备份恢复。
+3. Release 四个平台打包成功，校验清单与安装脚本在 Linux 实机通过。
+4. 真实 Linux 隔离实例验证 HTTP、HTTPS、管理探针、受保护指标、在线备份和升级后恢复。
+5. GitHub Dependabot 和 RustSec 不留已知高危或中危未处理告警。
 
-一级入口固定为：
+性能结果必须写明硬件、请求大小、上游延迟、连接方式、TLS、并发数、压测工具和完整命令。单个峰值数字不构成通用性能承诺。
 
-- 概览
-- 服务
-- 部署操作
-- 配置变更
-- 诊断
-- 访问密钥
-- 扩展
+## 7. 明确不做
 
-首页以异常、待处理操作、失败变更、证书风险和实例状态为主，不建设大型监控驾驶舱。
+- Nginx 配置生成模式或 Nginx 兼容运行时。
+- 自动执行 SSH、Shell、Docker 或 Kubernetes 发布命令。
+- 自动编排实例发布顺序、自动判断灰度成功或自动扩流。
+- WAF、API 计费、完整身份平台和服务网格。
+- 任意 Rust 动态库加载或未经隔离的请求脚本。
+- 在单节点 SQLite 上虚构多节点一致性或网关集群管理。
 
-## 16. 扩展接口
+## 8. 后续候选，不属于 v0.3 承诺
 
-v0.1 定义以下扩展接缝和清单格式：
+按需求证据再决定，不预建空入口：
 
-- 认证
-- 服务发现
-- 策略检查
-- 事件通知
-- 日志和指标输出
+- 独立 Service 与 BackendPool 领域对象，以及 Service Scope。
+- 方法、请求头和更丰富路径条件；重定向、改写与 Header 动作。
+- 被动健康信号、OpenTelemetry 和外部事件通知。
+- 管理面内置 TLS、完整 systemd 安装单元和恢复演练工具。
+- Docker 标签发现、旧版 Senix 与常见 Nginx 配置的一次性导入。
+- 经过超时、并发、熔断和失败策略约束的 HTTP 或 Unix Socket Adapter。
+- h2c、mTLS、DNS-01、手动证书上传和更多协议能力。
 
-v0.1 不加载第三方 Rust 动态库，也不允许插件任意介入请求处理阶段。v0.2 可通过 HTTP 或 Unix Socket 连接外部适配器，并使用签名 Webhook 发送事件。
+Pingora 当前提供编译期 Rust Module 接口，但没有稳定动态插件 ABI。若以后提供扩展，优先使用外部进程协议；WASM 必须另行定义资源配额、宿主能力、ABI 版本和失败隔离。
 
-适配器必须声明超时、并发上限、熔断和失败策略。认证与安全策略默认失败关闭；日志和指标输出默认失败开放，不得阻塞业务请求。
+## 9. 已确认决策
 
-未来如引入 WASM，必须另行定义资源配额、宿主能力、ABI 版本和失败隔离，不沿用 Rust 动态库 ABI。
-
-## 17. 部署与升级
-
-### 17.1 运行环境
-
-- 正式支持 Linux x86_64 和 ARM64。
-- 提供单文件、Docker 镜像和 systemd 安装方式。
-- macOS 仅作为开发和测试环境。
-- v0.1 不提供生产级 Kubernetes 部署承诺。
-
-### 17.2 Senix 自身升级
-
-- Linux 单文件模式使用 Pingora 的监听套接字交接能力。
-- 新进程接收新连接，旧进程在宽限时间内处理已有连接。
-- 超过宽限时间的长连接可能终止，不能宣传无限长连接无损迁移。
-- Docker 镜像升级若要求无中断，需要两个 Senix 副本或外部负载均衡。
-- Senix 不自行下载或替换二进制，升级动作由包管理器或外部脚本触发。
-
-## 18. 备份、恢复与迁移
-
-- `senixd backup create` 在线一致性备份 SQLite、加密凭据、证书和必要元数据；主密钥独立备份。
-- `backup verify` 与 `backup restore` 验证 Schema、完整性和全部加密材料；恢复只创建新库，不静默覆盖现场文件。
-- 旧版 Senix 通过一次性工具迁移站点、证书和可识别的安全配置。
-- 常见 Nginx `server`、`location` 和 `upstream` 配置可尝试导入。
-- 无法确定语义的配置必须报告并要求人工处理，不允许静默忽略。
-- 不承诺旧版本原地升级，也不长期保持 Nginx 配置语法兼容。
-
-## 19. 非功能要求与验收
-
-### 19.1 可靠性
-
-- 配置变更不重启网关。
-- 快照发布是原子操作，不暴露半更新状态。
-- 摘流后不再向目标实例分配新请求。
-- 普通在途请求数量可以准确查询。
-- 重启后保留实例的摘流和禁用状态。
-- 不健康实例默认不能回接，除非显式 `force=true`。
-- 外部适配器故障不能无限阻塞请求处理。
-
-### 19.2 性能参考线
-
-在固定的 4 核 8 GB Linux 参考环境、简单 HTTP 转发场景下：
-
-- 配置 500 条路由和 2,000 个后端实例。
-- 完成 10,000 RPS 基准测试。
-- 测试报告必须公开请求大小、上游延迟、连接复用、TLS、并发数和压测工具，不能只公布一个峰值数字。
-
-该参考线是可重复的产品验收基准，不是对所有硬件、插件和业务规则的性能承诺。
-
-### 19.3 安全
-
-- REST、后台和 MCP 执行相同权限与审批规则。
-- 日志和审计中不出现密码、API Key、Cookie 或证书私钥。
-- 管理面默认不向公网开放。
-- 所有写操作可追踪到 Credential、资源、差异和结果。
-
-### 19.4 升级
-
-- Linux 单文件升级期间，监听端口不出现拒绝连接。
-- 能在宽限时间内完成的请求不因进程交接而终止。
-- 长连接超过宽限时间的行为必须在文档和事件中明确展示。
-
-## 20. API 与版本策略
-
-- 从 `/api/v1` 开始提供稳定接口。
-- 使用语义化版本。
-- v1 内的字段增加必须向后兼容；删除或修改语义只能进入新的主版本。
-- MCP 稳定工具与 REST v1 使用同一领域接口。
-- 实验性能力必须显式标记，不进入默认 MCP 工具列表。
-
-## 21. 技术基线与已知限制
-
-- 服务端和数据面使用 Rust，代理核心基于 Pingora。
-- 管理后台保留 React，通过构建时嵌入单个服务端二进制。
-- 控制面默认使用内嵌 SQLite，不要求外部数据库服务。
-- Pingora 当前提供编译期 Rust 模块接口，但不提供稳定的动态插件 ABI；Senix 的外部适配器和未来 WASM 边界需要自行设计。
-- Pingora 的平滑升级只交接监听套接字，已经建立的连接不会迁移到新进程。
-
-技术基线参考：
-
-- [Pingora 0.8.1 功能说明](https://github.com/cloudflare/pingora/blob/0.8.1/README.md#feature-highlights)
-- [Pingora 平滑升级说明](https://github.com/cloudflare/pingora/blob/0.8.1/docs/user_guide/graceful.md)
-- [Pingora HTTP 模块接口](https://github.com/cloudflare/pingora/blob/0.8.1/pingora-core/src/modules/http/mod.rs)
-
-## 22. 已确认决策摘要
-
-- Senix v2 是基于 Pingora 的独立 Rust 网关，不是 Pingora/Pingap 插件。
-- 数据面无状态，控制面持久化。
-- 首版单节点，不宣称内置高可用。
-- 外部脚本控制滚动顺序和灰度判断。
-- Senix 只提供可组合、幂等、可审计的实例流量控制原语。
-- AI 使用 MCP 和受限 Key，不直接控制服务器。
-- 首版完整开源，使用 Apache-2.0。
+- Senix 是基于 Pingora 的独立 Rust 网关，不是 Pingora/Pingap 插件。
+- 数据面请求无状态，控制面状态持久化。
+- 外部脚本控制部署顺序和灰度判断，Senix 只提供幂等、可审计的流量原语。
+- AI 使用 MCP 和受限 Key，不直接控制服务器，也不能绕过 Owner 批准。
+- 续期由用户或脚本显式触发，Senix 只提供签发入口和到期证据。
+- 当前单节点，不宣称内置高可用。

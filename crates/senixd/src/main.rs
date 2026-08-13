@@ -91,6 +91,14 @@ struct Args {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    /// Checks the public process-health endpoint on the management listener.
+    Healthcheck {
+        #[arg(long, default_value = "127.0.0.1:9080")]
+        address: SocketAddr,
+
+        #[arg(long, default_value_t = 2_000)]
+        timeout_ms: u64,
+    },
     Credential {
         #[command(subcommand)]
         command: CredentialCommand,
@@ -654,6 +662,10 @@ fn load_secret_vault(path: &std::path::Path) -> Result<SecretVault> {
 
 fn run_command(command: Command) -> Result<()> {
     match command {
+        Command::Healthcheck {
+            address,
+            timeout_ms,
+        } => run_healthcheck(address, timeout_ms),
         Command::Credential {
             command: CredentialCommand::Bootstrap { db, label },
         } => {
@@ -722,6 +734,30 @@ fn run_command(command: Command) -> Result<()> {
                 },
         } => restore_backup(&input, &db, secret_key_file.as_deref()),
     }
+}
+
+fn run_healthcheck(address: SocketAddr, timeout_ms: u64) -> Result<()> {
+    anyhow::ensure!(timeout_ms > 0, "--timeout-ms must be greater than zero");
+    let timeout = Duration::from_millis(timeout_ms);
+    let mut stream = std::net::TcpStream::connect_timeout(&address, timeout)
+        .with_context(|| format!("connect to Senix management listener {address}"))?;
+    stream.set_read_timeout(Some(timeout))?;
+    stream.set_write_timeout(Some(timeout))?;
+    stream
+        .write_all(b"GET /healthz HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+        .context("send Senix health probe")?;
+    let mut response = String::new();
+    stream
+        .read_to_string(&mut response)
+        .context("read Senix health response")?;
+    let healthy_status =
+        response.starts_with("HTTP/1.1 200 ") || response.starts_with("HTTP/1.0 200 ");
+    anyhow::ensure!(
+        healthy_status && response.ends_with("{\"status\":\"ok\"}"),
+        "Senix health endpoint returned an unhealthy response"
+    );
+    println!("Senix is healthy at {address}");
+    Ok(())
 }
 
 fn create_backup(

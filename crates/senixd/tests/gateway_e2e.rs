@@ -36,6 +36,55 @@ impl Drop for ChildGuard {
     }
 }
 
+#[test]
+fn demo_waits_for_the_public_health_probe() {
+    let script = include_str!("../../../scripts/demo.sh");
+    assert!(
+        script.contains("http://127.0.0.1:9080/healthz"),
+        "the demo must wait on the public health endpoint"
+    );
+    assert!(
+        !script.contains("/api/health"),
+        "the obsolete health path makes quick start time out"
+    );
+}
+
+#[test]
+fn healthcheck_command_checks_the_admin_process() {
+    let backend = spawn_backend("A", Duration::ZERO);
+    let proxy = free_address();
+    let admin = free_address();
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("senix.db");
+    let config = dir.path().join("gateway.json");
+    write_single_backend_config(&config, backend);
+
+    let senix = spawn_senix(proxy, admin, &db, &config);
+    wait_until_ready(admin, proxy);
+
+    let healthy = Command::new(env!("CARGO_BIN_EXE_senixd"))
+        .args(["healthcheck", "--address", &admin.to_string()])
+        .status()
+        .unwrap();
+    assert!(healthy.success());
+
+    let unavailable = free_address();
+    let unhealthy = Command::new(env!("CARGO_BIN_EXE_senixd"))
+        .args([
+            "healthcheck",
+            "--address",
+            &unavailable.to_string(),
+            "--timeout-ms",
+            "100",
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(!unhealthy.success());
+    drop(senix);
+}
+
 #[cfg(unix)]
 #[test]
 fn configured_shutdown_budget_bounds_sigterm_exit() {

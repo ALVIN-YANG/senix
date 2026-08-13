@@ -12,7 +12,7 @@
 Senix 是一个面向个人开发者和小团队的独立 Rust 网关。一个二进制同时承载 Pingora 数据面、SQLite 控制面、REST、无会话 MCP 和嵌入式管理后台，不依赖 Nginx 或外部数据库。它管理安全变更、实例流量和诊断证据；SSH、Docker、Kubernetes 和实际部署仍由用户或外部脚本控制。
 
 > [!IMPORTANT]
-> 当前是可运行的 `v0.2` 预览版，不是完整生产发布版。已经实现的能力和暂不支持的范围都列在下方。
+> 当前是可运行的 `v0.3` 预览版。生产使用前请按自己的流量、故障模型和恢复要求完成验收；已实现能力与暂不支持范围都列在下方。
 
 ## 已经能做什么
 
@@ -277,6 +277,8 @@ curl -H "Authorization: Bearer $SENIX_METRICS_KEY" \
 
 当前导出请求总量、响应状态类别、代理错误、配置版本、实例状态与在途数，以及 TLS 证书的启用、过期和 30 天到期风险。标签不包含域名、Host、URL、Key 或请求体，避免高基数和秘密泄漏。`/healthz` 仍保持公开，只用于进程存活探测。
 
+容器镜像内置相同探针；非容器部署可执行 `senixd healthcheck --address 127.0.0.1:9080`。它只检查管理进程是否能响应，不代表后端实例或业务路由已经健康。
+
 ## 备份与恢复
 
 备份可在 Senix 运行时在线创建。命令使用 SQLite 一致性 Backup API，完成完整性和 Schema 校验后以 `0600` 原子落盘，已存在的目标文件不会被覆盖：
@@ -386,7 +388,7 @@ docker build --check .
 
 ## 参与开发
 
-提交前请阅读 [CONTRIBUTING.md](./CONTRIBUTING.md) 和 [SECURITY.md](./SECURITY.md)。
+提交前请阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)、[SECURITY.md](./SECURITY.md) 和 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## License
 

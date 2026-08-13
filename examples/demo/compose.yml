@@ -24,6 +24,12 @@ services:
     networks:
       senix-demo:
         ipv4_address: 172.28.0.10
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/senixd", "healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 6
+      start_period: 5s
 
 volumes:
   senix-data:

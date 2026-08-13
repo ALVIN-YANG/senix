@@ -43,7 +43,7 @@ fi
 compose up --detach
 
 attempt=0
-until curl -fsS http://127.0.0.1:9080/api/health >/dev/null; do
+until curl -fsS http://127.0.0.1:9080/healthz >/dev/null; do
   attempt=$((attempt + 1))
   if [ "$attempt" -ge 30 ]; then
     compose logs senix >&2

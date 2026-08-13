@@ -37,5 +37,6 @@ COPY --from=builder /src/target/release/senixd /usr/local/bin/senixd
 USER senix
 WORKDIR /var/lib/senix
 EXPOSE 8080 9080
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 CMD ["/usr/local/bin/senixd", "healthcheck"]
 ENTRYPOINT ["/usr/local/bin/senixd"]
 CMD ["--listen", "0.0.0.0:8080", "--admin-listen", "0.0.0.0:9080", "--db", "/var/lib/senix/senix.db", "--config", "/etc/senix/gateway.json"]
