@@ -379,6 +379,49 @@ fn owner_can_login_to_embedded_admin_and_manage_keys_with_csrf_protection() {
 }
 
 #[test]
+fn repeated_owner_login_failures_are_rate_limited_by_peer_address() {
+    let backend = spawn_backend("A", Duration::ZERO);
+    let proxy = free_address();
+    let admin = free_address();
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("senix.db");
+    let config = dir.path().join("gateway.json");
+    write_single_backend_config(&config, backend);
+
+    bootstrap_owner_key(&db);
+    bootstrap_owner_account(&db, "admin", "correct horse battery staple");
+    let senix = spawn_senix(proxy, admin, &db, &config);
+    wait_until_ready(admin, proxy);
+
+    for _ in 0..5 {
+        assert_owner_login_denied(admin, "wrong password");
+    }
+    let (status, limited, response) = admin_response_with_headers(
+        admin,
+        "POST",
+        "/api/v1/auth/login",
+        Some(json!({
+            "username": "admin",
+            "password": "correct horse battery staple"
+        })),
+        &[("X-Forwarded-For", "203.0.113.9")],
+    );
+    assert_eq!(status, 429);
+    assert_eq!(limited["code"], "LOGIN_RATE_LIMITED");
+    assert!(
+        response_header(&response, "retry-after")
+            .unwrap()
+            .parse::<u64>()
+            .is_ok_and(|seconds| seconds > 0)
+    );
+    assert_eq!(
+        response_header(&response, "cache-control"),
+        Some("no-store")
+    );
+    drop(senix);
+}
+
+#[test]
 fn an_ai_key_can_apply_only_the_exact_change_plan_approved_by_the_owner() {
     let backend = spawn_backend("A", Duration::ZERO);
     let proxy = free_address();

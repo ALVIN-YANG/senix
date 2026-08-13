@@ -1,18 +1,19 @@
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeSet, HashMap},
     fmt::Write as _,
     fs,
     io::{self, Read, Write},
-    net::{SocketAddr, TcpListener as StdTcpListener},
+    net::{IpAddr, SocketAddr, TcpListener as StdTcpListener},
     path::PathBuf,
-    sync::Arc,
+    sync::{Arc, Mutex},
     thread,
+    time::{Duration, Instant},
 };
 
 use anyhow::{Context, Result};
 use axum::{
     Extension, Json, Router,
-    extract::{Path, Request, State},
+    extract::{ConnectInfo, Path, Request, State},
     http::{HeaderMap, HeaderValue, Method, StatusCode, header},
     middleware,
     middleware::Next,
@@ -151,12 +152,109 @@ struct AppState {
     diagnostics: DiagnosticEngine,
     runtime: Arc<GatewayRuntime>,
     metrics: Arc<senix_pingora::ProxyMetrics>,
+    login_limiter: Arc<LoginRateLimiter>,
     security: Arc<SecurityController>,
     certificates: Option<Arc<senix_core::CertificateController>>,
     acme: Option<Arc<certificate::AcmeManager>>,
     mcp_allowed_hosts: Vec<String>,
     mcp_allowed_origins: Vec<String>,
     admin_secure_cookie: bool,
+}
+
+const LOGIN_FAILURE_LIMIT: u8 = 5;
+const LOGIN_FAILURE_WINDOW: Duration = Duration::from_secs(5 * 60);
+const LOGIN_LOCKOUT: Duration = Duration::from_secs(15 * 60);
+const MAX_TRACKED_LOGIN_PEERS: usize = 4_096;
+
+#[derive(Debug)]
+struct LoginFailureState {
+    failures: u8,
+    window_started: Instant,
+    locked_until: Option<Instant>,
+    last_seen: Instant,
+}
+
+#[derive(Debug)]
+struct LoginRateLimiter {
+    peers: Mutex<HashMap<IpAddr, LoginFailureState>>,
+    verification_slots: Arc<tokio::sync::Semaphore>,
+}
+
+impl Default for LoginRateLimiter {
+    fn default() -> Self {
+        Self {
+            peers: Mutex::default(),
+            verification_slots: Arc::new(tokio::sync::Semaphore::new(2)),
+        }
+    }
+}
+
+impl LoginRateLimiter {
+    fn try_acquire_verification(&self) -> Option<tokio::sync::OwnedSemaphorePermit> {
+        Arc::clone(&self.verification_slots)
+            .try_acquire_owned()
+            .ok()
+    }
+
+    fn retry_after(&self, peer: IpAddr) -> Option<Duration> {
+        let now = Instant::now();
+        let mut peers = self
+            .peers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let state = peers.get_mut(&peer)?;
+        state.last_seen = now;
+        if let Some(retry_after) = state
+            .locked_until
+            .and_then(|deadline| deadline.checked_duration_since(now))
+        {
+            return Some(retry_after);
+        }
+        if now.duration_since(state.window_started) >= LOGIN_FAILURE_WINDOW {
+            peers.remove(&peer);
+        }
+        None
+    }
+
+    fn record_failure(&self, peer: IpAddr) {
+        let now = Instant::now();
+        let mut peers = self
+            .peers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if !peers.contains_key(&peer) && peers.len() >= MAX_TRACKED_LOGIN_PEERS {
+            let oldest = peers
+                .iter()
+                .min_by_key(|(_, state)| state.last_seen)
+                .map(|(peer, _)| *peer);
+            if let Some(oldest) = oldest {
+                peers.remove(&oldest);
+            }
+        }
+        let state = peers.entry(peer).or_insert(LoginFailureState {
+            failures: 0,
+            window_started: now,
+            locked_until: None,
+            last_seen: now,
+        });
+        if now.duration_since(state.window_started) >= LOGIN_FAILURE_WINDOW {
+            state.failures = 0;
+            state.window_started = now;
+            state.locked_until = None;
+        }
+        state.failures = state.failures.saturating_add(1);
+        state.last_seen = now;
+        if state.failures >= LOGIN_FAILURE_LIMIT {
+            state.locked_until = Some(now + LOGIN_LOCKOUT);
+        }
+    }
+
+    fn record_success(&self, peer: IpAddr) {
+        self.peers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(&peer);
+    }
 }
 
 #[derive(Debug)]
@@ -169,7 +267,7 @@ struct ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        (
+        let mut response = (
             self.status,
             Json(json!({
                 "code": self.code,
@@ -177,7 +275,11 @@ impl IntoResponse for ApiError {
                 "evidence": self.evidence,
             })),
         )
-            .into_response()
+            .into_response();
+        response
+            .headers_mut()
+            .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+        response
     }
 }
 
@@ -388,6 +490,7 @@ fn main() -> Result<()> {
         diagnostics: DiagnosticEngine::new(Arc::clone(&runtime)),
         runtime: Arc::clone(&runtime),
         metrics,
+        login_limiter: Arc::default(),
         security,
         certificates: certificate_services.controller,
         acme: certificate_services.acme,
@@ -591,9 +694,12 @@ fn spawn_admin(listener: StdTcpListener, state: AppState) {
                 tokio::spawn(health::run(Arc::clone(&state.runtime)));
                 let listener =
                     tokio::net::TcpListener::from_std(listener).expect("adopt admin listener");
-                axum::serve(listener, admin_router(state))
-                    .await
-                    .expect("serve admin interface");
+                axum::serve(
+                    listener,
+                    admin_router(state).into_make_service_with_connect_info::<SocketAddr>(),
+                )
+                .await
+                .expect("serve admin interface");
             });
         })
         .expect("spawn admin thread");
@@ -826,13 +932,53 @@ fn static_response(content_type: &'static str, body: &'static str, html: bool) -
 }
 
 async fn owner_login(
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
     State(state): State<AppState>,
     Json(body): Json<OwnerLoginRequest>,
+) -> Response {
+    const SESSION_TTL_MS: i64 = 8 * 60 * 60 * 1_000;
+    if let Some(retry_after) = state.login_limiter.retry_after(peer.ip()) {
+        return login_rate_limited_response(retry_after);
+    }
+    let Some(_verification_slot) = state.login_limiter.try_acquire_verification() else {
+        return login_rate_limited_response(Duration::from_secs(1));
+    };
+    if let Some(retry_after) = state.login_limiter.retry_after(peer.ip()) {
+        return login_rate_limited_response(retry_after);
+    }
+    let security = Arc::clone(&state.security);
+    let login = tokio::task::spawn_blocking(move || {
+        security.login_owner(&body.username, &body.password, SESSION_TTL_MS)
+    })
+    .await;
+    let issued = match login {
+        Err(error) => {
+            error!(error = %error, "owner login verifier failed");
+            return ApiError {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                code: "INTERNAL_ERROR",
+                message: "owner login could not be completed".to_owned(),
+                evidence: json!({}),
+            }
+            .into_response();
+        }
+        Ok(Ok(issued)) => issued,
+        Ok(Err(error)) => {
+            if matches!(error, senix_core::Error::InvalidOwnerLogin) {
+                state.login_limiter.record_failure(peer.ip());
+            }
+            return ApiError::from(error).into_response();
+        }
+    };
+    state.login_limiter.record_success(peer.ip());
+    owner_login_response(&state, issued).unwrap_or_else(IntoResponse::into_response)
+}
+
+fn owner_login_response(
+    state: &AppState,
+    issued: senix_core::IssuedOwnerSession,
 ) -> Result<Response, ApiError> {
     const SESSION_TTL_MS: i64 = 8 * 60 * 60 * 1_000;
-    let issued = state
-        .security
-        .login_owner(&body.username, &body.password, SESSION_TTL_MS)?;
     let mut cookie = format!(
         "senix_session={}; Path=/; HttpOnly; SameSite=Strict; Max-Age={}",
         issued.token,
@@ -859,6 +1005,28 @@ async fn owner_login(
         .headers_mut()
         .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     Ok(response)
+}
+
+fn login_rate_limited_response(retry_after: Duration) -> Response {
+    let seconds = retry_after
+        .as_secs()
+        .saturating_add(u64::from(retry_after.subsec_nanos() > 0));
+    let mut response = ApiError {
+        status: StatusCode::TOO_MANY_REQUESTS,
+        code: "LOGIN_RATE_LIMITED",
+        message: "too many failed login attempts; retry later".to_owned(),
+        evidence: json!({"retry_after_seconds": seconds}),
+    }
+    .into_response();
+    response.headers_mut().insert(
+        header::RETRY_AFTER,
+        HeaderValue::from_str(&seconds.to_string())
+            .expect("integer retry duration is a valid HTTP header"),
+    );
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response
 }
 
 async fn owner_session(Extension(principal): Extension<Principal>) -> Json<OwnerSessionResponse> {

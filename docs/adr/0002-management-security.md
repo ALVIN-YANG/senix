@@ -26,6 +26,8 @@ REST、管理后台和 MCP 都只是 Adapter，必须调用同一个 `SecurityCo
 
 Owner Credential 只允许通过本机 CLI 一次性引导。建立唯一 Owner Account 后，该引导 Credential 在同一事务中立即失效。Owner 密码使用 Argon2id 保存；浏览器使用短期 HMAC 签名 Cookie，不保存服务端会话列表。退出登录或本机重置密码会轮换签名密钥，使全部旧会话立即失效。Cookie 写操作必须携带同源 CSRF 头；API Key 和 MCP 继续只接受 Bearer，不接受浏览器 Cookie。
 
+Owner 登录按 TCP Peer IP 使用有界的进程内失败窗口，不信任转发头。五次失败锁定十五分钟，同时最多执行两次 Argon2 校验，校验放入阻塞线程池，避免并发爆破占满管理异步运行时。
+
 API Key 使用足够强的随机值，完整值只展示一次；持久层只保存不可逆摘要。认证和授权遇到未知状态时一律拒绝。审计不得保存密码、Cookie、API Key、Authorization 头或完整请求体。
 
 首版 Resource Scope 只支持全局和明确的 Instance ID 集合。等 Service 成为真实领域实体并有稳定归属关系后，再扩展 Service Scope。
