@@ -89,8 +89,14 @@ pub async fn run(runtime: Arc<GatewayRuntime>) {
             let Some(health) = tracker.observe(succeeded) else {
                 continue;
             };
-            if let Err(error) = runtime.report_health(&target.id, health) {
-                debug!(instance = %target.id, %error, "discarded health result for old snapshot");
+            match runtime.report_health_if_current(&target, health) {
+                Ok(true) => {}
+                Ok(false) => {
+                    debug!(instance = %target.id, "discarded health result for replaced target");
+                }
+                Err(error) => {
+                    debug!(instance = %target.id, %error, "discarded health result for old snapshot");
+                }
             }
         }
 

@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use senix_core::{
     BackendConfig, DrainOperation, DrainOperationStatus, DrainOptions, Error, GatewayConfig,
-    GatewayRuntime, HealthState, InstanceState, InstanceStateStore, PersistedInstanceState, Result,
-    RouteConfig, SqliteStateStore, TrafficController, TrafficState,
+    GatewayRuntime, HealthCheckConfig, HealthState, InstanceState, InstanceStateStore,
+    PersistedInstanceState, Result, RouteConfig, SqliteStateStore, TrafficController, TrafficState,
 };
 
 struct RejectingStore;
@@ -357,6 +357,49 @@ fn health_changes_selection_without_overwriting_traffic_state() {
             "instance-b"
         );
     }
+}
+
+#[test]
+fn a_probe_result_for_an_old_target_cannot_change_the_reconfigured_instance() {
+    let directory = tempfile::tempdir().unwrap();
+    let store = Arc::new(SqliteStateStore::open(directory.path().join("senix.db")).unwrap());
+    let runtime = Arc::new(GatewayRuntime::new());
+    let mut first = test_config();
+    first.routes[0].backends[0].health_check = Some(HealthCheckConfig::default());
+    runtime.publish(first.clone(), vec![]);
+    let old_target = runtime
+        .health_targets()
+        .into_iter()
+        .find(|target| target.id == "instance-a")
+        .unwrap();
+
+    first.routes[0].backends[0].address = "127.0.0.1:4201".parse().unwrap();
+    runtime.publish(first, vec![]);
+    let traffic = TrafficController::new(Arc::clone(&runtime), store);
+
+    assert!(
+        !runtime
+            .report_health_if_current(&old_target, HealthState::Healthy)
+            .unwrap()
+    );
+    assert_eq!(
+        traffic.status("instance-a").unwrap().health,
+        HealthState::Unknown
+    );
+    let current_target = runtime
+        .health_targets()
+        .into_iter()
+        .find(|target| target.id == "instance-a")
+        .unwrap();
+    assert!(
+        runtime
+            .report_health_if_current(&current_target, HealthState::Healthy)
+            .unwrap()
+    );
+    assert_eq!(
+        traffic.status("instance-a").unwrap().health,
+        HealthState::Healthy
+    );
 }
 
 #[test]

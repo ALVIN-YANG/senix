@@ -1,7 +1,7 @@
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 use arc_swap::ArcSwap;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 
 use crate::{
     GatewayConfig, HealthCheckConfig, HealthState, InstanceState, PersistedInstanceState, Result,
@@ -105,6 +105,7 @@ struct RuntimeSnapshot {
 #[derive(Debug)]
 pub struct GatewayRuntime {
     snapshot: ArcSwap<RuntimeSnapshot>,
+    control_plane: RwLock<()>,
 }
 
 impl Default for GatewayRuntime {
@@ -118,11 +119,13 @@ impl GatewayRuntime {
     pub fn new() -> Self {
         Self {
             snapshot: ArcSwap::from_pointee(RuntimeSnapshot::default()),
+            control_plane: RwLock::new(()),
         }
     }
 
     /// Atomically replaces the route table. Existing request leases keep their old backend alive.
     pub fn publish(&self, config: GatewayConfig, persisted: Vec<PersistedInstanceState>) {
+        let _guard = self.control_plane.write();
         let persisted: HashMap<_, _> = persisted
             .into_iter()
             .map(|state| (state.id.clone(), state))
@@ -254,9 +257,36 @@ impl GatewayRuntime {
     ///
     /// Returns an error when the instance does not exist in the current snapshot.
     pub fn report_health(&self, id: &str, health: HealthState) -> Result<InstanceState> {
+        let _guard = self.control_plane.read();
         let instance = self.instance(id)?;
         instance.control.gate.lock().health = health;
         Ok(instance.state())
+    }
+
+    /// Publishes a probe result only while its complete target still belongs to the current
+    /// routing snapshot.
+    ///
+    /// Returns `false` when a configuration publication replaced the address, TLS settings, or
+    /// health-check policy while the probe was running.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the target instance no longer exists.
+    pub fn report_health_if_current(
+        &self,
+        target: &HealthTarget,
+        health: HealthState,
+    ) -> Result<bool> {
+        let _guard = self.control_plane.read();
+        let instance = self.instance(&target.id)?;
+        if instance.address != target.address
+            || instance.tls != target.tls
+            || instance.health_check.as_ref() != Some(&target.check)
+        {
+            return Ok(false);
+        }
+        instance.control.gate.lock().health = health;
+        Ok(true)
     }
 
     /// Returns the active probe inputs from one immutable routing snapshot.
