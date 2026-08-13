@@ -264,6 +264,12 @@ fn prometheus_metrics_are_scoped_and_cover_the_real_proxy_path() {
     assert!(body.contains("senix_proxy_errors_total 0\n"), "{body}");
     assert!(body.contains("senix_config_snapshot_version 1\n"), "{body}");
     assert!(
+        body.contains("senix_certificate_store_enabled 0\n"),
+        "{body}"
+    );
+    assert!(body.contains("senix_certificates_active 0\n"), "{body}");
+    assert!(body.contains("senix_certificates_expired 0\n"), "{body}");
+    assert!(
         body.contains("senix_instance_in_flight{instance_id=\"instance-a\",kind=\"ordinary\"} 0\n"),
         "{body}"
     );
@@ -959,6 +965,7 @@ fn pingora_terminates_tls_with_a_configured_certificate() {
     let key = dir.path().join("key.pem");
     write_single_backend_config(&config, backend);
     write_test_certificate(&cert, &key);
+    let owner_key = bootstrap_owner_key(&db);
 
     let senix = spawn_senix_with_tls(proxy, tls, admin, &db, &config, &cert, &key);
     wait_until_ready(admin, proxy);
@@ -966,6 +973,22 @@ fn pingora_terminates_tls_with_a_configured_certificate() {
     let response = tls_get(tls, "example.test", "/secure");
     assert!(response.starts_with("HTTP/1.1 200"));
     assert!(response.ends_with("\r\n\r\nA"));
+    let metrics = raw_http(
+        admin,
+        &format!(
+            "GET /metrics HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer {owner_key}\r\nConnection: close\r\n\r\n"
+        ),
+    );
+    let body = metrics.split("\r\n\r\n").nth(1).unwrap();
+    assert!(
+        body.contains("senix_certificate_store_enabled 0\n"),
+        "{body}"
+    );
+    assert!(body.contains("senix_certificates_active 1\n"), "{body}");
+    assert!(
+        body.contains("senix_certificates_expiring_within_30_days 1\n"),
+        "{body}"
+    );
     drop(senix);
 }
 

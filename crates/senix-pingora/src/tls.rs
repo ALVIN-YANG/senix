@@ -1,4 +1,9 @@
-use std::{collections::HashMap, fmt, fs, path::Path, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt, fs,
+    path::Path,
+    sync::Arc,
+};
 
 use arc_swap::ArcSwap;
 use async_trait::async_trait;
@@ -207,6 +212,26 @@ impl TlsCertificateRegistry {
         self.state.load().generation
     }
 
+    /// Returns each distinct certificate currently reachable by SNI exactly once.
+    #[must_use]
+    pub fn active_certificates(&self) -> Vec<InstalledCertificate> {
+        let state = self.state.load();
+        let mut seen = HashSet::new();
+        let mut certificates = state
+            .by_domain
+            .values()
+            .filter(|certificate| seen.insert(Arc::as_ptr(certificate).cast::<()>() as usize))
+            .map(|certificate| InstalledCertificate {
+                generation: state.generation,
+                domains: Arc::clone(&certificate.domains),
+                not_before_ms: asn1_unix_ms(certificate.leaf.not_before()).unwrap_or(i64::MIN),
+                not_after_ms: asn1_unix_ms(certificate.leaf.not_after()).unwrap_or(i64::MAX),
+            })
+            .collect::<Vec<_>>();
+        certificates.sort_unstable_by(|left, right| left.domains.cmp(&right.domains));
+        certificates
+    }
+
     fn select(&self, server_name: Option<&str>) -> Option<Arc<PreparedCertificate>> {
         let state = self.state.load();
         let server_name = server_name.and_then(normalize_server_name);
@@ -402,6 +427,12 @@ mod tests {
 
         assert_eq!(new.generation, old.generation + 1);
         assert_eq!(&*old_snapshot.domains, &["example.test".to_owned()]);
+        let active = registry.active_certificates();
+        assert_eq!(active.len(), 1);
+        assert_eq!(
+            &*active[0].domains,
+            &["example.test".to_owned(), "www.example.test".to_owned()]
+        );
         assert_eq!(
             &*registry.select(Some("example.test")).unwrap().domains,
             &["example.test".to_owned(), "www.example.test".to_owned()]

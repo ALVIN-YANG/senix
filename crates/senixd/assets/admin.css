@@ -313,7 +313,7 @@ legend { margin-bottom: 11px; color: var(--harbor); font-size: 13px; font-weight
 .certificate-issue textarea { display: block; width: 100%; min-height: 98px; margin-top: 7px; resize: vertical; padding: 12px 13px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); background: #f8faf9; font: 11px/1.6 "SFMono-Regular", Consolas, monospace; }
 .certificate-issue .form-error, .certificate-issue .form-actions { grid-column: 2; }
 .certificate-issue .form-actions { margin-top: -7px; }
-.certificate-row { display: grid; grid-template-columns: minmax(190px,1fr) minmax(320px,1.8fr) 82px; align-items: center; gap: 28px; padding: 19px 20px; }
+.certificate-row { display: grid; grid-template-columns: minmax(190px,1fr) minmax(320px,1.8fr) minmax(120px,auto); align-items: center; gap: 28px; padding: 19px 20px; }
 .certificate-row.muted { opacity: .55; }
 .certificate-domains { min-width: 0; }
 .certificate-domains strong { display: block; overflow: hidden; color: var(--harbor); font-size: 14px; text-overflow: ellipsis; }
@@ -332,6 +332,8 @@ legend { margin-bottom: 11px; color: var(--harbor); font-size: 13px; font-weight
 .certificate-state.warn { color: #8a5a1f; background: #f8ecd9; }
 .certificate-state.bad { color: #9d3838; background: #fae6e6; }
 .certificate-state.muted { color: var(--muted); background: var(--fog); }
+.certificate-controls { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.certificate-controls .quiet-button { padding: 6px 8px; font-size: 10px; }
 .certificate-disabled { padding: clamp(28px,6vw,64px); border: 1px dashed #adbfba; border-radius: 9px; background: rgba(255,255,255,.46); }
 .certificate-disabled h2 { margin: 0; color: var(--harbor); font-size: 22px; letter-spacing: -.03em; }
 .certificate-disabled p:last-child { max-width: 620px; margin: 10px 0 0; color: var(--muted); font-size: 13px; line-height: 1.7; }

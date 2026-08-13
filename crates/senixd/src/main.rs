@@ -7,7 +7,7 @@ use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
     thread,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{Context, Result};
@@ -187,6 +187,7 @@ struct AppState {
     diagnostics: DiagnosticEngine,
     runtime: Arc<GatewayRuntime>,
     metrics: Arc<senix_pingora::ProxyMetrics>,
+    tls: senix_pingora::TlsCertificateRegistry,
     login_limiter: Arc<LoginRateLimiter>,
     security: Arc<SecurityController>,
     certificates: Option<Arc<senix_core::CertificateController>>,
@@ -534,6 +535,7 @@ fn main() -> Result<()> {
         diagnostics: DiagnosticEngine::new(Arc::clone(&runtime)),
         runtime: Arc::clone(&runtime),
         metrics,
+        tls: certificate_services.tls.clone(),
         login_limiter: Arc::default(),
         security,
         certificates: certificate_services.controller,
@@ -1335,6 +1337,7 @@ senix_config_snapshot_version {}\n",
         proxy.errors,
         config_version,
     );
+    append_certificate_metrics(&mut body, &state);
     body.push_str(
         "# HELP senix_instance_in_flight Requests currently assigned to an upstream instance.\n\
 # TYPE senix_instance_in_flight gauge\n",
@@ -1377,6 +1380,56 @@ senix_instance_in_flight{{instance_id=\"{instance_id}\",kind=\"long_lived\"}} {}
         .headers_mut()
         .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     Ok(response)
+}
+
+fn append_certificate_metrics(body: &mut String, state: &AppState) {
+    let certificates = state.tls.active_certificates();
+    let now_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+        .try_into()
+        .unwrap_or(i64::MAX);
+    let expired = certificates
+        .iter()
+        .filter(|certificate| certificate.not_after_ms <= now_ms)
+        .count();
+    let expiring = certificates
+        .iter()
+        .filter(|certificate| {
+            certificate.not_after_ms > now_ms
+                && certificate.not_after_ms <= now_ms.saturating_add(30 * 24 * 60 * 60 * 1_000)
+        })
+        .count();
+    let earliest_expiry = certificates
+        .iter()
+        .map(|certificate| certificate.not_after_ms)
+        .min()
+        .map_or(0, |expiry| expiry / 1_000);
+    write!(
+        body,
+        "# HELP senix_certificate_store_enabled Whether encrypted certificate storage is configured.\n\
+# TYPE senix_certificate_store_enabled gauge\n\
+senix_certificate_store_enabled {}\n\
+# HELP senix_certificates_active Active certificates loaded by the TLS data plane.\n\
+# TYPE senix_certificates_active gauge\n\
+senix_certificates_active {}\n\
+# HELP senix_certificates_expired Active certificates already expired.\n\
+# TYPE senix_certificates_expired gauge\n\
+senix_certificates_expired {}\n\
+# HELP senix_certificates_expiring_within_30_days Active certificates expiring within 30 days.\n\
+# TYPE senix_certificates_expiring_within_30_days gauge\n\
+senix_certificates_expiring_within_30_days {}\n\
+# HELP senix_certificate_earliest_expiry_timestamp_seconds Earliest active certificate expiry as a Unix timestamp.\n\
+# TYPE senix_certificate_earliest_expiry_timestamp_seconds gauge\n\
+senix_certificate_earliest_expiry_timestamp_seconds {}\n",
+        u8::from(state.certificates.is_some()),
+        certificates.len(),
+        expired,
+        expiring,
+        earliest_expiry,
+    )
+    .expect("writing metrics to a String cannot fail");
 }
 
 fn prometheus_escape(value: &str) -> String {

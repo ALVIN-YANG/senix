@@ -609,7 +609,7 @@ function certificateState(item) {
   return { label: "使用中", tone: "good" };
 }
 
-function CertificateRow({ item }) {
+function CertificateRow({ item, busy, onRenew }) {
   const state = certificateState(item);
   const lifetime = Math.max(1, item.not_after_ms - item.not_before_ms);
   const elapsed = Math.min(100, Math.max(0, ((Date.now() - item.not_before_ms) / lifetime) * 100));
@@ -619,35 +619,43 @@ function CertificateRow({ item }) {
       <div className="horizon-track" style={{ "--elapsed": `${elapsed}%` }} role="progressbar" aria-label="证书有效期进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(elapsed)}><i /></div>
       <div><span>签发 {formatTime(item.not_before_ms)}</span><span>到期 {formatTime(item.not_after_ms)}</span></div>
     </div>
-    <span className={`certificate-state ${state.tone}`}>{state.label}</span>
+    <div className="certificate-controls"><span className={`certificate-state ${state.tone}`}>{state.label}</span>{item.active && <button className="quiet-button" disabled={busy} onClick={() => onRenew(item)} type="button">{busy ? "续期中…" : "续期"}</button>}</div>
   </article>;
 }
 
 function Certificates({ certificates, enabled, onReload, notify }) {
   const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+
+  async function issueDomains(domains, operation) {
+    if (!domains.length) {
+      setError("至少填写一个域名。");
+      return;
+    }
+    setBusy(operation);
+    setError("");
+    try {
+      const result = await api("/api/v1/certificates/issue", { method: "POST", body: { domains, timeout_seconds: 90 } });
+      notify(`证书已签发并切换到 TLS generation ${result.tls_generation}`);
+      if (operation === "issue") setOpen(false);
+      await onReload();
+    } catch (requestError) {
+      setError(requestError.code === "ACME_DISABLED" ? "服务端尚未配置 ACME 目录、联系人和条款确认。" : requestError.message);
+    } finally {
+      setBusy("");
+    }
+  }
 
   async function issue(event) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const domains = String(form.get("domains") || "").split(/[\s,]+/).map((domain) => domain.trim()).filter(Boolean);
-    if (!domains.length) {
-      setError("至少填写一个域名。");
-      return;
-    }
-    setBusy(true);
-    setError("");
-    try {
-      const result = await api("/api/v1/certificates/issue", { method: "POST", body: { domains, timeout_seconds: 90 } });
-      notify(`证书已签发并切换到 TLS generation ${result.tls_generation}`);
-      setOpen(false);
-      await onReload();
-    } catch (requestError) {
-      setError(requestError.code === "ACME_DISABLED" ? "服务端尚未配置 ACME 目录、联系人和条款确认。" : requestError.message);
-    } finally {
-      setBusy(false);
-    }
+    await issueDomains(domains, "issue");
+  }
+
+  async function renew(item) {
+    await issueDomains(item.domains, item.certificate_id);
   }
 
   if (!enabled) return <section className="page"><div className="certificate-disabled"><p className="eyebrow">Encrypted storage required</p><h2>证书存储尚未启用</h2><p>先在服务端配置 <code>--secret-key-file</code>。主密钥只放在外部文件，数据库只保存密文。</p></div></section>;
@@ -657,9 +665,10 @@ function Certificates({ certificates, enabled, onReload, notify }) {
       <div><p className="eyebrow">HTTP-01</p><h3>签发并热切换</h3><p>域名必须先解析到这台网关的 HTTP 入口；每行一个域名，不支持通配符。</p></div>
       <label>域名<textarea name="domains" placeholder={"api.example.com\nwww.example.com"} required autoFocus spellCheck="false" /></label>
       <p className="form-error" role="alert">{error}</p>
-      <div className="form-actions"><button className="quiet-button" onClick={() => { setOpen(false); setError(""); }} type="button">取消</button><button className="primary-button" disabled={busy} type="submit">{busy ? "正在验证并签发…" : "开始签发"}</button></div>
+      <div className="form-actions"><button className="quiet-button" onClick={() => { setOpen(false); setError(""); }} type="button">取消</button><button className="primary-button" disabled={Boolean(busy)} type="submit">{busy === "issue" ? "正在验证并签发…" : "开始签发"}</button></div>
     </form>}
-    <div className="certificate-list" aria-live="polite">{certificates.length ? certificates.map((item) => <CertificateRow item={item} key={item.certificate_id} />) : <div className="empty-state">还没有托管证书。配置 ACME 后可在这里手动签发。</div>}</div>
+    {!open && error && <p className="form-error" role="alert">{error}</p>}
+    <div className="certificate-list" aria-live="polite">{certificates.length ? certificates.map((item) => <CertificateRow item={item} busy={busy === item.certificate_id} onRenew={renew} key={item.certificate_id} />) : <div className="empty-state">还没有托管证书。配置 ACME 后可在这里手动签发。</div>}</div>
   </section>;
 }
 
