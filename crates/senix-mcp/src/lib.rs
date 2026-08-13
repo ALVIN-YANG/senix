@@ -718,9 +718,14 @@ impl SenixMcp {
                 ) {
                     return domain_result::<serde_json::Value>(Err(error));
                 }
-                CallToolResult::structured(serde_json::to_value(result).unwrap_or_else(|_| {
-                    json!({"code": "INTERNAL_ERROR", "message": "failed to serialize tool result"})
-                }))
+                match serde_json::to_value(result) {
+                    Ok(value) => CallToolResult::structured(value),
+                    Err(_) => CallToolResult::structured_error(json!({
+                        "code": "INTERNAL_ERROR",
+                        "message": "failed to serialize tool result",
+                        "evidence": {}
+                    })),
+                }
             }
             Err(error) => {
                 if let Err(audit_error) = self.modules.security.record_action(

@@ -735,6 +735,11 @@ fn pingora_restores_an_encrypted_managed_certificate_after_restart() {
     write_test_certificate(&cert, &key);
     let encoded_secret_key = senix_core::SecretVault::generate_base64();
     fs::write(&secret_key_file, &encoded_secret_key).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        fs::set_permissions(&secret_key_file, fs::Permissions::from_mode(0o600)).unwrap();
+    }
 
     let certificate_pem = fs::read(&cert).unwrap();
     let private_key_pem = fs::read(&key).unwrap();

@@ -409,9 +409,7 @@ fn initialize_certificate_services(
         .secret_key_file
         .as_ref()
         .map(|path| {
-            let encoded = fs::read_to_string(path)
-                .with_context(|| format!("read secret key file {}", path.display()))?;
-            let vault = SecretVault::from_base64(encoded.trim()).context("parse secret key")?;
+            let vault = load_secret_vault(path)?;
             Ok::<_, anyhow::Error>(Arc::new(senix_core::CertificateController::new(
                 Arc::clone(store),
                 vault,
@@ -472,6 +470,23 @@ fn initialize_certificate_services(
         controller,
         acme,
     })
+}
+
+fn load_secret_vault(path: &std::path::Path) -> Result<SecretVault> {
+    let metadata = fs::metadata(path)
+        .with_context(|| format!("read secret key metadata {}", path.display()))?;
+    anyhow::ensure!(metadata.is_file(), "secret key path must be a regular file");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        anyhow::ensure!(
+            metadata.permissions().mode().trailing_zeros() >= 6,
+            "secret key file must not be readable or writable by group or others"
+        );
+    }
+    let encoded = fs::read_to_string(path)
+        .with_context(|| format!("read secret key file {}", path.display()))?;
+    SecretVault::from_base64(encoded.trim()).context("parse secret key")
 }
 
 fn run_command(command: Command) -> Result<()> {
