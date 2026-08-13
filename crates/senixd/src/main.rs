@@ -19,7 +19,7 @@ use axum::{
     routing::{delete, get, patch, post},
 };
 use clap::{Parser, Subcommand};
-use pingora_core::server::Server;
+use pingora_core::server::{Server, configuration::ServerConf};
 use senix_core::{
     AccessPolicy, AuditOutcome, ChangePlan, ConfigEngine, DiagnosticEngine, DrainOptions,
     GatewayConfig, GatewayRuntime, Http01ChallengeRegistry, ManagementAction, Principal,
@@ -79,6 +79,12 @@ struct Args {
 
     #[arg(long, default_value_t = false)]
     admin_secure_cookie: bool,
+
+    #[arg(long, default_value_t = 30)]
+    shutdown_grace_seconds: u64,
+
+    #[arg(long, default_value_t = 5)]
+    shutdown_timeout_seconds: u64,
 }
 
 #[derive(Debug, Subcommand)]
@@ -354,7 +360,10 @@ fn main() -> Result<()> {
     ));
     let certificate_services = initialize_certificate_services(&args, &store)?;
 
-    let mut server = Server::new(None).context("create Pingora server")?;
+    let mut server_config = ServerConf::new().context("create Pingora server configuration")?;
+    server_config.grace_period_seconds = Some(args.shutdown_grace_seconds);
+    server_config.graceful_shutdown_timeout_seconds = Some(args.shutdown_timeout_seconds);
+    let mut server = Server::new_with_opt_and_conf(None, server_config);
     server.bootstrap();
     let tls_listen = args.tls_listen.map(|listen| listen.to_string());
     let tls = tls_listen

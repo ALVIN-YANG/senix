@@ -33,6 +33,58 @@ impl Drop for ChildGuard {
     }
 }
 
+#[cfg(unix)]
+#[test]
+fn configured_shutdown_budget_bounds_sigterm_exit() {
+    let backend = spawn_backend("A", Duration::ZERO);
+    let proxy = free_address();
+    let admin = free_address();
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("senix.db");
+    let config = dir.path().join("gateway.json");
+    write_single_backend_config(&config, backend);
+
+    let child = Command::new(env!("CARGO_BIN_EXE_senixd"))
+        .args([
+            "--listen",
+            &proxy.to_string(),
+            "--admin-listen",
+            &admin.to_string(),
+            "--db",
+            db.to_str().unwrap(),
+            "--config",
+            config.to_str().unwrap(),
+            "--shutdown-grace-seconds",
+            "0",
+            "--shutdown-timeout-seconds",
+            "1",
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    let mut senix = ChildGuard(child);
+    wait_until_ready(admin, proxy);
+
+    let signal = Command::new("kill")
+        .args(["-TERM", &senix.0.id().to_string()])
+        .status()
+        .unwrap();
+    assert!(signal.success());
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        if let Some(status) = senix.0.try_wait().unwrap() {
+            assert!(status.success());
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "senixd ignored its configured SIGTERM shutdown budget"
+        );
+        thread::sleep(Duration::from_millis(40));
+    }
+}
+
 #[test]
 fn bootstrap_owner_key_protects_every_management_route() {
     let backend = spawn_backend("A", Duration::ZERO);

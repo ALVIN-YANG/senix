@@ -246,6 +246,8 @@ curl -X POST \
 
 所有流量写操作都要求 `Idempotency-Key`。重复调用返回原操作结果，不会重新摘流当前代次。会让路由失去最后一个可用后端的摘流默认返回 `409 LAST_AVAILABLE_BACKEND`。
 
+Senix 自身收到 `SIGTERM` 后会停止接收新连接，默认给已有连接 30 秒完成，再给运行时 5 秒退出。可通过 `--shutdown-grace-seconds` 和 `--shutdown-timeout-seconds` 调整；systemd 的 `TimeoutStopSec` 应大于两者之和。超过期限的长连接仍可能被中断，单机进程升级不能迁移已经建立的连接。
+
 ## 安全变更
 
 配置不会从编辑器直接进入数据面：
