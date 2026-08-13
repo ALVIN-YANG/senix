@@ -3,8 +3,8 @@
 use std::{fmt, sync::Arc, time::Duration};
 
 use instant_acme::{
-    Account, AccountCredentials, AuthorizationStatus, ChallengeType, Identifier, NewAccount,
-    NewOrder, OrderStatus, RetryPolicy,
+    Account, AccountBuilder, AccountCredentials, AuthorizationStatus, ChallengeType, Identifier,
+    NewAccount, NewOrder, OrderStatus, RetryPolicy,
 };
 use senix_core::{Http01ChallengeGuard, Http01ChallengeRegistry};
 use thiserror::Error;
@@ -130,13 +130,21 @@ impl Http01Issuer {
         config: AccountConfig,
         challenges: Http01ChallengeRegistry,
     ) -> Result<(Self, AccountSecret), Error> {
+        Self::create_with_builder(config, challenges, Account::builder()?).await
+    }
+
+    async fn create_with_builder(
+        config: AccountConfig,
+        challenges: Http01ChallengeRegistry,
+        builder: AccountBuilder,
+    ) -> Result<(Self, AccountSecret), Error> {
         validate_account_config(&config)?;
         let contacts = config
             .contacts
             .iter()
             .map(String::as_str)
             .collect::<Vec<_>>();
-        let (account, credentials) = Account::builder()?
+        let (account, credentials) = builder
             .create(
                 &NewAccount {
                     contact: &contacts,
@@ -303,7 +311,22 @@ fn normalize_domain(domain: &str) -> Result<String, Error> {
 
 #[cfg(test)]
 mod tests {
-    use super::{AccountSecret, IssueRequest, normalize_domains};
+    use std::{
+        future::Future,
+        pin::Pin,
+        sync::{
+            Arc,
+            atomic::{AtomicBool, AtomicU64, Ordering},
+        },
+        time::Duration,
+    };
+
+    use bytes::Bytes;
+    use http::{Method, Response, StatusCode, header};
+    use instant_acme::{BodyWrapper, BytesResponse, Error as AcmeError, HttpClient};
+    use senix_core::Http01ChallengeRegistry;
+
+    use super::{AccountConfig, AccountSecret, Http01Issuer, IssueRequest, normalize_domains};
 
     #[test]
     fn normalizes_and_deduplicates_http01_names() {
@@ -328,5 +351,161 @@ mod tests {
         assert_eq!(format!("{secret:?}"), "AccountSecret([REDACTED])");
         let request = IssueRequest::new(vec!["example.test".to_owned()]);
         assert_eq!(request.timeout.as_secs(), 90);
+    }
+
+    #[tokio::test]
+    async fn completes_the_http01_order_and_limits_challenge_lifetime() {
+        let challenges = Http01ChallengeRegistry::new();
+        let mock = Arc::new(MockAcme::new(challenges.clone()));
+        let builder =
+            instant_acme::Account::builder_with_http(Box::new(ArcClient(Arc::clone(&mock))));
+        let (issuer, secret) = Http01Issuer::create_with_builder(
+            AccountConfig {
+                directory_url: "https://acme.test/directory".to_owned(),
+                contacts: vec!["mailto:ops@example.test".to_owned()],
+                terms_of_service_agreed: true,
+            },
+            challenges.clone(),
+            builder,
+        )
+        .await
+        .unwrap();
+        assert!(!secret.expose().is_empty());
+
+        let certificate = issuer
+            .issue(IssueRequest {
+                domains: vec!["example.test".to_owned()],
+                timeout: Duration::from_secs(3),
+            })
+            .await
+            .unwrap();
+        assert!(mock.challenge_was_visible.load(Ordering::SeqCst));
+        assert!(
+            certificate
+                .certificate_chain_pem
+                .contains("BEGIN CERTIFICATE")
+        );
+        assert!(certificate.private_key_pem.contains("BEGIN PRIVATE KEY"));
+        assert!(
+            challenges
+                .resolve("example.test", "/.well-known/acme-challenge/http01-token")
+                .is_none()
+        );
+    }
+
+    struct MockAcme {
+        challenges: Http01ChallengeRegistry,
+        challenge_was_visible: AtomicBool,
+        finalized: AtomicBool,
+        nonce: AtomicU64,
+    }
+
+    impl MockAcme {
+        fn new(challenges: Http01ChallengeRegistry) -> Self {
+            Self {
+                challenges,
+                challenge_was_visible: AtomicBool::new(false),
+                finalized: AtomicBool::new(false),
+                nonce: AtomicU64::new(0),
+            }
+        }
+
+        fn response(&self, method: &Method, path: &str) -> Response<BodyWrapper<Bytes>> {
+            let (status, location, body) = match (method, path) {
+                (&Method::GET, "/directory") => (
+                    StatusCode::OK,
+                    None,
+                    r#"{"newNonce":"https://acme.test/nonce","newAccount":"https://acme.test/new-account","newOrder":"https://acme.test/new-order"}"#.to_owned(),
+                ),
+                (&Method::HEAD, "/nonce") => (StatusCode::OK, None, String::new()),
+                (&Method::POST, "/new-account") => (
+                    StatusCode::CREATED,
+                    Some("https://acme.test/account/1"),
+                    "{}".to_owned(),
+                ),
+                (&Method::POST, "/new-order") => (
+                    StatusCode::CREATED,
+                    Some("https://acme.test/order/1"),
+                    order("pending", None),
+                ),
+                (&Method::POST, "/authorization/1") => (
+                    StatusCode::OK,
+                    None,
+                    r#"{"identifier":{"type":"dns","value":"example.test"},"status":"pending","challenges":[{"type":"http-01","url":"https://acme.test/challenge/1","token":"http01-token","status":"pending"}],"wildcard":false}"#.to_owned(),
+                ),
+                (&Method::POST, "/challenge/1") => {
+                    let visible = self
+                        .challenges
+                        .resolve(
+                            "example.test",
+                            "/.well-known/acme-challenge/http01-token",
+                        )
+                        .is_some_and(|value| value.starts_with("http01-token."));
+                    self.challenge_was_visible.store(visible, Ordering::SeqCst);
+                    (
+                        StatusCode::OK,
+                        None,
+                        r#"{"type":"http-01","url":"https://acme.test/challenge/1","token":"http01-token","status":"pending"}"#.to_owned(),
+                    )
+                }
+                (&Method::POST, "/order/1") => {
+                    if self.finalized.load(Ordering::SeqCst) {
+                        (
+                            StatusCode::OK,
+                            None,
+                            order("valid", Some("https://acme.test/certificate/1")),
+                        )
+                    } else {
+                        (StatusCode::OK, None, order("ready", None))
+                    }
+                }
+                (&Method::POST, "/finalize/1") => {
+                    self.finalized.store(true, Ordering::SeqCst);
+                    (
+                        StatusCode::OK,
+                        None,
+                        order("processing", Some("https://acme.test/certificate/1")),
+                    )
+                }
+                (&Method::POST, "/certificate/1") => (
+                    StatusCode::OK,
+                    None,
+                    "-----BEGIN CERTIFICATE-----\nTU9DSw==\n-----END CERTIFICATE-----\n"
+                        .to_owned(),
+                ),
+                _ => panic!("unexpected ACME request: {method} {path}"),
+            };
+            let mut builder = Response::builder().status(status).header(
+                "Replay-Nonce",
+                format!("nonce-{}", self.nonce.fetch_add(1, Ordering::SeqCst)),
+            );
+            if let Some(location) = location {
+                builder = builder.header(header::LOCATION, location);
+            }
+            builder.body(BodyWrapper::from(body.into_bytes())).unwrap()
+        }
+    }
+
+    #[derive(Clone)]
+    struct ArcClient(Arc<MockAcme>);
+
+    impl HttpClient for ArcClient {
+        fn request(
+            &self,
+            request: http::Request<BodyWrapper<Bytes>>,
+        ) -> Pin<Box<dyn Future<Output = Result<BytesResponse, AcmeError>> + Send>> {
+            let response = self.0.response(request.method(), request.uri().path());
+            Box::pin(async move { Ok(BytesResponse::from(response)) })
+        }
+    }
+
+    fn order(status: &str, certificate: Option<&str>) -> String {
+        serde_json::json!({
+            "status": status,
+            "authorizations": ["https://acme.test/authorization/1"],
+            "finalize": "https://acme.test/finalize/1",
+            "certificate": certificate
+        })
+        .to_string()
     }
 }
