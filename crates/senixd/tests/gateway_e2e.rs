@@ -719,6 +719,88 @@ fn pingora_terminates_tls_with_a_configured_certificate() {
     drop(senix);
 }
 
+#[test]
+fn pingora_restores_an_encrypted_managed_certificate_after_restart() {
+    let backend = spawn_backend("A", Duration::ZERO);
+    let proxy = free_address();
+    let tls = free_address();
+    let admin = free_address();
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("senix.db");
+    let config = dir.path().join("gateway.json");
+    let cert = dir.path().join("cert.pem");
+    let key = dir.path().join("key.pem");
+    let secret_key_file = dir.path().join("secret.key");
+    write_single_backend_config(&config, backend);
+    write_test_certificate(&cert, &key);
+    let encoded_secret_key = senix_core::SecretVault::generate_base64();
+    fs::write(&secret_key_file, &encoded_secret_key).unwrap();
+
+    let certificate_pem = fs::read(&cert).unwrap();
+    let private_key_pem = fs::read(&key).unwrap();
+    let prepared =
+        senix_pingora::TlsCertificateRegistry::prepare_pem(&certificate_pem, &private_key_pem)
+            .unwrap();
+    {
+        let store = Arc::new(senix_core::SqliteStateStore::open(&db).unwrap());
+        let certificates = senix_core::CertificateController::new(
+            store,
+            senix_core::SecretVault::from_base64(&encoded_secret_key).unwrap(),
+        );
+        certificates
+            .replace(senix_core::CertificateMaterial {
+                domains: prepared.domains().to_vec(),
+                certificate_chain_pem: Arc::from(certificate_pem),
+                private_key_pem: senix_core::SecretBytes::new(private_key_pem),
+                not_before_ms: prepared.not_before_ms(),
+                not_after_ms: prepared.not_after_ms(),
+            })
+            .unwrap();
+    }
+    let owner_key = bootstrap_owner_key(&db);
+    let senix = spawn_senix_with_managed_tls(proxy, tls, admin, &db, &config, &secret_key_file);
+    wait_until_ready(admin, proxy);
+
+    let response = tls_get(tls, "example.test", "/managed");
+    assert!(response.starts_with("HTTP/1.1 200"));
+    let certificates =
+        admin_json_with_bearer(admin, "GET", "/api/v1/certificates", None, None, &owner_key);
+    assert_eq!(certificates.as_array().unwrap().len(), 1);
+    assert_eq!(certificates[0]["domains"], json!(["example.test"]));
+    assert!(certificates[0].get("private_key_pem").is_none());
+    drop(senix);
+}
+
+#[test]
+fn secret_key_generation_never_overwrites_an_existing_file() {
+    let directory = tempfile::tempdir().unwrap();
+    let output = directory.path().join("secret.key");
+    let first = Command::new(env!("CARGO_BIN_EXE_senixd"))
+        .args(["secret-key", "generate", "--output"])
+        .arg(&output)
+        .output()
+        .unwrap();
+    assert!(first.status.success());
+    let original = fs::read_to_string(&output).unwrap();
+    assert!(senix_core::SecretVault::from_base64(original.trim()).is_ok());
+
+    let second = Command::new(env!("CARGO_BIN_EXE_senixd"))
+        .args(["secret-key", "generate", "--output"])
+        .arg(&output)
+        .output()
+        .unwrap();
+    assert!(!second.status.success());
+    assert_eq!(fs::read_to_string(&output).unwrap(), original);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        assert_eq!(
+            fs::metadata(output).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
+}
+
 fn spawn_senix(proxy: SocketAddr, admin: SocketAddr, db: &Path, config: &Path) -> ChildGuard {
     let child = Command::new(env!("CARGO_BIN_EXE_senixd"))
         .args([
@@ -757,6 +839,36 @@ fn spawn_senix_with_tls(
             cert.to_str().unwrap(),
             "--tls-key",
             key.to_str().unwrap(),
+            "--admin-listen",
+            &admin.to_string(),
+            "--db",
+            db.to_str().unwrap(),
+            "--config",
+            config.to_str().unwrap(),
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    ChildGuard(child)
+}
+
+fn spawn_senix_with_managed_tls(
+    proxy: SocketAddr,
+    tls: SocketAddr,
+    admin: SocketAddr,
+    db: &Path,
+    config: &Path,
+    secret_key_file: &Path,
+) -> ChildGuard {
+    let child = Command::new(env!("CARGO_BIN_EXE_senixd"))
+        .args([
+            "--listen",
+            &proxy.to_string(),
+            "--tls-listen",
+            &tls.to_string(),
+            "--secret-key-file",
+            secret_key_file.to_str().unwrap(),
             "--admin-listen",
             &admin.to_string(),
             "--db",

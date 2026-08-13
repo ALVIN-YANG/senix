@@ -1,7 +1,7 @@
 use std::{
     collections::BTreeSet,
     fs,
-    io::{self, Read},
+    io::{self, Read, Write},
     net::{SocketAddr, TcpListener as StdTcpListener},
     path::PathBuf,
     sync::Arc,
@@ -23,12 +23,13 @@ use pingora_core::server::Server;
 use senix_core::{
     AccessPolicy, AuditOutcome, ChangePlan, ConfigEngine, DiagnosticEngine, DrainOptions,
     GatewayConfig, GatewayRuntime, Http01ChallengeRegistry, ManagementAction, Principal,
-    ResourceRef, RiskLevel, SecurityController, SqliteStateStore, TrafficController,
+    ResourceRef, RiskLevel, SecretVault, SecurityController, SqliteStateStore, TrafficController,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tracing::{error, info};
 
+mod certificate;
 mod health;
 
 #[derive(Debug, Parser)]
@@ -40,7 +41,7 @@ struct Args {
     #[arg(long, default_value = "127.0.0.1:8080")]
     listen: SocketAddr,
 
-    #[arg(long, requires_all = ["tls_cert", "tls_key"])]
+    #[arg(long)]
     tls_listen: Option<SocketAddr>,
 
     #[arg(long, requires_all = ["tls_listen", "tls_key"])]
@@ -48,6 +49,18 @@ struct Args {
 
     #[arg(long, requires_all = ["tls_listen", "tls_cert"])]
     tls_key: Option<PathBuf>,
+
+    #[arg(long)]
+    secret_key_file: Option<PathBuf>,
+
+    #[arg(long, requires = "secret_key_file")]
+    acme_directory_url: Option<String>,
+
+    #[arg(long = "acme-contact", requires = "acme_directory_url")]
+    acme_contacts: Vec<String>,
+
+    #[arg(long, default_value_t = false, requires = "acme_directory_url")]
+    acme_accept_terms: bool,
 
     #[arg(long, default_value = "127.0.0.1:9080")]
     admin_listen: SocketAddr,
@@ -77,6 +90,10 @@ enum Command {
     Owner {
         #[command(subcommand)]
         command: OwnerCommand,
+    },
+    SecretKey {
+        #[command(subcommand)]
+        command: SecretKeyCommand,
     },
 }
 
@@ -112,6 +129,14 @@ enum OwnerCommand {
     },
 }
 
+#[derive(Debug, Subcommand)]
+enum SecretKeyCommand {
+    Generate {
+        #[arg(long)]
+        output: PathBuf,
+    },
+}
+
 #[derive(Clone)]
 struct AppState {
     traffic: Arc<TrafficController>,
@@ -119,6 +144,8 @@ struct AppState {
     diagnostics: DiagnosticEngine,
     runtime: Arc<GatewayRuntime>,
     security: Arc<SecurityController>,
+    certificates: Option<Arc<senix_core::CertificateController>>,
+    acme: Option<Arc<certificate::AcmeManager>>,
     mcp_allowed_hosts: Vec<String>,
     mcp_allowed_origins: Vec<String>,
     admin_secure_cookie: bool,
@@ -191,6 +218,27 @@ impl From<senix_core::Error> for ApiError {
     }
 }
 
+impl From<certificate::Error> for ApiError {
+    fn from(error: certificate::Error) -> Self {
+        if let certificate::Error::Acme(senix_acme::Error::InvalidDomains(message)) = &error {
+            return Self {
+                status: StatusCode::UNPROCESSABLE_ENTITY,
+                code: "INVALID_CERTIFICATE_DOMAINS",
+                message: message.clone(),
+                evidence: json!({}),
+            };
+        }
+        error!(error = %error, "certificate issuance failed");
+        Self {
+            status: StatusCode::BAD_GATEWAY,
+            code: "CERTIFICATE_ISSUANCE_FAILED",
+            message: "certificate issuance failed; inspect the audit log and server diagnostics"
+                .to_owned(),
+            evidence: json!({}),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct RejoinRequest {
     generation: u64,
@@ -238,6 +286,17 @@ struct IssueCredentialRequest {
 }
 
 #[derive(Debug, Deserialize)]
+struct IssueCertificateRequest {
+    domains: Vec<String>,
+    #[serde(default = "default_acme_timeout_seconds")]
+    timeout_seconds: u64,
+}
+
+const fn default_acme_timeout_seconds() -> u64 {
+    90
+}
+
+#[derive(Debug, Deserialize)]
 struct OwnerLoginRequest {
     username: String,
     password: String,
@@ -252,6 +311,13 @@ struct OwnerSessionResponse {
 #[derive(Debug, Serialize)]
 struct HealthResponse {
     status: &'static str,
+}
+
+struct CertificateServices {
+    tls: senix_pingora::TlsCertificateRegistry,
+    challenges: Http01ChallengeRegistry,
+    controller: Option<Arc<senix_core::CertificateController>>,
+    acme: Option<Arc<certificate::AcmeManager>>,
 }
 
 fn main() -> Result<()> {
@@ -286,12 +352,31 @@ fn main() -> Result<()> {
         Arc::clone(&runtime),
         Arc::clone(&store),
     ));
+    let certificate_services = initialize_certificate_services(&args, &store)?;
+
+    let mut server = Server::new(None).context("create Pingora server")?;
+    server.bootstrap();
+    let tls_listen = args.tls_listen.map(|listen| listen.to_string());
+    let tls = tls_listen
+        .as_deref()
+        .map(|listen| (listen, certificate_services.tls.clone()));
+    senix_pingora::add_http_proxy(
+        &mut server,
+        &args.listen.to_string(),
+        tls,
+        Arc::clone(&runtime),
+        certificate_services.challenges.clone(),
+    )
+    .context("configure proxy listeners")?;
+
     let state = AppState {
         traffic,
         config,
         diagnostics: DiagnosticEngine::new(Arc::clone(&runtime)),
         runtime: Arc::clone(&runtime),
         security,
+        certificates: certificate_services.controller,
+        acme: certificate_services.acme,
         mcp_allowed_hosts: args.mcp_allowed_hosts,
         mcp_allowed_origins: args.mcp_allowed_origins,
         admin_secure_cookie: args.admin_secure_cookie,
@@ -302,35 +387,91 @@ fn main() -> Result<()> {
     admin_listener.set_nonblocking(true)?;
     spawn_admin(admin_listener, state);
 
-    let mut server = Server::new(None).context("create Pingora server")?;
-    server.bootstrap();
-    let tls_listen = args.tls_listen.map(|listen| listen.to_string());
-    let tls_certificates = senix_pingora::TlsCertificateRegistry::new();
+    info!(proxy = %args.listen, tls = ?args.tls_listen, admin = %args.admin_listen, "senixd started");
+    server.run_forever();
+}
+
+fn initialize_certificate_services(
+    args: &Args,
+    store: &Arc<SqliteStateStore>,
+) -> Result<CertificateServices> {
+    let tls = senix_pingora::TlsCertificateRegistry::new();
     if let (Some(certificate_path), Some(private_key_path)) =
         (args.tls_cert.as_ref(), args.tls_key.as_ref())
     {
-        let installed = tls_certificates
+        let installed = tls
             .install_files(certificate_path, private_key_path, true)
             .context("load TLS certificate")?;
-        info!(
-            generation = installed.generation,
-            domains = ?installed.domains,
-            "TLS certificate installed"
-        );
+        info!(generation = installed.generation, domains = ?installed.domains, "TLS certificate installed");
     }
-    let tls = tls_listen
-        .as_deref()
-        .map(|listen| (listen, tls_certificates));
-    senix_pingora::add_http_proxy(
-        &mut server,
-        &args.listen.to_string(),
+
+    let controller = args
+        .secret_key_file
+        .as_ref()
+        .map(|path| {
+            let encoded = fs::read_to_string(path)
+                .with_context(|| format!("read secret key file {}", path.display()))?;
+            let vault = SecretVault::from_base64(encoded.trim()).context("parse secret key")?;
+            Ok::<_, anyhow::Error>(Arc::new(senix_core::CertificateController::new(
+                Arc::clone(store),
+                vault,
+            )))
+        })
+        .transpose()?;
+    if let Some(controller) = &controller {
+        for certificate in controller
+            .load_active()
+            .context("load managed certificates")?
+        {
+            let prepared = senix_pingora::TlsCertificateRegistry::prepare_pem(
+                &certificate.certificate_chain_pem,
+                certificate.private_key_pem.expose(),
+            )
+            .with_context(|| format!("parse managed certificate {}", certificate.certificate_id))?;
+            let installed = tls.install_prepared(&prepared, false);
+            info!(
+                certificate_id = %certificate.certificate_id,
+                generation = installed.generation,
+                domains = ?installed.domains,
+                "managed TLS certificate restored"
+            );
+        }
+    }
+
+    let challenges = Http01ChallengeRegistry::new();
+    let acme = args
+        .acme_directory_url
+        .as_ref()
+        .map(|directory_url| {
+            anyhow::ensure!(
+                args.acme_accept_terms,
+                "--acme-accept-terms is required when ACME is enabled"
+            );
+            let controller = controller
+                .as_ref()
+                .context("ACME requires --secret-key-file")?;
+            Ok::<_, anyhow::Error>(Arc::new(certificate::AcmeManager::new(
+                senix_acme::AccountConfig {
+                    directory_url: directory_url.clone(),
+                    contacts: args.acme_contacts.clone(),
+                    terms_of_service_agreed: true,
+                },
+                challenges.clone(),
+                Arc::clone(controller),
+                tls.clone(),
+            )))
+        })
+        .transpose()?;
+    anyhow::ensure!(
+        args.tls_listen.is_none() || tls.generation() > 0 || acme.is_some(),
+        "--tls-listen requires an installed certificate or ACME configuration"
+    );
+    Ok(CertificateServices {
         tls,
-        runtime,
-        Http01ChallengeRegistry::new(),
-    )
-    .context("configure proxy listeners")?;
-    info!(proxy = %args.listen, tls = ?args.tls_listen, admin = %args.admin_listen, "senixd started");
-    server.run_forever();
+        challenges,
+        controller,
+        acme,
+    })
 }
 
 fn run_command(command: Command) -> Result<()> {
@@ -372,7 +513,28 @@ fn run_command(command: Command) -> Result<()> {
             println!("{}", serde_json::to_string_pretty(&account)?);
             Ok(())
         }
+        Command::SecretKey {
+            command: SecretKeyCommand::Generate { output },
+        } => generate_secret_key(&output),
     }
+}
+
+fn generate_secret_key(output: &std::path::Path) -> Result<()> {
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt as _;
+        options.mode(0o600);
+    }
+    let mut file = options
+        .open(output)
+        .with_context(|| format!("create secret key file {}", output.display()))?;
+    file.write_all(SecretVault::generate_base64().as_bytes())?;
+    file.write_all(b"\n")?;
+    file.sync_all()?;
+    println!("created {}", output.display());
+    Ok(())
 }
 
 fn read_owner_password(password_stdin: bool) -> Result<String> {
@@ -447,6 +609,8 @@ fn admin_router(state: AppState) -> Router {
             get(list_credentials).post(issue_credential),
         )
         .route("/api/v1/credentials/{id}", delete(revoke_credential))
+        .route("/api/v1/certificates", get(list_certificates))
+        .route("/api/v1/certificates/issue", post(issue_certificate))
         .route("/api/v1/audit-events", get(list_audit_events))
         .route_layer(middleware::from_fn_with_state(
             Arc::clone(&state.security),
@@ -1039,6 +1203,86 @@ async fn list_audit_events(
     Extension(principal): Extension<Principal>,
 ) -> Result<Json<Vec<senix_core::AuditEvent>>, ApiError> {
     Ok(Json(state.security.list_audit(&principal)?))
+}
+
+async fn list_certificates(
+    State(state): State<AppState>,
+    Extension(principal): Extension<Principal>,
+) -> Result<Json<Vec<senix_core::CertificateSummary>>, ApiError> {
+    state.security.authorize(
+        &principal,
+        ManagementAction::CertificateRead,
+        &ResourceRef::Global,
+    )?;
+    let certificates = state.certificates.as_ref().ok_or_else(|| ApiError {
+        status: StatusCode::SERVICE_UNAVAILABLE,
+        code: "CERTIFICATE_STORE_DISABLED",
+        message: "certificate storage requires --secret-key-file".to_owned(),
+        evidence: json!({}),
+    })?;
+    Ok(Json(certificates.list()?))
+}
+
+async fn issue_certificate(
+    State(state): State<AppState>,
+    Extension(principal): Extension<Principal>,
+    Json(body): Json<IssueCertificateRequest>,
+) -> Result<(StatusCode, Json<certificate::IssueResult>), ApiError> {
+    state.security.authorize(
+        &principal,
+        ManagementAction::CertificateIssue,
+        &ResourceRef::Global,
+    )?;
+    if !(10..=300).contains(&body.timeout_seconds) {
+        return Err(ApiError {
+            status: StatusCode::UNPROCESSABLE_ENTITY,
+            code: "INVALID_ACME_TIMEOUT",
+            message: "timeout_seconds must be between 10 and 300".to_owned(),
+            evidence: json!({"timeout_seconds": body.timeout_seconds}),
+        });
+    }
+    let acme = state.acme.as_ref().ok_or_else(|| ApiError {
+        status: StatusCode::SERVICE_UNAVAILABLE,
+        code: "ACME_DISABLED",
+        message: "ACME issuance is not configured".to_owned(),
+        evidence: json!({}),
+    })?;
+    let domains = body.domains;
+    match acme
+        .issue(senix_acme::IssueRequest {
+            domains: domains.clone(),
+            timeout: std::time::Duration::from_secs(body.timeout_seconds),
+        })
+        .await
+    {
+        Ok(result) => {
+            state.security.record_action(
+                &principal,
+                ManagementAction::CertificateIssue.as_str(),
+                &ResourceRef::Global,
+                AuditOutcome::Succeeded,
+                RiskLevel::High,
+                json!({
+                    "certificate_id": result.certificate.certificate_id,
+                    "domains": &result.certificate.domains,
+                    "not_after_ms": result.certificate.not_after_ms,
+                    "tls_generation": result.tls_generation
+                }),
+            )?;
+            Ok((StatusCode::CREATED, Json(result)))
+        }
+        Err(error) => {
+            state.security.record_action(
+                &principal,
+                ManagementAction::CertificateIssue.as_str(),
+                &ResourceRef::Global,
+                AuditOutcome::Failed,
+                RiskLevel::High,
+                json!({"domains": domains}),
+            )?;
+            Err(error.into())
+        }
+    }
 }
 
 fn idempotency_key(headers: &HeaderMap) -> Result<&str, ApiError> {

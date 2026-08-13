@@ -47,6 +47,10 @@ pub enum ManagementAction {
     CredentialManage,
     #[serde(rename = "audit.read")]
     AuditRead,
+    #[serde(rename = "certificate.read")]
+    CertificateRead,
+    #[serde(rename = "certificate.issue")]
+    CertificateIssue,
 }
 
 impl ManagementAction {
@@ -65,6 +69,8 @@ impl ManagementAction {
             Self::ChangeApply => "change.apply",
             Self::CredentialManage => "credential.manage",
             Self::AuditRead => "audit.read",
+            Self::CertificateRead => "certificate.read",
+            Self::CertificateIssue => "certificate.issue",
         }
     }
 }
@@ -836,6 +842,8 @@ fn validate_policy(policy: &AccessPolicy) -> Result<()> {
                 | ManagementAction::ChangeRead
                 | ManagementAction::ChangeApply
                 | ManagementAction::AuditRead
+                | ManagementAction::CertificateRead
+                | ManagementAction::CertificateIssue
         )
     });
     if requires_global_scope && !policy.all_resources {
@@ -858,13 +866,15 @@ const fn action_risk(action: ManagementAction) -> RiskLevel {
         | ManagementAction::InstanceDisable
         | ManagementAction::ChangeApprove
         | ManagementAction::ChangeApply
-        | ManagementAction::CredentialManage => RiskLevel::High,
+        | ManagementAction::CredentialManage
+        | ManagementAction::CertificateIssue => RiskLevel::High,
         ManagementAction::InstanceSetWeight => RiskLevel::Medium,
         ManagementAction::InstanceRead
         | ManagementAction::DiagnosticsRead
         | ManagementAction::ChangePlan
         | ManagementAction::ChangeRead
-        | ManagementAction::AuditRead => RiskLevel::Low,
+        | ManagementAction::AuditRead
+        | ManagementAction::CertificateRead => RiskLevel::Low,
     }
 }
 
