@@ -13,7 +13,9 @@ use senix_core::{Error as CoreError, GatewayRuntime, Http01ChallengeRegistry, Re
 
 mod tls;
 
-pub use tls::{InstalledCertificate, TlsCertificateError, TlsCertificateRegistry};
+pub use tls::{
+    InstalledCertificate, PreparedTlsCertificate, TlsCertificateError, TlsCertificateRegistry,
+};
 
 #[derive(Debug, Default)]
 pub struct RequestContext {

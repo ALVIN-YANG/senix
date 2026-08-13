@@ -1,8 +1,316 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    fmt,
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use chacha20poly1305::{
+    XChaCha20Poly1305, XNonce,
+    aead::{Aead, Generate, Key, KeyInit, Payload},
+};
 use parking_lot::Mutex;
+use serde::Serialize;
+use uuid::Uuid;
 
-use crate::{Error, Result};
+use crate::{Error, Result, SqliteStateStore};
+
+const SECRET_KEY_LENGTH: usize = 32;
+
+/// Master key for encrypting durable certificate private keys and external credentials.
+#[derive(Clone)]
+pub struct SecretVault {
+    cipher: Arc<XChaCha20Poly1305>,
+}
+
+impl SecretVault {
+    /// Parses a URL-safe base64 encoded 256-bit master key.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the value is not valid base64 or does not decode to 32 bytes.
+    pub fn from_base64(encoded: &str) -> Result<Self> {
+        let decoded = URL_SAFE_NO_PAD
+            .decode(encoded.trim())
+            .map_err(|error| Error::Crypto(format!("secret key is not valid base64: {error}")))?;
+        let key: [u8; SECRET_KEY_LENGTH] = decoded.try_into().map_err(|decoded: Vec<u8>| {
+            Error::Crypto(format!(
+                "secret key must decode to {SECRET_KEY_LENGTH} bytes, got {}",
+                decoded.len()
+            ))
+        })?;
+        Ok(Self {
+            cipher: Arc::new(XChaCha20Poly1305::new(&Key::<XChaCha20Poly1305>::from(key))),
+        })
+    }
+
+    #[must_use]
+    pub fn generate_base64() -> String {
+        URL_SAFE_NO_PAD.encode(Key::<XChaCha20Poly1305>::generate())
+    }
+
+    fn seal(&self, context: &str, plaintext: &[u8]) -> Result<SealedSecret> {
+        let nonce = XNonce::generate();
+        let ciphertext = self
+            .cipher
+            .encrypt(
+                &nonce,
+                Payload {
+                    msg: plaintext,
+                    aad: context.as_bytes(),
+                },
+            )
+            .map_err(|_| Error::Crypto("could not encrypt secret".to_owned()))?;
+        Ok(SealedSecret {
+            nonce: nonce.to_vec(),
+            ciphertext,
+        })
+    }
+
+    fn open(&self, context: &str, sealed: &SealedSecret) -> Result<SecretBytes> {
+        let nonce: [u8; 24] = sealed.nonce.as_slice().try_into().map_err(|_| {
+            Error::InvalidState("stored secret nonce has an invalid length".to_owned())
+        })?;
+        let plaintext = self
+            .cipher
+            .decrypt(
+                &XNonce::from(nonce),
+                Payload {
+                    msg: &sealed.ciphertext,
+                    aad: context.as_bytes(),
+                },
+            )
+            .map_err(|_| Error::Crypto("could not decrypt stored secret".to_owned()))?;
+        Ok(SecretBytes::new(plaintext))
+    }
+}
+
+impl fmt::Debug for SecretVault {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("SecretVault([REDACTED])")
+    }
+}
+
+#[derive(Clone)]
+pub struct SecretBytes(Arc<[u8]>);
+
+impl SecretBytes {
+    #[must_use]
+    pub fn new(bytes: impl Into<Arc<[u8]>>) -> Self {
+        Self(bytes.into())
+    }
+
+    #[must_use]
+    pub fn expose(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl fmt::Debug for SecretBytes {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("SecretBytes([REDACTED])")
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct CertificateMaterial {
+    pub domains: Vec<String>,
+    pub certificate_chain_pem: Arc<[u8]>,
+    pub private_key_pem: SecretBytes,
+    pub not_before_ms: i64,
+    pub not_after_ms: i64,
+}
+
+#[derive(Clone, Debug)]
+pub struct ManagedCertificate {
+    pub certificate_id: Uuid,
+    pub domains: Vec<String>,
+    pub certificate_chain_pem: Arc<[u8]>,
+    pub private_key_pem: SecretBytes,
+    pub not_before_ms: i64,
+    pub not_after_ms: i64,
+    pub created_at_ms: i64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct CertificateSummary {
+    pub certificate_id: Uuid,
+    pub domains: Vec<String>,
+    pub not_before_ms: i64,
+    pub not_after_ms: i64,
+    pub created_at_ms: i64,
+    pub active: bool,
+}
+
+#[derive(Debug)]
+pub struct CertificateController {
+    store: Arc<SqliteStateStore>,
+    vault: SecretVault,
+}
+
+impl CertificateController {
+    #[must_use]
+    pub fn new(store: Arc<SqliteStateStore>, vault: SecretVault) -> Self {
+        Self { store, vault }
+    }
+
+    /// Encrypts and replaces a named external credential.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when encryption or storage fails.
+    pub fn save_secret(&self, name: &str, secret: &[u8]) -> Result<()> {
+        validate_secret_name(name)?;
+        let context = format!("managed-secret:{name}");
+        let sealed = self.vault.seal(&context, secret)?;
+        self.store.save_managed_secret(name, &sealed, now_ms())
+    }
+
+    /// Loads and decrypts a named external credential.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when storage is invalid or authentication of ciphertext fails.
+    pub fn load_secret(&self, name: &str) -> Result<Option<SecretBytes>> {
+        validate_secret_name(name)?;
+        self.store
+            .load_managed_secret(name)?
+            .map(|sealed| self.vault.open(&format!("managed-secret:{name}"), &sealed))
+            .transpose()
+    }
+
+    /// Encrypts a certificate private key and makes this domain set the active durable version.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when metadata is invalid, encryption fails, or storage cannot commit.
+    pub fn replace(&self, mut material: CertificateMaterial) -> Result<CertificateSummary> {
+        material.domains.sort_unstable();
+        material.domains.dedup();
+        if material.domains.is_empty()
+            || material.certificate_chain_pem.is_empty()
+            || material.private_key_pem.expose().is_empty()
+            || material.not_after_ms <= material.not_before_ms
+        {
+            return Err(Error::InvalidState(
+                "certificate material is incomplete or has an invalid lifetime".to_owned(),
+            ));
+        }
+        let certificate_id = Uuid::new_v4();
+        let created_at_ms = now_ms();
+        let context = format!("certificate:{certificate_id}:private-key");
+        let sealed_private_key = self
+            .vault
+            .seal(&context, material.private_key_pem.expose())?;
+        let row = StoredCertificateRow {
+            certificate_id,
+            domains: material.domains.clone(),
+            certificate_chain_pem: material.certificate_chain_pem,
+            sealed_private_key,
+            not_before_ms: material.not_before_ms,
+            not_after_ms: material.not_after_ms,
+            created_at_ms,
+            active: true,
+        };
+        self.store.replace_managed_certificate(&row)?;
+        Ok(row.summary())
+    }
+
+    /// Loads all active certificate versions and decrypts their private keys.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when storage is invalid or a private key fails authentication.
+    pub fn load_active(&self) -> Result<Vec<ManagedCertificate>> {
+        self.store
+            .active_managed_certificates()?
+            .into_iter()
+            .map(|row| {
+                let private_key_pem = self.vault.open(
+                    &format!("certificate:{}:private-key", row.certificate_id),
+                    &row.sealed_private_key,
+                )?;
+                Ok(ManagedCertificate {
+                    certificate_id: row.certificate_id,
+                    domains: row.domains,
+                    certificate_chain_pem: row.certificate_chain_pem,
+                    private_key_pem,
+                    not_before_ms: row.not_before_ms,
+                    not_after_ms: row.not_after_ms,
+                    created_at_ms: row.created_at_ms,
+                })
+            })
+            .collect()
+    }
+
+    /// Lists lifecycle metadata without decrypting or returning private keys.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when storage cannot be read or contains invalid metadata.
+    pub fn list(&self) -> Result<Vec<CertificateSummary>> {
+        self.store
+            .managed_certificate_rows()?
+            .into_iter()
+            .map(|row| Ok(row.summary()))
+            .collect()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct SealedSecret {
+    pub nonce: Vec<u8>,
+    pub ciphertext: Vec<u8>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct StoredCertificateRow {
+    pub certificate_id: Uuid,
+    pub domains: Vec<String>,
+    pub certificate_chain_pem: Arc<[u8]>,
+    pub sealed_private_key: SealedSecret,
+    pub not_before_ms: i64,
+    pub not_after_ms: i64,
+    pub created_at_ms: i64,
+    pub active: bool,
+}
+
+impl StoredCertificateRow {
+    fn summary(&self) -> CertificateSummary {
+        CertificateSummary {
+            certificate_id: self.certificate_id,
+            domains: self.domains.clone(),
+            not_before_ms: self.not_before_ms,
+            not_after_ms: self.not_after_ms,
+            created_at_ms: self.created_at_ms,
+            active: self.active,
+        }
+    }
+}
+
+fn validate_secret_name(name: &str) -> Result<()> {
+    if name.is_empty()
+        || name.len() > 80
+        || !name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+    {
+        return Err(Error::InvalidState(
+            "managed secret name must contain 1-80 safe characters".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn now_ms() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+        .try_into()
+        .unwrap_or(i64::MAX)
+}
 
 #[derive(Debug, Default)]
 struct ChallengeState {
@@ -144,7 +452,13 @@ fn validate_token(token: &str) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::Http01ChallengeRegistry;
+    use std::sync::Arc;
+
+    use super::{
+        CertificateController, CertificateMaterial, Http01ChallengeRegistry, SecretBytes,
+        SecretVault,
+    };
+    use crate::SqliteStateStore;
 
     #[test]
     fn challenge_is_domain_bound_and_removed_with_its_guard() {
@@ -206,5 +520,64 @@ mod tests {
                 .publish("example.test", "../token", "value")
                 .is_err()
         );
+    }
+
+    #[test]
+    fn encrypted_secrets_require_the_same_master_key() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = Arc::new(SqliteStateStore::open(directory.path().join("state.db")).unwrap());
+        let encoded_key = SecretVault::generate_base64();
+        let controller = CertificateController::new(
+            Arc::clone(&store),
+            SecretVault::from_base64(&encoded_key).unwrap(),
+        );
+        controller
+            .save_secret("acme-account", b"account-private-key")
+            .unwrap();
+        assert_eq!(
+            controller
+                .load_secret("acme-account")
+                .unwrap()
+                .unwrap()
+                .expose(),
+            b"account-private-key"
+        );
+
+        let wrong = CertificateController::new(
+            store,
+            SecretVault::from_base64(&SecretVault::generate_base64()).unwrap(),
+        );
+        assert!(wrong.load_secret("acme-account").is_err());
+    }
+
+    #[test]
+    fn replacing_a_domain_set_preserves_history_and_only_loads_the_active_key() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = Arc::new(SqliteStateStore::open(directory.path().join("state.db")).unwrap());
+        let controller = CertificateController::new(
+            store,
+            SecretVault::from_base64(&SecretVault::generate_base64()).unwrap(),
+        );
+        let material = |key: &'static [u8], not_after_ms| CertificateMaterial {
+            domains: vec!["www.example.test".to_owned(), "example.test".to_owned()],
+            certificate_chain_pem: Arc::from(&b"public certificate"[..]),
+            private_key_pem: SecretBytes::new(key),
+            not_before_ms: 1_000,
+            not_after_ms,
+        };
+
+        let old = controller.replace(material(b"old key", 10_000)).unwrap();
+        let new = controller.replace(material(b"new key", 20_000)).unwrap();
+        let summaries = controller.list().unwrap();
+        assert_eq!(summaries.len(), 2);
+        assert_eq!(summaries[0].certificate_id, new.certificate_id);
+        assert!(summaries[0].active);
+        assert_eq!(summaries[1].certificate_id, old.certificate_id);
+        assert!(!summaries[1].active);
+
+        let active = controller.load_active().unwrap();
+        assert_eq!(active.len(), 1);
+        assert_eq!(active[0].certificate_id, new.certificate_id);
+        assert_eq!(active[0].private_key_pem.expose(), b"new key");
     }
 }

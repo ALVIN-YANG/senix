@@ -10,7 +10,10 @@ mod state;
 mod store;
 mod traffic;
 
-pub use certificate::{Http01ChallengeGuard, Http01ChallengeRegistry};
+pub use certificate::{
+    CertificateController, CertificateMaterial, CertificateSummary, Http01ChallengeGuard,
+    Http01ChallengeRegistry, ManagedCertificate, SecretBytes, SecretVault,
+};
 pub use config::{
     AppliedChange, ChangeActor, ChangeKind, ChangePlan, ChangeStatus, ConfigDiff, ConfigEngine,
     ConfigIssue, ConfigSnapshot,

@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use parking_lot::Mutex;
 use rusqlite::{Connection, OptionalExtension, Row, params, types::Type};
@@ -7,8 +7,94 @@ use crate::{
     AuditEvent, AuditOutcome, ChangePlan, CredentialKind, CredentialSummary, DrainOperation, Error,
     GatewayConfig, HealthState, InstanceState, PersistedInstanceState, Result, RiskLevel,
     TrafficState,
+    certificate::{SealedSecret, StoredCertificateRow},
     security::{StoredCredential, StoredOwnerAccount},
 };
+
+const SCHEMA: &str = "PRAGMA journal_mode = WAL;
+    PRAGMA foreign_keys = ON;
+    CREATE TABLE IF NOT EXISTS instance_states (
+        id TEXT PRIMARY KEY,
+        generation INTEGER NOT NULL,
+        weight INTEGER NOT NULL,
+        traffic TEXT NOT NULL,
+        health TEXT NOT NULL,
+        health_override INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS idempotent_results (
+        key TEXT PRIMARY KEY,
+        operation TEXT NOT NULL,
+        instance_id TEXT NOT NULL,
+        result_json TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS drain_operations (
+        operation_id TEXT PRIMARY KEY,
+        instance_id TEXT NOT NULL,
+        operation_json TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS config_snapshots (
+        version INTEGER PRIMARY KEY,
+        config_json TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS change_plans (
+        change_id TEXT PRIMARY KEY,
+        status TEXT NOT NULL,
+        created_at_ms INTEGER NOT NULL,
+        plan_json TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS change_plans_created
+        ON change_plans(created_at_ms DESC, change_id DESC);
+    CREATE TABLE IF NOT EXISTS credentials (
+        id TEXT PRIMARY KEY,
+        label TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        salt BLOB NOT NULL,
+        digest BLOB NOT NULL,
+        policy_json TEXT NOT NULL,
+        created_at_ms INTEGER NOT NULL,
+        expires_at_ms INTEGER,
+        revoked_at_ms INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS audit_events (
+        event_id TEXT PRIMARY KEY,
+        occurred_at_ms INTEGER NOT NULL,
+        credential_id TEXT NOT NULL,
+        credential_label TEXT NOT NULL,
+        action TEXT NOT NULL,
+        resource_type TEXT NOT NULL,
+        resource_id TEXT,
+        outcome TEXT NOT NULL,
+        risk TEXT NOT NULL,
+        details_json TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS owner_accounts (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        owner_credential_id TEXT NOT NULL REFERENCES credentials(id),
+        session_secret BLOB NOT NULL,
+        created_at_ms INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS managed_secrets (
+        name TEXT PRIMARY KEY,
+        nonce BLOB NOT NULL,
+        ciphertext BLOB NOT NULL,
+        updated_at_ms INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS managed_certificates (
+        certificate_id TEXT PRIMARY KEY,
+        domains_json TEXT NOT NULL,
+        certificate_chain_pem BLOB NOT NULL,
+        private_key_nonce BLOB NOT NULL,
+        private_key_ciphertext BLOB NOT NULL,
+        not_before_ms INTEGER NOT NULL,
+        not_after_ms INTEGER NOT NULL,
+        created_at_ms INTEGER NOT NULL,
+        active INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS managed_certificates_active_created
+        ON managed_certificates(active, created_at_ms, certificate_id);";
 
 pub trait InstanceStateStore: Send + Sync {
     /// Loads all durable instance states.
@@ -168,73 +254,7 @@ impl SqliteStateStore {
     /// Returns an error when the database cannot be opened or migrated.
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let connection = Connection::open(path)?;
-        connection.execute_batch(
-            "PRAGMA journal_mode = WAL;
-             PRAGMA foreign_keys = ON;
-             CREATE TABLE IF NOT EXISTS instance_states (
-                 id TEXT PRIMARY KEY,
-                 generation INTEGER NOT NULL,
-                 weight INTEGER NOT NULL,
-                 traffic TEXT NOT NULL,
-                 health TEXT NOT NULL,
-                 health_override INTEGER NOT NULL DEFAULT 0
-             );
-             CREATE TABLE IF NOT EXISTS idempotent_results (
-                 key TEXT PRIMARY KEY,
-                 operation TEXT NOT NULL,
-                 instance_id TEXT NOT NULL,
-                 result_json TEXT NOT NULL
-             );
-             CREATE TABLE IF NOT EXISTS drain_operations (
-                 operation_id TEXT PRIMARY KEY,
-                 instance_id TEXT NOT NULL,
-                 operation_json TEXT NOT NULL
-             );
-             CREATE TABLE IF NOT EXISTS config_snapshots (
-                 version INTEGER PRIMARY KEY,
-                 config_json TEXT NOT NULL,
-                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-             );
-             CREATE TABLE IF NOT EXISTS change_plans (
-                 change_id TEXT PRIMARY KEY,
-                 status TEXT NOT NULL,
-                 created_at_ms INTEGER NOT NULL,
-                 plan_json TEXT NOT NULL
-             );
-             CREATE INDEX IF NOT EXISTS change_plans_created
-                 ON change_plans(created_at_ms DESC, change_id DESC);
-             CREATE TABLE IF NOT EXISTS credentials (
-                 id TEXT PRIMARY KEY,
-                 label TEXT NOT NULL,
-                 kind TEXT NOT NULL,
-                 salt BLOB NOT NULL,
-                 digest BLOB NOT NULL,
-                 policy_json TEXT NOT NULL,
-                 created_at_ms INTEGER NOT NULL,
-                 expires_at_ms INTEGER,
-                 revoked_at_ms INTEGER
-             );
-             CREATE TABLE IF NOT EXISTS audit_events (
-                 event_id TEXT PRIMARY KEY,
-                 occurred_at_ms INTEGER NOT NULL,
-                 credential_id TEXT NOT NULL,
-                 credential_label TEXT NOT NULL,
-                 action TEXT NOT NULL,
-                 resource_type TEXT NOT NULL,
-                 resource_id TEXT,
-                 outcome TEXT NOT NULL,
-                 risk TEXT NOT NULL,
-                 details_json TEXT NOT NULL
-             );
-             CREATE TABLE IF NOT EXISTS owner_accounts (
-                 singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
-                 username TEXT NOT NULL UNIQUE,
-                 password_hash TEXT NOT NULL,
-                 owner_credential_id TEXT NOT NULL REFERENCES credentials(id),
-                 session_secret BLOB NOT NULL,
-                 created_at_ms INTEGER NOT NULL
-             );",
-        )?;
+        connection.execute_batch(SCHEMA)?;
         let has_health_override = {
             let mut statement = connection.prepare("PRAGMA table_info(instance_states)")?;
             let columns = statement.query_map([], |row| row.get::<_, String>(1))?;
@@ -563,6 +583,139 @@ impl SqliteStateStore {
             });
         }
         Ok(events)
+    }
+
+    pub(crate) fn save_managed_secret(
+        &self,
+        name: &str,
+        sealed: &SealedSecret,
+        updated_at_ms: i64,
+    ) -> Result<()> {
+        self.connection.lock().execute(
+            "INSERT INTO managed_secrets (name, nonce, ciphertext, updated_at_ms)
+             VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(name) DO UPDATE SET
+                 nonce = excluded.nonce,
+                 ciphertext = excluded.ciphertext,
+                 updated_at_ms = excluded.updated_at_ms",
+            params![name, sealed.nonce, sealed.ciphertext, updated_at_ms],
+        )?;
+        Ok(())
+    }
+
+    pub(crate) fn load_managed_secret(&self, name: &str) -> Result<Option<SealedSecret>> {
+        self.connection
+            .lock()
+            .query_row(
+                "SELECT nonce, ciphertext FROM managed_secrets WHERE name = ?1",
+                [name],
+                |row| {
+                    Ok(SealedSecret {
+                        nonce: row.get(0)?,
+                        ciphertext: row.get(1)?,
+                    })
+                },
+            )
+            .optional()
+            .map_err(Error::from)
+    }
+
+    pub(crate) fn replace_managed_certificate(
+        &self,
+        certificate: &StoredCertificateRow,
+    ) -> Result<()> {
+        let mut connection = self.connection.lock();
+        let transaction = connection.transaction()?;
+        let domains_json = serde_json::to_string(&certificate.domains)?;
+        transaction.execute(
+            "UPDATE managed_certificates SET active = 0
+             WHERE active = 1 AND domains_json = ?1",
+            [&domains_json],
+        )?;
+        transaction.execute(
+            "INSERT INTO managed_certificates
+               (certificate_id, domains_json, certificate_chain_pem, private_key_nonce,
+                private_key_ciphertext, not_before_ms, not_after_ms, created_at_ms, active)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                certificate.certificate_id.to_string(),
+                domains_json,
+                certificate.certificate_chain_pem.as_ref(),
+                certificate.sealed_private_key.nonce,
+                certificate.sealed_private_key.ciphertext,
+                certificate.not_before_ms,
+                certificate.not_after_ms,
+                certificate.created_at_ms,
+                certificate.active,
+            ],
+        )?;
+        transaction.commit()?;
+        Ok(())
+    }
+
+    pub(crate) fn active_managed_certificates(&self) -> Result<Vec<StoredCertificateRow>> {
+        self.read_managed_certificates(
+            "SELECT certificate_id, domains_json, certificate_chain_pem, private_key_nonce,
+                    private_key_ciphertext, not_before_ms, not_after_ms, created_at_ms, active
+             FROM managed_certificates WHERE active = 1
+             ORDER BY created_at_ms, certificate_id",
+        )
+    }
+
+    pub(crate) fn managed_certificate_rows(&self) -> Result<Vec<StoredCertificateRow>> {
+        self.read_managed_certificates(
+            "SELECT certificate_id, domains_json, certificate_chain_pem, private_key_nonce,
+                    private_key_ciphertext, not_before_ms, not_after_ms, created_at_ms, active
+             FROM managed_certificates ORDER BY created_at_ms DESC, certificate_id DESC",
+        )
+    }
+
+    fn read_managed_certificates(&self, query: &str) -> Result<Vec<StoredCertificateRow>> {
+        let connection = self.connection.lock();
+        let mut statement = connection.prepare(query)?;
+        let rows = statement.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Vec<u8>>(2)?,
+                row.get::<_, Vec<u8>>(3)?,
+                row.get::<_, Vec<u8>>(4)?,
+                row.get::<_, i64>(5)?,
+                row.get::<_, i64>(6)?,
+                row.get::<_, i64>(7)?,
+                row.get::<_, bool>(8)?,
+            ))
+        })?;
+        let mut certificates = Vec::new();
+        for row in rows {
+            let (
+                certificate_id,
+                domains_json,
+                certificate_chain_pem,
+                private_key_nonce,
+                private_key_ciphertext,
+                not_before_ms,
+                not_after_ms,
+                created_at_ms,
+                active,
+            ) = row?;
+            certificates.push(StoredCertificateRow {
+                certificate_id: uuid::Uuid::parse_str(&certificate_id).map_err(|error| {
+                    Error::InvalidState(format!("stored certificate id is invalid: {error}"))
+                })?,
+                domains: serde_json::from_str(&domains_json)?,
+                certificate_chain_pem: Arc::from(certificate_chain_pem),
+                sealed_private_key: SealedSecret {
+                    nonce: private_key_nonce,
+                    ciphertext: private_key_ciphertext,
+                },
+                not_before_ms,
+                not_after_ms,
+                created_at_ms,
+                active,
+            });
+        }
+        Ok(certificates)
     }
 }
 

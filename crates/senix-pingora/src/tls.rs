@@ -2,6 +2,7 @@ use std::{collections::HashMap, fmt, fs, path::Path, sync::Arc};
 
 use arc_swap::ArcSwap;
 use async_trait::async_trait;
+use openssl::asn1::{Asn1Time, Asn1TimeRef};
 use pingora_core::{
     listeners::TlsAccept,
     protocols::tls::TlsRef,
@@ -71,6 +72,29 @@ pub struct TlsCertificateRegistry {
 pub struct InstalledCertificate {
     pub generation: u64,
     pub domains: Arc<[String]>,
+    pub not_before_ms: i64,
+    pub not_after_ms: i64,
+}
+
+/// Fully parsed certificate material that can be persisted before its infallible publication.
+#[derive(Clone, Debug)]
+pub struct PreparedTlsCertificate(Arc<PreparedCertificate>);
+
+impl PreparedTlsCertificate {
+    #[must_use]
+    pub fn domains(&self) -> &[String] {
+        &self.0.domains
+    }
+
+    #[must_use]
+    pub fn not_before_ms(&self) -> i64 {
+        asn1_unix_ms(self.0.leaf.not_before()).unwrap_or(i64::MIN)
+    }
+
+    #[must_use]
+    pub fn not_after_ms(&self) -> i64 {
+        asn1_unix_ms(self.0.leaf.not_after()).unwrap_or(i64::MAX)
+    }
 }
 
 impl TlsCertificateRegistry {
@@ -90,6 +114,19 @@ impl TlsCertificateRegistry {
         private_key_pem: &[u8],
         make_default: bool,
     ) -> Result<InstalledCertificate, TlsCertificateError> {
+        let prepared = Self::prepare_pem(certificate_chain_pem, private_key_pem)?;
+        Ok(self.install_prepared(&prepared, make_default))
+    }
+
+    /// Parses certificate material without changing the active set.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for malformed PEM, unsupported DNS names, or a mismatched private key.
+    pub fn prepare_pem(
+        certificate_chain_pem: &[u8],
+        private_key_pem: &[u8],
+    ) -> Result<PreparedTlsCertificate, TlsCertificateError> {
         let mut certificates = X509::stack_from_pem(certificate_chain_pem)
             .map_err(TlsCertificateError::InvalidCertificate)?;
         if certificates.is_empty() {
@@ -105,29 +142,40 @@ impl TlsCertificateRegistry {
             return Err(TlsCertificateError::KeyMismatch);
         }
         let domains = Arc::<[String]>::from(certificate_domains(&leaf)?);
-        let prepared = Arc::new(PreparedCertificate {
+        Ok(PreparedTlsCertificate(Arc::new(PreparedCertificate {
             leaf,
             chain: certificates,
             private_key,
             domains: Arc::clone(&domains),
-        });
+        })))
+    }
 
+    #[must_use]
+    pub fn install_prepared(
+        &self,
+        prepared: &PreparedTlsCertificate,
+        make_default: bool,
+    ) -> InstalledCertificate {
+        let domains = Arc::clone(&prepared.0.domains);
         let current = self.state.load_full();
         let mut next = (*current).clone();
         next.generation = next.generation.saturating_add(1);
         for domain in domains.iter() {
-            next.by_domain.insert(domain.clone(), Arc::clone(&prepared));
+            next.by_domain
+                .insert(domain.clone(), Arc::clone(&prepared.0));
         }
         if make_default || next.default.is_none() {
-            next.default = Some(prepared);
+            next.default = Some(Arc::clone(&prepared.0));
         }
         let generation = next.generation;
         self.state.store(Arc::new(next));
 
-        Ok(InstalledCertificate {
+        InstalledCertificate {
             generation,
             domains,
-        })
+            not_before_ms: prepared.not_before_ms(),
+            not_after_ms: prepared.not_after_ms(),
+        }
     }
 
     /// Loads and installs PEM files without retaining their paths.
@@ -255,6 +303,15 @@ fn normalize_certificate_name(name: &str) -> Result<String, TlsCertificateError>
 fn normalize_server_name(name: &str) -> Option<String> {
     let normalized = name.trim_end_matches('.').to_ascii_lowercase();
     (!normalized.is_empty()).then_some(normalized)
+}
+
+fn asn1_unix_ms(time: &Asn1TimeRef) -> Option<i64> {
+    let epoch = Asn1Time::from_unix(0).ok()?;
+    let difference = epoch.diff(time).ok()?;
+    let seconds = i64::from(difference.days)
+        .checked_mul(86_400)?
+        .checked_add(i64::from(difference.secs))?;
+    seconds.checked_mul(1_000)
 }
 
 #[cfg(test)]
