@@ -11,6 +11,10 @@ use pingora_http::{RequestHeader, ResponseHeader};
 use pingora_proxy::{ProxyHttp, Session};
 use senix_core::{Error as CoreError, GatewayRuntime, Http01ChallengeRegistry, RequestLease};
 
+mod tls;
+
+pub use tls::{InstalledCertificate, TlsCertificateError, TlsCertificateRegistry};
+
 #[derive(Debug, Default)]
 pub struct RequestContext {
     lease: Option<RequestLease>,
@@ -144,7 +148,7 @@ impl ProxyHttp for SenixProxy {
 pub fn add_http_proxy(
     server: &mut Server,
     listen: &str,
-    tls: Option<(&str, &str, &str)>,
+    tls: Option<(&str, TlsCertificateRegistry)>,
     runtime: Arc<GatewayRuntime>,
     http01_challenges: Http01ChallengeRegistry,
 ) -> PingoraResult<()> {
@@ -153,8 +157,11 @@ pub fn add_http_proxy(
         SenixProxy::new(runtime, http01_challenges),
     );
     proxy.add_tcp(listen);
-    if let Some((tls_listen, cert, key)) = tls {
-        proxy.add_tls(tls_listen, cert, key)?;
+    if let Some((tls_listen, certificates)) = tls {
+        let mut settings =
+            pingora_core::listeners::tls::TlsSettings::with_callbacks(Box::new(certificates))?;
+        settings.enable_h2();
+        proxy.add_tls_with_settings(tls_listen, None, settings);
     }
     server.add_service(proxy);
     Ok(())

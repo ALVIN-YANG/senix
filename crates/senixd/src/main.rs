@@ -305,21 +305,22 @@ fn main() -> Result<()> {
     let mut server = Server::new(None).context("create Pingora server")?;
     server.bootstrap();
     let tls_listen = args.tls_listen.map(|listen| listen.to_string());
-    let tls_cert = args
-        .tls_cert
-        .as_ref()
-        .map(|path| path.to_str().context("--tls-cert path is not valid UTF-8"))
-        .transpose()?;
-    let tls_key = args
-        .tls_key
-        .as_ref()
-        .map(|path| path.to_str().context("--tls-key path is not valid UTF-8"))
-        .transpose()?;
+    let tls_certificates = senix_pingora::TlsCertificateRegistry::new();
+    if let (Some(certificate_path), Some(private_key_path)) =
+        (args.tls_cert.as_ref(), args.tls_key.as_ref())
+    {
+        let installed = tls_certificates
+            .install_files(certificate_path, private_key_path, true)
+            .context("load TLS certificate")?;
+        info!(
+            generation = installed.generation,
+            domains = ?installed.domains,
+            "TLS certificate installed"
+        );
+    }
     let tls = tls_listen
         .as_deref()
-        .zip(tls_cert)
-        .zip(tls_key)
-        .map(|((listen, cert), key)| (listen, cert, key));
+        .map(|listen| (listen, tls_certificates));
     senix_pingora::add_http_proxy(
         &mut server,
         &args.listen.to_string(),

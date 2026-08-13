@@ -2160,13 +2160,16 @@ dependencies = [
 name = "senix-pingora"
 version = "0.1.2"
 dependencies = [
+ "arc-swap",
  "async-trait",
  "bytes",
  "http",
+ "openssl",
  "pingora-core",
  "pingora-http",
  "pingora-proxy",
  "senix-core",
+ "thiserror 2.0.20",
  "tracing",
 ]
 
