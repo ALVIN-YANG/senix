@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fmt::Write as _,
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
@@ -385,7 +385,12 @@ fn validate(config: &GatewayConfig) -> Vec<ConfigIssue> {
     let mut issues = Vec::new();
     let mut route_ids = HashSet::new();
     let mut route_matches = HashSet::new();
+    let mut backend_ids = HashMap::new();
     for route in &config.routes {
+        let mut route_backend_ids = HashSet::new();
+        if !valid_identifier(&route.id) {
+            issues.push(issue("INVALID_ROUTE_ID", &route.id));
+        }
         if !route_ids.insert(route.id.as_str()) {
             issues.push(ConfigIssue {
                 code: "DUPLICATE_ROUTE_ID".to_owned(),
@@ -403,6 +408,8 @@ fn validate(config: &GatewayConfig) -> Vec<ConfigIssue> {
         }
         if route.host.trim().is_empty() {
             issues.push(issue("EMPTY_HOST", &route.id));
+        } else if !valid_host_pattern(&route.host) {
+            issues.push(issue("INVALID_HOST", &route.id));
         }
         if !route.path_prefix.starts_with('/') {
             issues.push(issue("INVALID_PATH_PREFIX", &route.id));
@@ -413,6 +420,27 @@ fn validate(config: &GatewayConfig) -> Vec<ConfigIssue> {
             issues.push(issue("ZERO_BACKEND_WEIGHT", &route.id));
         }
         for backend in &route.backends {
+            if !route_backend_ids.insert(backend.id.as_str()) {
+                issues.push(health_issue("DUPLICATE_BACKEND_ID", &backend.id));
+            }
+            if !valid_identifier(&backend.id) {
+                issues.push(health_issue("INVALID_BACKEND_ID", &backend.id));
+            }
+            if let Some(existing) = backend_ids.insert(backend.id.as_str(), backend)
+                && existing != backend
+            {
+                issues.push(ConfigIssue {
+                    code: "CONFLICTING_BACKEND_ID".to_owned(),
+                    message: format!("backend id describes different upstreams: {}", backend.id),
+                });
+            }
+            if backend
+                .tls
+                .as_ref()
+                .is_some_and(|tls| tls.server_name.trim().is_empty())
+            {
+                issues.push(health_issue("EMPTY_UPSTREAM_TLS_SERVER_NAME", &backend.id));
+            }
             let Some(check) = &backend.health_check else {
                 continue;
             };
@@ -434,6 +462,31 @@ fn validate(config: &GatewayConfig) -> Vec<ConfigIssue> {
         }
     }
     issues
+}
+
+fn valid_identifier(value: &str) -> bool {
+    (1..=128).contains(&value.len())
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+}
+
+fn valid_host_pattern(host: &str) -> bool {
+    let domain = host.strip_prefix("*.").unwrap_or(host);
+    if host.contains('*') && domain == host {
+        return false;
+    }
+    !domain.is_empty()
+        && domain.len() <= 253
+        && domain.split('.').all(|label| {
+            !label.is_empty()
+                && label.len() <= 63
+                && !label.starts_with('-')
+                && !label.ends_with('-')
+                && label
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+        })
 }
 
 fn issue(code: &str, route_id: &str) -> ConfigIssue {

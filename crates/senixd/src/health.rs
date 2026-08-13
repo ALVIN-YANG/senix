@@ -1,8 +1,9 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::HashMap, pin::Pin, sync::Arc, time::Duration};
 
-use senix_core::{GatewayRuntime, HealthCheckProtocol, HealthState, HealthTarget};
+use openssl::ssl::{SslConnector, SslMethod, SslVerifyMode};
+use senix_core::{GatewayRuntime, HealthCheckProtocol, HealthState, HealthTarget, UpstreamAlpn};
 use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+    io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
     net::TcpStream,
     task::JoinSet,
     time::{Instant, sleep, timeout},
@@ -110,10 +111,92 @@ async fn probe(target: &HealthTarget) -> bool {
 }
 
 async fn http_probe(target: &HealthTarget) -> std::io::Result<()> {
-    let mut stream = TcpStream::connect(target.address).await?;
+    let stream = TcpStream::connect(target.address).await?;
+    if let Some(tls) = &target.tls {
+        let connector = SslConnector::builder(SslMethod::tls())
+            .map_err(std::io::Error::other)?
+            .build();
+        let mut configuration = connector.configure().map_err(std::io::Error::other)?;
+        if !tls.verify_certificate {
+            configuration.set_verify(SslVerifyMode::NONE);
+            configuration.set_verify_hostname(false);
+        }
+        let advertised_alpn = match tls.alpn {
+            UpstreamAlpn::Http1 => b"\x08http/1.1".as_slice(),
+            UpstreamAlpn::Http2 => b"\x02h2".as_slice(),
+            UpstreamAlpn::Http2OrHttp1 => b"\x02h2\x08http/1.1".as_slice(),
+        };
+        configuration
+            .set_alpn_protos(advertised_alpn)
+            .map_err(std::io::Error::other)?;
+        let ssl = configuration
+            .into_ssl(&tls.server_name)
+            .map_err(std::io::Error::other)?;
+        let mut stream =
+            tokio_openssl::SslStream::new(ssl, stream).map_err(std::io::Error::other)?;
+        Pin::new(&mut stream)
+            .connect()
+            .await
+            .map_err(std::io::Error::other)?;
+        let selected_h2 = stream.ssl().selected_alpn_protocol() == Some(b"h2");
+        if tls.alpn == UpstreamAlpn::Http2 && !selected_h2 {
+            return Err(std::io::Error::other(
+                "upstream did not negotiate required h2 protocol",
+            ));
+        }
+        if selected_h2 {
+            return h2_probe_stream(stream, target).await;
+        }
+        return http_probe_stream(stream, target).await;
+    }
+    http_probe_stream(stream, target).await
+}
+
+async fn h2_probe_stream(
+    stream: impl AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    target: &HealthTarget,
+) -> std::io::Result<()> {
+    let (mut sender, connection) = h2::client::handshake(stream)
+        .await
+        .map_err(std::io::Error::other)?;
+    tokio::spawn(async move {
+        let _ = connection.await;
+    });
+    let authority = &target
+        .tls
+        .as_ref()
+        .ok_or_else(|| std::io::Error::other("h2 health probe requires TLS configuration"))?
+        .server_name;
+    let request = axum::http::Request::builder()
+        .method("GET")
+        .uri(format!("https://{authority}{}", target.check.path))
+        .body(())
+        .map_err(std::io::Error::other)?;
+    let (response, _) = sender
+        .send_request(request, true)
+        .map_err(std::io::Error::other)?;
+    let response = response.await.map_err(std::io::Error::other)?;
+    if response.status().is_success() || response.status().is_redirection() {
+        Ok(())
+    } else {
+        Err(std::io::Error::other(format!(
+            "unhealthy HTTP/2 status: {}",
+            response.status()
+        )))
+    }
+}
+
+async fn http_probe_stream(
+    mut stream: impl AsyncRead + AsyncWrite + Unpin,
+    target: &HealthTarget,
+) -> std::io::Result<()> {
     let request = format!(
         "GET {} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n",
-        target.check.path, target.address
+        target.check.path,
+        target
+            .tls
+            .as_ref()
+            .map_or_else(|| target.address.to_string(), |tls| tls.server_name.clone())
     );
     stream.write_all(request.as_bytes()).await?;
 

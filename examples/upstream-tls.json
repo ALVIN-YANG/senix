@@ -1,0 +1,29 @@
+{
+  "routes": [
+    {
+      "id": "route-api",
+      "host": "api.example.com",
+      "path_prefix": "/",
+      "backends": [
+        {
+          "id": "instance-api-a",
+          "address": "10.0.0.21:443",
+          "generation": 1,
+          "weight": 100,
+          "tls": {
+            "server_name": "api.internal.example.com",
+            "alpn": "http2_or_http1"
+          },
+          "health_check": {
+            "protocol": "http",
+            "path": "/health",
+            "interval_ms": 5000,
+            "timeout_ms": 1000,
+            "healthy_threshold": 2,
+            "unhealthy_threshold": 3
+          }
+        }
+      ]
+    }
+  ]
+}

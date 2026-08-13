@@ -3,11 +3,13 @@ use std::net::SocketAddr;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GatewayConfig {
     pub routes: Vec<RouteConfig>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RouteConfig {
     pub id: String,
     pub host: String,
@@ -16,13 +18,39 @@ pub struct RouteConfig {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct BackendConfig {
     pub id: String,
     pub address: SocketAddr,
     pub generation: u64,
     pub weight: u32,
     #[serde(default)]
+    pub tls: Option<UpstreamTlsConfig>,
+    #[serde(default)]
     pub health_check: Option<HealthCheckConfig>,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UpstreamAlpn {
+    #[default]
+    Http1,
+    Http2,
+    Http2OrHttp1,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UpstreamTlsConfig {
+    pub server_name: String,
+    #[serde(default = "enabled")]
+    pub verify_certificate: bool,
+    #[serde(default)]
+    pub alpn: UpstreamAlpn,
+}
+
+const fn enabled() -> bool {
+    true
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -34,7 +62,7 @@ pub enum HealthCheckProtocol {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct HealthCheckConfig {
     pub protocol: HealthCheckProtocol,
     pub path: String,

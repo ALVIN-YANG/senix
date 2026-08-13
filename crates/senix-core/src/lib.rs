@@ -28,7 +28,8 @@ pub use security::{
 };
 pub use state::{
     BackendConfig, GatewayConfig, HealthCheckConfig, HealthCheckProtocol, HealthState,
-    InstanceState, PersistedInstanceState, RouteConfig, TrafficState,
+    InstanceState, PersistedInstanceState, RouteConfig, TrafficState, UpstreamAlpn,
+    UpstreamTlsConfig,
 };
 pub use store::{ConfigStateStore, InstanceStateStore, SqliteStateStore};
 pub use traffic::{DrainOperation, DrainOperationStatus, DrainOptions, TrafficController};

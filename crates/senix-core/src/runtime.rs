@@ -5,7 +5,7 @@ use parking_lot::Mutex;
 
 use crate::{
     GatewayConfig, HealthCheckConfig, HealthState, InstanceState, PersistedInstanceState, Result,
-    TrafficState, error::Error,
+    TrafficState, UpstreamTlsConfig, error::Error,
 };
 
 #[derive(Debug)]
@@ -22,6 +22,7 @@ struct InstanceGate {
 #[derive(Debug)]
 struct LiveInstance {
     address: SocketAddr,
+    tls: Option<UpstreamTlsConfig>,
     health_check: Option<HealthCheckConfig>,
     control: Arc<InstanceControl>,
 }
@@ -30,6 +31,7 @@ struct LiveInstance {
 pub struct HealthTarget {
     pub id: String,
     pub address: SocketAddr,
+    pub tls: Option<UpstreamTlsConfig>,
     pub check: HealthCheckConfig,
 }
 
@@ -136,6 +138,7 @@ impl GatewayRuntime {
                     Arc::clone(existing)
                 } else if let Some(existing) = current.instances.get(&backend.id) {
                     if existing.address != backend.address
+                        || existing.tls != backend.tls
                         || existing.health_check != backend.health_check
                     {
                         existing.control.gate.lock().health =
@@ -143,6 +146,7 @@ impl GatewayRuntime {
                     }
                     Arc::new(LiveInstance {
                         address: backend.address,
+                        tls: backend.tls,
                         health_check: backend.health_check,
                         control: Arc::clone(&existing.control),
                     })
@@ -151,6 +155,7 @@ impl GatewayRuntime {
                     let health = initial_health(backend.health_check.as_ref());
                     Arc::new(LiveInstance {
                         address: backend.address,
+                        tls: backend.tls,
                         health_check: backend.health_check,
                         control: Arc::new(InstanceControl {
                             id: backend.id.clone(),
@@ -194,9 +199,9 @@ impl GatewayRuntime {
         let route = snapshot
             .routes
             .iter()
-            .find(|route| {
-                route.host.eq_ignore_ascii_case(host) && path.starts_with(&route.path_prefix)
-            })
+            .filter_map(|route| route_match_score(route, host, path).map(|score| (route, score)))
+            .max_by_key(|(_, score)| *score)
+            .map(|(route, _)| route)
             .ok_or_else(|| Error::RouteNotFound {
                 host: host.to_owned(),
                 path: path.to_owned(),
@@ -265,6 +270,7 @@ impl GatewayRuntime {
                 instance.health_check.clone().map(|check| HealthTarget {
                     id: instance.control.id.clone(),
                     address: instance.address,
+                    tls: instance.tls.clone(),
                     check,
                 })
             })
@@ -295,9 +301,9 @@ impl GatewayRuntime {
         snapshot
             .routes
             .iter()
-            .find(|route| {
-                route.host.eq_ignore_ascii_case(host) && path.starts_with(&route.path_prefix)
-            })
+            .filter_map(|route| route_match_score(route, host, path).map(|score| (route, score)))
+            .max_by_key(|(_, score)| *score)
+            .map(|(route, _)| route)
             .map(|route| {
                 (
                     route.id.clone(),
@@ -409,6 +415,29 @@ impl GatewayRuntime {
     }
 }
 
+fn route_match_score(route: &RuntimeRoute, host: &str, path: &str) -> Option<(usize, u8, usize)> {
+    let (host_kind, host_length) = host_specificity(&route.host, host)?;
+    let path_matches = path.starts_with(&route.path_prefix)
+        && (route.path_prefix == "/"
+            || route.path_prefix.ends_with('/')
+            || path.len() == route.path_prefix.len()
+            || path.as_bytes().get(route.path_prefix.len()) == Some(&b'/'));
+    path_matches.then_some((route.path_prefix.len(), host_kind, host_length))
+}
+
+fn host_specificity(pattern: &str, host: &str) -> Option<(u8, usize)> {
+    if pattern.eq_ignore_ascii_case(host) {
+        return Some((2, pattern.len()));
+    }
+    let suffix = pattern.strip_prefix("*.")?;
+    let prefix = host.get(..host.len().checked_sub(suffix.len() + 1)?)?;
+    (host.as_bytes().get(prefix.len()) == Some(&b'.')
+        && host[prefix.len() + 1..].eq_ignore_ascii_case(suffix)
+        && !prefix.is_empty()
+        && !prefix.contains('.'))
+    .then_some((1, suffix.len()))
+}
+
 fn initial_health(check: Option<&HealthCheckConfig>) -> HealthState {
     if check.is_some() {
         HealthState::Unknown
@@ -439,6 +468,11 @@ impl RequestLease {
     #[must_use]
     pub fn generation(&self) -> u64 {
         self.generation
+    }
+
+    #[must_use]
+    pub fn upstream_tls(&self) -> Option<&UpstreamTlsConfig> {
+        self.instance.tls.as_ref()
     }
 
     /// Moves this request from the ordinary bucket into the long-lived bucket.

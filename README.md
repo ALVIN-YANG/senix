@@ -18,12 +18,12 @@ Senix 是一个面向个人开发者和小团队的独立 Rust 网关。一个�
 
 | 场景 | 当前实现 |
 | --- | --- |
-| 代理流量 | Pingora HTTP 代理、平滑加权轮询、HTTP/TCP 主动健康检查 |
+| 代理流量 | Pingora HTTP 代理、精确/单标签通配域名、最长路径匹配、平滑加权轮询、HTTP/TCP 主动健康检查 |
 | 滚动部署配合 | 持久化摘流、在途请求查询、超时状态、新代次回接、权重调整、明确禁用 |
 | 安全改配置 | 不可修改的 Change Plan、结构化差异、15 分钟 Owner 批准、原子 Snapshot 发布、回滚计划 |
 | 一个人管理 | Owner 控制台、受限 API Key、操作审计、实例维护控制舱、请求证据链 |
 | AI 协作 | 无会话 Streamable HTTP MCP；工具按 Key 权限裁剪，调用时再次授权 |
-| TLS 证书 | 静态 PEM、HTTP-01 手动签发、加密持久化、SNI 多证书、无重启热切换 |
+| TLS 证书 | 下游静态 PEM/HTTP-01/SNI 热切换；上游 HTTPS、系统 CA 验证与 H1/H2 ALPN |
 
 ## 怎么工作
 
@@ -125,6 +125,23 @@ senixd \
 ```
 
 `--tls-cert` 与 `--tls-key` 必须一起提供。证书会在启动时完整校验，并作为默认 SNI 证书加载。
+
+后端本身使用 HTTPS 时，在对应实例上显式声明 TLS。证书校验默认开启，`server_name` 同时用于 SNI 和主机名校验：
+
+```json
+{
+  "id": "instance-a",
+  "address": "10.0.0.21:443",
+  "generation": 1,
+  "weight": 100,
+  "tls": {
+    "server_name": "api.internal.example.com",
+    "alpn": "http2_or_http1"
+  }
+}
+```
+
+`alpn` 可选 `http1`、`http2` 或 `http2_or_http1`，默认为 `http1`。HTTP 主动检查会使用相同的 TLS 校验与协商设置。只有自签名开发环境才应显式设置 `verify_certificate: false`；生产环境不要关闭证书校验。完整示例见 [`examples/upstream-tls.json`](./examples/upstream-tls.json)。
 
 使用 ACME HTTP-01 时，先生成独立于数据库的主密钥文件：
 

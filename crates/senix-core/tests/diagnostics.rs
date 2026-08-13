@@ -18,6 +18,7 @@ fn diagnosis_identifies_the_route_matching_failure() {
                     address: "127.0.0.1:4101".parse().unwrap(),
                     generation: 1,
                     weight: 100,
+                    tls: None,
                     health_check: None,
                 }],
             }],

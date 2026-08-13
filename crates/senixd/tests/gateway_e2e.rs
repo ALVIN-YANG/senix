@@ -4,6 +4,7 @@ use std::{
     io::{Read, Write},
     net::{SocketAddr, TcpListener, TcpStream},
     path::Path,
+    pin::Pin,
     process::{Child, Command, Stdio},
     sync::{
         Arc,
@@ -13,13 +14,15 @@ use std::{
     time::{Duration, Instant},
 };
 
+use axum::body::Bytes;
+use axum::http::Response;
 use openssl::{
     asn1::Asn1Time,
     bn::BigNum,
     hash::MessageDigest,
     pkey::PKey,
     rsa::Rsa,
-    ssl::{SslConnector, SslMethod, SslVerifyMode},
+    ssl::{SslAcceptor, SslConnector, SslFiletype, SslMethod, SslVerifyMode},
     x509::{X509, X509NameBuilder},
 };
 use serde_json::{Value, json};
@@ -83,6 +86,98 @@ fn configured_shutdown_budget_bounds_sigterm_exit() {
         );
         thread::sleep(Duration::from_millis(40));
     }
+}
+
+#[test]
+fn proxy_reaches_an_explicit_https_upstream() {
+    let backend = spawn_tls_backend("TLS_BACKEND");
+    let proxy = free_address();
+    let admin = free_address();
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("senix.db");
+    let config = dir.path().join("gateway.json");
+    write_https_backend_config(&config, backend);
+    let owner_key = bootstrap_owner_key(&db);
+
+    let senix = spawn_senix(proxy, admin, &db, &config);
+    wait_until_ready(admin, proxy);
+    wait_for_health_state(admin, "instance-a", "HEALTHY", &owner_key);
+
+    let response = raw_http(
+        proxy,
+        "GET / HTTP/1.1\r\nHost: example.test\r\nConnection: close\r\n\r\n",
+    );
+    assert!(response.starts_with("HTTP/1.1 200"), "{response}");
+    assert_eq!(response.split("\r\n\r\n").nth(1), Some("TLS_BACKEND"));
+    drop(senix);
+}
+
+#[test]
+fn proxy_reaches_an_http2_only_https_upstream() {
+    let backend = spawn_h2_tls_backend();
+    let proxy = free_address();
+    let admin = free_address();
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("senix.db");
+    let config = dir.path().join("gateway.json");
+    write_h2_https_backend_config(&config, backend);
+    let owner_key = bootstrap_owner_key(&db);
+
+    let senix = spawn_senix(proxy, admin, &db, &config);
+    wait_until_ready(admin, proxy);
+    wait_for_health_state(admin, "instance-a", "HEALTHY", &owner_key);
+
+    let response = raw_http(
+        proxy,
+        "GET / HTTP/1.1\r\nHost: example.test\r\nConnection: close\r\n\r\n",
+    );
+    assert!(response.starts_with("HTTP/1.1 200"), "{response}");
+    assert!(response.contains("H2_BACKEND"), "{response}");
+    drop(senix);
+}
+
+#[test]
+fn most_specific_path_prefix_wins_regardless_of_config_order() {
+    let root_backend = spawn_backend("ROOT", Duration::ZERO);
+    let api_backend = spawn_backend("API", Duration::ZERO);
+    let proxy = free_address();
+    let admin = free_address();
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("senix.db");
+    let config = dir.path().join("gateway.json");
+    write_overlapping_route_config(&config, root_backend, api_backend);
+
+    let senix = spawn_senix(proxy, admin, &db, &config);
+    wait_until_ready(admin, proxy);
+
+    assert_eq!(proxy_get(proxy, "/other"), "ROOT");
+    assert_eq!(proxy_get(proxy, "/api/users"), "API");
+    assert_eq!(proxy_get(proxy, "/apix"), "ROOT");
+    drop(senix);
+}
+
+#[test]
+fn exact_host_wins_over_a_single_label_wildcard() {
+    let wildcard_backend = spawn_backend("WILDCARD", Duration::ZERO);
+    let exact_backend = spawn_backend("EXACT", Duration::ZERO);
+    let proxy = free_address();
+    let admin = free_address();
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("senix.db");
+    let config = dir.path().join("gateway.json");
+    write_wildcard_route_config(&config, wildcard_backend, exact_backend);
+
+    let senix = spawn_senix(proxy, admin, &db, &config);
+    wait_until_ready(admin, proxy);
+
+    assert_eq!(proxy_get_host(proxy, "foo.example.test", "/"), "WILDCARD");
+    assert_eq!(proxy_get_host(proxy, "api.example.test", "/"), "EXACT");
+    let bare = raw_http(
+        proxy,
+        "GET / HTTP/1.1\r\nHost: example.test\r\nConnection: close\r\n\r\n",
+    );
+    assert!(bare.starts_with("HTTP/1.1 404"), "{bare}");
+    drop(senix);
 }
 
 #[test]
@@ -1235,6 +1330,130 @@ fn write_single_backend_config(path: &Path, backend: SocketAddr) {
     .unwrap();
 }
 
+fn write_https_backend_config(path: &Path, backend: SocketAddr) {
+    fs::write(
+        path,
+        serde_json::to_vec_pretty(&json!({
+            "routes": [{
+                "id": "route-main",
+                "host": "example.test",
+                "path_prefix": "/",
+                "backends": [{
+                    "id": "instance-a",
+                    "address": backend,
+                    "generation": 1,
+                    "weight": 100,
+                    "tls": {
+                        "server_name": "backend.test",
+                        "verify_certificate": false,
+                        "alpn": "http1"
+                    },
+                    "health_check": {
+                        "protocol": "http",
+                        "path": "/health",
+                        "interval_ms": 50,
+                        "timeout_ms": 500,
+                        "healthy_threshold": 1,
+                        "unhealthy_threshold": 1
+                    }
+                }]
+            }]
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+}
+
+fn write_h2_https_backend_config(path: &Path, backend: SocketAddr) {
+    fs::write(
+        path,
+        serde_json::to_vec_pretty(&json!({
+            "routes": [{
+                "id": "route-main",
+                "host": "example.test",
+                "path_prefix": "/",
+                "backends": [{
+                    "id": "instance-a",
+                    "address": backend,
+                    "generation": 1,
+                    "weight": 100,
+                    "tls": {
+                        "server_name": "backend.test",
+                        "verify_certificate": false,
+                        "alpn": "http2"
+                    },
+                    "health_check": {
+                        "protocol": "http",
+                        "path": "/health",
+                        "interval_ms": 50,
+                        "timeout_ms": 500,
+                        "healthy_threshold": 1,
+                        "unhealthy_threshold": 1
+                    }
+                }]
+            }]
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+}
+
+fn write_overlapping_route_config(path: &Path, root: SocketAddr, api: SocketAddr) {
+    fs::write(
+        path,
+        serde_json::to_vec_pretty(&json!({
+            "routes": [
+                {
+                    "id": "route-root",
+                    "host": "example.test",
+                    "path_prefix": "/",
+                    "backends": [
+                        {"id": "instance-root", "address": root, "generation": 1, "weight": 100}
+                    ]
+                },
+                {
+                    "id": "route-api",
+                    "host": "example.test",
+                    "path_prefix": "/api",
+                    "backends": [
+                        {"id": "instance-api", "address": api, "generation": 1, "weight": 100}
+                    ]
+                }
+            ]
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+}
+
+fn write_wildcard_route_config(path: &Path, wildcard: SocketAddr, exact: SocketAddr) {
+    fs::write(
+        path,
+        serde_json::to_vec_pretty(&json!({
+            "routes": [
+                {
+                    "id": "route-wildcard",
+                    "host": "*.example.test",
+                    "path_prefix": "/",
+                    "backends": [
+                        {"id": "instance-wildcard", "address": wildcard, "generation": 1, "weight": 100}
+                    ]
+                },
+                {
+                    "id": "route-exact",
+                    "host": "api.example.test",
+                    "path_prefix": "/",
+                    "backends": [
+                        {"id": "instance-exact", "address": exact, "generation": 1, "weight": 100}
+                    ]
+                }
+            ]
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+}
+
 fn spawn_backend(label: &'static str, slow: Duration) -> SocketAddr {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
@@ -1254,6 +1473,92 @@ fn spawn_backend(label: &'static str, slow: Duration) -> SocketAddr {
                 stream.write_all(response.as_bytes()).unwrap();
             });
         }
+    });
+    address
+}
+
+fn spawn_tls_backend(label: &'static str) -> SocketAddr {
+    let identity = tempfile::tempdir().unwrap();
+    let cert = identity.path().join("backend.crt");
+    let key = identity.path().join("backend.key");
+    write_test_certificate(&cert, &key);
+    let mut acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
+    acceptor.set_certificate_chain_file(cert).unwrap();
+    acceptor
+        .set_private_key_file(key, SslFiletype::PEM)
+        .unwrap();
+    acceptor.check_private_key().unwrap();
+    let acceptor = Arc::new(acceptor.build());
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    thread::spawn(move || {
+        for stream in listener.incoming() {
+            let acceptor = Arc::clone(&acceptor);
+            let stream = stream.unwrap();
+            thread::spawn(move || {
+                let Ok(mut stream) = acceptor.accept(stream) else {
+                    return;
+                };
+                let _request = read_headers(&mut stream);
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    label.len(),
+                    label
+                );
+                stream.write_all(response.as_bytes()).unwrap();
+            });
+        }
+    });
+    address
+}
+
+fn spawn_h2_tls_backend() -> SocketAddr {
+    let identity = tempfile::tempdir().unwrap();
+    let cert = identity.path().join("backend.crt");
+    let key = identity.path().join("backend.key");
+    write_test_certificate(&cert, &key);
+    let mut acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
+    acceptor.set_certificate_chain_file(cert).unwrap();
+    acceptor
+        .set_private_key_file(key, SslFiletype::PEM)
+        .unwrap();
+    acceptor.set_alpn_select_callback(|_, protocols| {
+        openssl::ssl::select_next_proto(b"\x02h2", protocols).ok_or(openssl::ssl::AlpnError::NOACK)
+    });
+    let acceptor = Arc::new(acceptor.build());
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    listener.set_nonblocking(true).unwrap();
+    thread::spawn(move || {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        runtime.block_on(async move {
+            let listener = tokio::net::TcpListener::from_std(listener).unwrap();
+            loop {
+                let (stream, _) = listener.accept().await.unwrap();
+                let acceptor = Arc::clone(&acceptor);
+                tokio::spawn(async move {
+                    let ssl = openssl::ssl::Ssl::new(acceptor.context()).unwrap();
+                    let mut stream = tokio_openssl::SslStream::new(ssl, stream).unwrap();
+                    if Pin::new(&mut stream).accept().await.is_err() {
+                        return;
+                    }
+                    let Ok(mut connection) = h2::server::handshake(stream).await else {
+                        return;
+                    };
+                    while let Some(Ok((_request, mut respond))) = connection.accept().await {
+                        let response = Response::builder().status(200).body(()).unwrap();
+                        let Ok(mut body) = respond.send_response(response, false) else {
+                            return;
+                        };
+                        let _ = body.send_data(Bytes::from_static(b"H2_BACKEND"), true);
+                    }
+                });
+            }
+        });
     });
     address
 }
@@ -1345,9 +1650,13 @@ fn wait_for_health_state(admin: SocketAddr, id: &str, expected: &str, bearer: &s
 }
 
 fn proxy_get(address: SocketAddr, path: &str) -> String {
+    proxy_get_host(address, "example.test", path)
+}
+
+fn proxy_get_host(address: SocketAddr, host: &str, path: &str) -> String {
     let response = raw_http(
         address,
-        &format!("GET {path} HTTP/1.1\r\nHost: example.test\r\nConnection: close\r\n\r\n"),
+        &format!("GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"),
     );
     response.split("\r\n\r\n").nth(1).unwrap().to_owned()
 }
@@ -1606,7 +1915,7 @@ fn raw_http(address: SocketAddr, request: &str) -> String {
     response
 }
 
-fn read_headers(stream: &mut TcpStream) -> String {
+fn read_headers(stream: &mut impl Read) -> String {
     let mut request = Vec::new();
     let mut buffer = [0_u8; 1024];
     loop {

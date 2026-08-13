@@ -5,11 +5,14 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use bytes::Bytes;
 use http::Method;
+use pingora_core::protocols::tls::ALPN;
 use pingora_core::upstreams::peer::HttpPeer;
 use pingora_core::{Error as PingoraError, HTTPStatus, Result as PingoraResult, server::Server};
 use pingora_http::{RequestHeader, ResponseHeader};
 use pingora_proxy::{ProxyHttp, Session};
-use senix_core::{Error as CoreError, GatewayRuntime, Http01ChallengeRegistry, RequestLease};
+use senix_core::{
+    Error as CoreError, GatewayRuntime, Http01ChallengeRegistry, RequestLease, UpstreamAlpn,
+};
 
 mod tls;
 
@@ -103,7 +106,19 @@ impl ProxyHttp for SenixProxy {
         if long_lived {
             lease.mark_long_lived();
         }
-        let mut peer = HttpPeer::new(lease.address(), false, String::new());
+        let mut peer = if let Some(tls) = lease.upstream_tls() {
+            let mut peer = HttpPeer::new(lease.address(), true, tls.server_name.clone());
+            peer.options.verify_cert = tls.verify_certificate;
+            peer.options.verify_hostname = tls.verify_certificate;
+            peer.options.alpn = match tls.alpn {
+                UpstreamAlpn::Http1 => ALPN::H1,
+                UpstreamAlpn::Http2 => ALPN::H2,
+                UpstreamAlpn::Http2OrHttp1 => ALPN::H2H1,
+            };
+            peer
+        } else {
+            HttpPeer::new(lease.address(), false, String::new())
+        };
         peer.group_key = lease.generation();
         context.lease = Some(lease);
         Ok(Box::new(peer))
@@ -162,7 +177,9 @@ pub fn add_http_proxy(
 
 fn strip_port(host: &str) -> &str {
     if host.starts_with('[') {
-        host.split_once(']').map_or(host, |(address, _)| address)
+        host.strip_prefix('[')
+            .and_then(|host| host.split_once(']'))
+            .map_or(host, |(address, _)| address)
     } else {
         host.split_once(':').map_or(host, |(name, _)| name)
     }
@@ -240,6 +257,14 @@ mod tests {
         request.append_header("host", "example.test:8080").unwrap();
 
         assert_eq!(request_host(&request), "example.test");
+    }
+
+    #[test]
+    fn reads_bracketed_ipv6_host_without_port_syntax() {
+        let mut request = RequestHeader::build("GET", b"/resource", None).unwrap();
+        request.append_header("host", "[::1]:8080").unwrap();
+
+        assert_eq!(request_host(&request), "::1");
     }
 
     #[test]
