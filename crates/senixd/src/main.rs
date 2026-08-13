@@ -1,5 +1,6 @@
 use std::{
     collections::BTreeSet,
+    fmt::Write as _,
     fs,
     io::{self, Read, Write},
     net::{SocketAddr, TcpListener as StdTcpListener},
@@ -149,6 +150,7 @@ struct AppState {
     config: Arc<ConfigEngine>,
     diagnostics: DiagnosticEngine,
     runtime: Arc<GatewayRuntime>,
+    metrics: Arc<senix_pingora::ProxyMetrics>,
     security: Arc<SecurityController>,
     certificates: Option<Arc<senix_core::CertificateController>>,
     acme: Option<Arc<certificate::AcmeManager>>,
@@ -369,12 +371,14 @@ fn main() -> Result<()> {
     let tls = tls_listen
         .as_deref()
         .map(|listen| (listen, certificate_services.tls.clone()));
+    let metrics = Arc::new(senix_pingora::ProxyMetrics::default());
     senix_pingora::add_http_proxy(
         &mut server,
         &args.listen.to_string(),
         tls,
         Arc::clone(&runtime),
         certificate_services.challenges.clone(),
+        Arc::clone(&metrics),
     )
     .context("configure proxy listeners")?;
 
@@ -383,6 +387,7 @@ fn main() -> Result<()> {
         config,
         diagnostics: DiagnosticEngine::new(Arc::clone(&runtime)),
         runtime: Arc::clone(&runtime),
+        metrics,
         security,
         certificates: certificate_services.controller,
         acme: certificate_services.acme,
@@ -643,6 +648,7 @@ fn admin_router(state: AppState) -> Router {
         .route("/api/v1/certificates", get(list_certificates))
         .route("/api/v1/certificates/issue", post(issue_certificate))
         .route("/api/v1/audit-events", get(list_audit_events))
+        .route("/metrics", get(metrics))
         .route_layer(middleware::from_fn_with_state(
             Arc::clone(&state.security),
             authenticate_api,
@@ -896,6 +902,119 @@ async fn list_instances(
         })
         .collect();
     Ok(Json(instances))
+}
+
+async fn metrics(
+    State(state): State<AppState>,
+    Extension(principal): Extension<Principal>,
+) -> Result<Response, ApiError> {
+    state.security.authorize(
+        &principal,
+        ManagementAction::MetricsRead,
+        &ResourceRef::Global,
+    )?;
+    let proxy = state.metrics.snapshot();
+    let config_version = state
+        .config
+        .current()?
+        .map_or(0, |snapshot| snapshot.version);
+    let instances = state.traffic.list_instances();
+    let mut body = format!(
+        "# HELP senix_build_info Senix process build information.\n\
+# TYPE senix_build_info gauge\n\
+senix_build_info{{version=\"{}\"}} 1\n\
+# HELP senix_proxy_requests_total Requests accepted by the proxy.\n\
+# TYPE senix_proxy_requests_total counter\n\
+senix_proxy_requests_total {}\n\
+# HELP senix_proxy_responses_total Proxy responses by HTTP status class.\n\
+# TYPE senix_proxy_responses_total counter\n\
+senix_proxy_responses_total{{class=\"1xx\"}} {}\n\
+senix_proxy_responses_total{{class=\"2xx\"}} {}\n\
+senix_proxy_responses_total{{class=\"3xx\"}} {}\n\
+senix_proxy_responses_total{{class=\"4xx\"}} {}\n\
+senix_proxy_responses_total{{class=\"5xx\"}} {}\n\
+# HELP senix_proxy_errors_total Proxy requests that ended with a Pingora error.\n\
+# TYPE senix_proxy_errors_total counter\n\
+senix_proxy_errors_total {}\n\
+# HELP senix_config_snapshot_version Currently published configuration snapshot.\n\
+# TYPE senix_config_snapshot_version gauge\n\
+senix_config_snapshot_version {}\n",
+        prometheus_escape(env!("CARGO_PKG_VERSION")),
+        proxy.requests,
+        proxy.responses_1xx,
+        proxy.responses_2xx,
+        proxy.responses_3xx,
+        proxy.responses_4xx,
+        proxy.responses_5xx,
+        proxy.errors,
+        config_version,
+    );
+    body.push_str(
+        "# HELP senix_instance_in_flight Requests currently assigned to an upstream instance.\n\
+# TYPE senix_instance_in_flight gauge\n",
+    );
+    for instance in &instances {
+        let instance_id = prometheus_escape(&instance.id);
+        write!(
+            body,
+            "senix_instance_in_flight{{instance_id=\"{instance_id}\",kind=\"ordinary\"}} {}\n\
+senix_instance_in_flight{{instance_id=\"{instance_id}\",kind=\"long_lived\"}} {}\n",
+            instance
+                .in_flight
+                .saturating_sub(instance.long_lived_in_flight),
+            instance.long_lived_in_flight,
+        )
+        .expect("writing metrics to a String cannot fail");
+    }
+    body.push_str(
+        "# HELP senix_instance_info Current traffic and health state for each instance.\n\
+# TYPE senix_instance_info gauge\n",
+    );
+    for instance in &instances {
+        writeln!(
+            body,
+            "senix_instance_info{{instance_id=\"{}\",traffic=\"{}\",health=\"{}\",generation=\"{}\"}} 1",
+            prometheus_escape(&instance.id),
+            traffic_state_label(instance.traffic),
+            health_state_label(instance.health),
+            instance.generation,
+        )
+        .expect("writing metrics to a String cannot fail");
+    }
+
+    let mut response = body.into_response();
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("text/plain; version=0.0.4; charset=utf-8"),
+    );
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    Ok(response)
+}
+
+fn prometheus_escape(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace('\n', "\\n")
+        .replace('"', "\\\"")
+}
+
+const fn traffic_state_label(state: senix_core::TrafficState) -> &'static str {
+    match state {
+        senix_core::TrafficState::Serving => "SERVING",
+        senix_core::TrafficState::Draining => "DRAINING",
+        senix_core::TrafficState::Drained => "DRAINED",
+        senix_core::TrafficState::Disabled => "DISABLED",
+    }
+}
+
+const fn health_state_label(state: senix_core::HealthState) -> &'static str {
+    match state {
+        senix_core::HealthState::Unknown => "UNKNOWN",
+        senix_core::HealthState::Healthy => "HEALTHY",
+        senix_core::HealthState::Unhealthy => "UNHEALTHY",
+    }
 }
 
 async fn instance_status(

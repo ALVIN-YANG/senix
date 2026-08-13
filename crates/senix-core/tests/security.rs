@@ -172,6 +172,46 @@ fn api_keys_may_apply_an_approved_change_but_can_never_approve_one() {
     ));
 }
 
+#[test]
+fn metrics_permission_requires_global_scope() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Arc::new(SqliteStateStore::open(dir.path().join("state.db")).unwrap());
+    let security = SecurityController::new(store);
+    let owner_key = security.bootstrap_owner_key("owner").unwrap();
+    let owner = security.authenticate(&owner_key.api_key).unwrap();
+
+    let scoped = AccessPolicy {
+        all_resources: false,
+        actions: BTreeSet::from([ManagementAction::MetricsRead]),
+        instance_ids: BTreeSet::from(["instance-a".to_owned()]),
+    };
+    assert!(matches!(
+        security.issue_key(&owner, "invalid-prometheus", scoped, None),
+        Err(Error::InvalidState(_))
+    ));
+
+    let global = security
+        .issue_key(
+            &owner,
+            "prometheus",
+            AccessPolicy {
+                all_resources: true,
+                actions: BTreeSet::from([ManagementAction::MetricsRead]),
+                instance_ids: BTreeSet::new(),
+            },
+            None,
+        )
+        .unwrap();
+    let principal = security.authenticate(&global.api_key).unwrap();
+    security
+        .authorize(
+            &principal,
+            ManagementAction::MetricsRead,
+            &ResourceRef::Global,
+        )
+        .unwrap();
+}
+
 fn now_ms() -> i64 {
     i64::try_from(
         SystemTime::now()

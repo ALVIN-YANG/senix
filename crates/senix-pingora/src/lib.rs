@@ -1,6 +1,9 @@
 //! Pingora adapter for the Senix gateway runtime.
 
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicU64, Ordering},
+};
 
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -23,20 +26,90 @@ pub use tls::{
 #[derive(Debug, Default)]
 pub struct RequestContext {
     lease: Option<RequestLease>,
+    response_recorded: bool,
+}
+
+/// Monotonic process-local proxy counters suitable for Prometheus collection.
+#[derive(Debug, Default)]
+pub struct ProxyMetrics {
+    requests: AtomicU64,
+    responses_1xx: AtomicU64,
+    responses_2xx: AtomicU64,
+    responses_3xx: AtomicU64,
+    responses_4xx: AtomicU64,
+    responses_5xx: AtomicU64,
+    errors: AtomicU64,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ProxyMetricsSnapshot {
+    pub requests: u64,
+    pub responses_1xx: u64,
+    pub responses_2xx: u64,
+    pub responses_3xx: u64,
+    pub responses_4xx: u64,
+    pub responses_5xx: u64,
+    pub errors: u64,
+}
+
+impl ProxyMetrics {
+    fn record_request(&self) {
+        self.requests.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn record_response(&self, status: u16) {
+        let counter = match status / 100 {
+            1 => &self.responses_1xx,
+            2 => &self.responses_2xx,
+            3 => &self.responses_3xx,
+            4 => &self.responses_4xx,
+            5 => &self.responses_5xx,
+            _ => return,
+        };
+        counter.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn record_error(&self) {
+        self.errors.fetch_add(1, Ordering::Relaxed);
+    }
+
+    #[must_use]
+    pub fn snapshot(&self) -> ProxyMetricsSnapshot {
+        ProxyMetricsSnapshot {
+            requests: self.requests.load(Ordering::Relaxed),
+            responses_1xx: self.responses_1xx.load(Ordering::Relaxed),
+            responses_2xx: self.responses_2xx.load(Ordering::Relaxed),
+            responses_3xx: self.responses_3xx.load(Ordering::Relaxed),
+            responses_4xx: self.responses_4xx.load(Ordering::Relaxed),
+            responses_5xx: self.responses_5xx.load(Ordering::Relaxed),
+            errors: self.errors.load(Ordering::Relaxed),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct SenixProxy {
     runtime: Arc<GatewayRuntime>,
     http01_challenges: Http01ChallengeRegistry,
+    metrics: Arc<ProxyMetrics>,
 }
 
 impl SenixProxy {
     #[must_use]
     pub fn new(runtime: Arc<GatewayRuntime>, http01_challenges: Http01ChallengeRegistry) -> Self {
+        Self::with_metrics(runtime, http01_challenges, Arc::default())
+    }
+
+    #[must_use]
+    pub fn with_metrics(
+        runtime: Arc<GatewayRuntime>,
+        http01_challenges: Http01ChallengeRegistry,
+        metrics: Arc<ProxyMetrics>,
+    ) -> Self {
         Self {
             runtime,
             http01_challenges,
+            metrics,
         }
     }
 
@@ -59,8 +132,9 @@ impl ProxyHttp for SenixProxy {
     async fn request_filter(
         &self,
         session: &mut Session,
-        _context: &mut Self::CTX,
+        context: &mut Self::CTX,
     ) -> PingoraResult<bool> {
+        self.metrics.record_request();
         let request = session.req_header();
         let host = request_host(request);
         let Some(response) = self.http01_response(&request.method, host, request.uri.path()) else {
@@ -80,6 +154,8 @@ impl ProxyHttp for SenixProxy {
                 .write_response_body(Some(Bytes::copy_from_slice(response.as_bytes())), true)
                 .await?;
         }
+        self.metrics.record_response(200);
+        context.response_recorded = true;
         Ok(true)
     }
 
@@ -135,15 +211,22 @@ impl ProxyHttp for SenixProxy {
         {
             lease.mark_long_lived();
         }
+        if !context.response_recorded {
+            self.metrics.record_response(response.status.as_u16());
+            context.response_recorded = true;
+        }
         Ok(())
     }
 
     async fn logging(
         &self,
         _session: &mut Session,
-        _error: Option<&PingoraError>,
+        error: Option<&PingoraError>,
         context: &mut Self::CTX,
     ) {
+        if error.is_some() {
+            self.metrics.record_error();
+        }
         context.lease.take();
     }
 }
@@ -159,10 +242,11 @@ pub fn add_http_proxy(
     tls: Option<(&str, TlsCertificateRegistry)>,
     runtime: Arc<GatewayRuntime>,
     http01_challenges: Http01ChallengeRegistry,
+    metrics: Arc<ProxyMetrics>,
 ) -> PingoraResult<()> {
     let mut proxy = pingora_proxy::http_proxy_service(
         &server.configuration,
-        SenixProxy::new(runtime, http01_challenges),
+        SenixProxy::with_metrics(runtime, http01_challenges, metrics),
     );
     proxy.add_tcp(listen);
     if let Some((tls_listen, certificates)) = tls {

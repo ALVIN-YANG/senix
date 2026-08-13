@@ -24,6 +24,7 @@ Senix 是一个面向个人开发者和小团队的独立 Rust 网关。一个�
 | 一个人管理 | Owner 控制台、受限 API Key、操作审计、实例维护控制舱、请求证据链 |
 | AI 协作 | 无会话 Streamable HTTP MCP；工具按 Key 权限裁剪，调用时再次授权 |
 | TLS 证书 | 下游静态 PEM/HTTP-01/SNI 热切换；上游 HTTPS、系统 CA 验证与 H1/H2 ALPN |
+| 可观测性 | 受保护的 Prometheus 指标、实例在途/长连接、结构化诊断和无秘密审计 |
 
 ## 怎么工作
 
@@ -264,6 +265,17 @@ curl -X POST \
 所有流量写操作都要求 `Idempotency-Key`。重复调用返回原操作结果，不会重新摘流当前代次。会让路由失去最后一个可用后端的摘流默认返回 `409 LAST_AVAILABLE_BACKEND`。
 
 Senix 自身收到 `SIGTERM` 后会停止接收新连接，默认给已有连接 30 秒完成，再给运行时 5 秒退出。可通过 `--shutdown-grace-seconds` 和 `--shutdown-timeout-seconds` 调整；systemd 的 `TimeoutStopSec` 应大于两者之和。超过期限的长连接仍可能被中断，单机进程升级不能迁移已经建立的连接。
+
+## Prometheus 指标
+
+`/metrics` 位于管理端口，匿名访问会被拒绝。为采集器创建一把只含全局 `metrics.read` 的 Key，然后配置 Bearer 认证：
+
+```bash
+curl -H "Authorization: Bearer $SENIX_METRICS_KEY" \
+  http://127.0.0.1:9080/metrics
+```
+
+当前导出请求总量、响应状态类别、代理错误、配置版本，以及每个实例的流量状态、健康状态和普通/长连接在途数。标签不包含 Host、URL、Key 或请求体，避免高基数和秘密泄漏。`/healthz` 仍保持公开，只用于进程存活探测。
 
 ## 安全变更
 

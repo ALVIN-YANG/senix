@@ -212,6 +212,66 @@ fn bootstrap_owner_key_protects_every_management_route() {
 }
 
 #[test]
+fn prometheus_metrics_are_scoped_and_cover_the_real_proxy_path() {
+    let backend = spawn_backend("METRICS", Duration::ZERO);
+    let proxy = free_address();
+    let admin = free_address();
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("senix.db");
+    let config = dir.path().join("gateway.json");
+    write_single_backend_config(&config, backend);
+
+    bootstrap_owner_key(&db);
+    bootstrap_owner_account(&db, "admin", "correct horse battery staple");
+    let senix = spawn_senix(proxy, admin, &db, &config);
+    wait_until_ready(admin, proxy);
+    let cookie = login_owner_cookie(admin, "correct horse battery staple");
+    let metrics_key =
+        issue_global_api_key_with_cookie(admin, &cookie, "prometheus", &["metrics.read"]);
+
+    let denied = raw_http(
+        admin,
+        "GET /metrics HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+    );
+    assert!(denied.starts_with("HTTP/1.1 401"), "{denied}");
+
+    for _ in 0..2 {
+        let response = raw_http(
+            proxy,
+            "GET / HTTP/1.1\r\nHost: example.test\r\nConnection: close\r\n\r\n",
+        );
+        assert!(response.starts_with("HTTP/1.1 200"), "{response}");
+    }
+
+    let metrics = raw_http(
+        admin,
+        &format!(
+            "GET /metrics HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer {metrics_key}\r\nConnection: close\r\n\r\n"
+        ),
+    );
+    assert!(metrics.starts_with("HTTP/1.1 200"), "{metrics}");
+    assert_eq!(
+        response_header(&metrics, "content-type"),
+        Some("text/plain; version=0.0.4; charset=utf-8")
+    );
+    assert_eq!(response_header(&metrics, "cache-control"), Some("no-store"));
+    let body = metrics.split("\r\n\r\n").nth(1).unwrap();
+    assert!(body.contains("senix_proxy_requests_total 2\n"), "{body}");
+    assert!(
+        body.contains("senix_proxy_responses_total{class=\"2xx\"} 2\n"),
+        "{body}"
+    );
+    assert!(body.contains("senix_proxy_errors_total 0\n"), "{body}");
+    assert!(body.contains("senix_config_snapshot_version 1\n"), "{body}");
+    assert!(
+        body.contains("senix_instance_in_flight{instance_id=\"instance-a\",kind=\"ordinary\"} 0\n"),
+        "{body}"
+    );
+    assert!(!body.contains(&metrics_key));
+    drop(senix);
+}
+
+#[test]
 fn owner_can_login_to_embedded_admin_and_manage_keys_with_csrf_protection() {
     let backend = spawn_backend("A", Duration::ZERO);
     let proxy = free_address();

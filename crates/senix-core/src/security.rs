@@ -35,6 +35,8 @@ pub enum ManagementAction {
     InstanceDisable,
     #[serde(rename = "diagnostics.read")]
     DiagnosticsRead,
+    #[serde(rename = "metrics.read")]
+    MetricsRead,
     #[serde(rename = "change.plan")]
     ChangePlan,
     #[serde(rename = "change.read")]
@@ -63,6 +65,7 @@ impl ManagementAction {
             Self::InstanceSetWeight => "instance.set_weight",
             Self::InstanceDisable => "instance.disable",
             Self::DiagnosticsRead => "diagnostics.read",
+            Self::MetricsRead => "metrics.read",
             Self::ChangePlan => "change.plan",
             Self::ChangeRead => "change.read",
             Self::ChangeApprove => "change.approve",
@@ -838,6 +841,7 @@ fn validate_policy(policy: &AccessPolicy) -> Result<()> {
         matches!(
             action,
             ManagementAction::DiagnosticsRead
+                | ManagementAction::MetricsRead
                 | ManagementAction::ChangePlan
                 | ManagementAction::ChangeRead
                 | ManagementAction::ChangeApply
@@ -871,6 +875,7 @@ const fn action_risk(action: ManagementAction) -> RiskLevel {
         ManagementAction::InstanceSetWeight => RiskLevel::Medium,
         ManagementAction::InstanceRead
         | ManagementAction::DiagnosticsRead
+        | ManagementAction::MetricsRead
         | ManagementAction::ChangePlan
         | ManagementAction::ChangeRead
         | ManagementAction::AuditRead

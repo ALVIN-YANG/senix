@@ -8,6 +8,7 @@ const ACTIONS = [
   ["instance.set_weight", "调整权重"],
   ["instance.disable", "禁用实例"],
   ["diagnostics.read", "运行诊断"],
+  ["metrics.read", "读取监控指标"],
   ["change.plan", "规划变更"],
   ["change.read", "查看变更"],
   ["change.apply", "应用已批准变更"],
@@ -529,7 +530,7 @@ function KeyForm({ instances, onCancel, onIssued }) {
     const form = new FormData(event.currentTarget);
     const actions = form.getAll("actions");
     const instanceIds = allResources ? [] : form.getAll("instance_ids");
-    const needsGlobalScope = actions.some((action) => ["diagnostics.read", "change.plan", "change.read", "change.apply", "certificate.read", "certificate.issue", "audit.read"].includes(action));
+    const needsGlobalScope = actions.some((action) => ["diagnostics.read", "metrics.read", "change.plan", "change.read", "change.apply", "certificate.read", "certificate.issue", "audit.read"].includes(action));
     if (!actions.length || (!allResources && !instanceIds.length)) {
       setError("至少选择一个动作和一个实例范围。");
       return;
