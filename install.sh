@@ -4,18 +4,42 @@ set -eu
 repository=${SENIX_REPOSITORY:-ALVIN-YANG/senix}
 version=${SENIX_VERSION:-}
 install_dir=${SENIX_INSTALL_DIR:-/usr/local/bin}
+release_base_url=${SENIX_RELEASE_BASE_URL:-https://github.com/${repository}/releases}
+release_base_url=${release_base_url%/}
 
 usage() {
   cat <<'EOF'
 Install the latest Senix release from GitHub.
 
-Usage: install.sh [--version v0.3.0] [--install-dir PATH]
+Usage: install.sh [--version v0.3.1] [--install-dir PATH]
 
 Environment variables:
   SENIX_VERSION       Release tag to install
   SENIX_INSTALL_DIR   Destination directory, default: /usr/local/bin
   SENIX_REPOSITORY    GitHub owner/repository, default: ALVIN-YANG/senix
+  SENIX_RELEASE_BASE_URL  Trusted HTTPS release mirror base URL
 EOF
+}
+
+download() {
+  case "$release_base_url" in
+    https://*)
+      curl --fail --show-error --silent --location \
+        --proto '=https' --proto-redir '=https' \
+        --connect-timeout 15 --retry 4 --retry-delay 2 --retry-all-errors \
+        "$@"
+      ;;
+    http://127.0.0.1:*|http://localhost:*)
+      # Loopback HTTP is accepted only for the installer integration test.
+      curl --fail --show-error --silent --location \
+        --connect-timeout 2 --retry 4 --retry-delay 0 --retry-all-errors \
+        "$@"
+      ;;
+    *)
+      echo "SENIX_RELEASE_BASE_URL must use HTTPS" >&2
+      return 2
+      ;;
+  esac
 }
 
 while [ "$#" -gt 0 ]; do
@@ -58,7 +82,7 @@ case "$(uname -m)" in
 esac
 
 if [ -z "$version" ]; then
-  latest_url=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/${repository}/releases/latest")
+  latest_url=$(download --head --output /dev/null --write-out '%{url_effective}' "${release_base_url}/latest")
   version=${latest_url##*/}
 fi
 
@@ -69,13 +93,13 @@ esac
 
 target="${arch}-${os}"
 asset="senix-${version}-${target}.tar.gz"
-base_url="https://github.com/${repository}/releases/download/${version}"
+base_url="${release_base_url}/download/${version}"
 temporary_dir=$(mktemp -d "${TMPDIR:-/tmp}/senix-install.XXXXXX")
 trap 'rm -rf "$temporary_dir"' EXIT INT TERM
 
 echo "Downloading Senix ${version} for ${target}..."
-curl -fsSL "${base_url}/${asset}" -o "${temporary_dir}/${asset}"
-curl -fsSL "${base_url}/checksums.txt" -o "${temporary_dir}/checksums.txt"
+download "${base_url}/${asset}" --output "${temporary_dir}/${asset}"
+download "${base_url}/checksums.txt" --output "${temporary_dir}/checksums.txt"
 
 expected=$(awk -v asset="$asset" '$2 == asset || $2 == "./" asset { print $1 }' "${temporary_dir}/checksums.txt")
 [ -n "$expected" ] || { echo "checksum for ${asset} is missing" >&2; exit 1; }

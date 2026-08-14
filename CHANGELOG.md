@@ -2,6 +2,13 @@
 
 Senix 使用[语义化版本](https://semver.org/lang/zh-CN/)。`0.x` 阶段仍可能调整接口，破坏性变化会在发布说明中明确标出。
 
+## [0.3.1] - 2026-08-14
+
+### Fixed
+
+- 安装器在连接中断、超时和临时 HTTP 错误后有界重试，避免一次公网抖动直接中止安装。
+- 支持通过 `SENIX_RELEASE_BASE_URL` 指向受信 HTTPS Release 镜像；HTTP 只允许测试使用的 loopback 地址。
+
 ## [0.3.0] - 2026-08-14
 
 ### Added
@@ -26,3 +33,4 @@ Senix 使用[语义化版本](https://semver.org/lang/zh-CN/)。`0.x` 阶段仍�
 - 所有管理错误响应禁止缓存；证书列表在相同毫秒时间戳下保持稳定顺序。
 
 [0.3.0]: https://github.com/ALVIN-YANG/senix/compare/v0.2.2...v0.3.0
+[0.3.1]: https://github.com/ALVIN-YANG/senix/compare/v0.3.0...v0.3.1

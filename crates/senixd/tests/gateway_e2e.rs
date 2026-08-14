@@ -8,7 +8,7 @@ use std::{
     process::{Child, Command, Stdio},
     sync::{
         Arc,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     thread,
     time::{Duration, Instant},
@@ -26,6 +26,7 @@ use openssl::{
     x509::{X509, X509NameBuilder},
 };
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 
 struct ChildGuard(Child);
 
@@ -83,6 +84,100 @@ fn healthcheck_command_checks_the_admin_process() {
         .unwrap();
     assert!(!unhealthy.success());
     drop(senix);
+}
+
+#[cfg(unix)]
+#[test]
+fn installer_retries_an_interrupted_trusted_mirror_download() {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let directory = tempfile::tempdir().unwrap();
+    let target = match (std::env::consts::ARCH, std::env::consts::OS) {
+        ("x86_64", "linux") => "x86_64-unknown-linux-gnu",
+        ("aarch64", "linux") => "aarch64-unknown-linux-gnu",
+        ("x86_64", "macos") => "x86_64-apple-darwin",
+        ("aarch64", "macos") => "aarch64-apple-darwin",
+        current => panic!("unsupported installer test platform: {current:?}"),
+    };
+    let version = "v0.3.1";
+    let package = format!("senix-{version}-{target}");
+    let asset = format!("{package}.tar.gz");
+    let package_directory = directory.path().join(&package);
+    fs::create_dir(&package_directory).unwrap();
+    let fake_binary = package_directory.join("senixd");
+    fs::write(&fake_binary, "#!/bin/sh\necho 'senixd 0.3.1'\n").unwrap();
+    fs::set_permissions(&fake_binary, fs::Permissions::from_mode(0o755)).unwrap();
+    let archive = directory.path().join(&asset);
+    let packaged = Command::new("tar")
+        .args(["-czf"])
+        .arg(&archive)
+        .arg("-C")
+        .arg(directory.path())
+        .arg(&package)
+        .status()
+        .unwrap();
+    assert!(packaged.success());
+    let archive_bytes = fs::read(&archive).unwrap();
+    let mut digest = String::with_capacity(64);
+    for byte in Sha256::digest(&archive_bytes) {
+        write!(&mut digest, "{byte:02x}").unwrap();
+    }
+    let checksum = format!("{digest}  {asset}\n");
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let attempts = Arc::new(AtomicUsize::new(0));
+    let observed_attempts = Arc::clone(&attempts);
+    let asset_path = format!("/releases/download/{version}/{asset}");
+    let server = thread::spawn(move || {
+        for stream in listener.incoming().take(8) {
+            let mut stream = stream.unwrap();
+            let request = read_headers(&mut stream);
+            let path = request.split_ascii_whitespace().nth(1).unwrap_or_default();
+            if path == asset_path {
+                if observed_attempts.fetch_add(1, Ordering::SeqCst) == 0 {
+                    continue;
+                }
+                write_test_http_response(&mut stream, &archive_bytes);
+            } else if path == format!("/releases/download/{version}/checksums.txt") {
+                write_test_http_response(&mut stream, checksum.as_bytes());
+                return;
+            } else {
+                stream
+                    .write_all(
+                        b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                    )
+                    .unwrap();
+            }
+        }
+        panic!("installer did not complete its mirror requests");
+    });
+
+    let install_directory = directory.path().join("installed");
+    fs::create_dir(&install_directory).unwrap();
+    let installer_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../install.sh");
+    let output = Command::new("sh")
+        .arg(installer_path)
+        .args(["--version", version, "--install-dir"])
+        .arg(&install_directory)
+        .env(
+            "SENIX_RELEASE_BASE_URL",
+            format!("http://{address}/releases"),
+        )
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "installer failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    server.join().unwrap();
+    assert_eq!(attempts.load(Ordering::SeqCst), 2);
+    let version_output = Command::new(install_directory.join("senixd"))
+        .arg("--version")
+        .output()
+        .unwrap();
+    assert_eq!(version_output.stdout, b"senixd 0.3.1\n");
 }
 
 #[cfg(unix)]
@@ -2221,6 +2316,16 @@ fn raw_http(address: SocketAddr, request: &str) -> String {
     let mut response = String::new();
     stream.read_to_string(&mut response).unwrap();
     response
+}
+
+fn write_test_http_response(stream: &mut impl Write, body: &[u8]) {
+    write!(
+        stream,
+        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        body.len()
+    )
+    .unwrap();
+    stream.write_all(body).unwrap();
 }
 
 fn read_headers(stream: &mut impl Read) -> String {
