@@ -18,7 +18,7 @@ rust-version = "1.88"
 [workspace.dependencies]
 anyhow = "1.0"
 arc-swap = "1.9"
-argon2 = "0.5"
+argon2 = "0.6"
 async-trait = "0.1"
 axum = "0.8"
 base64 = "0.23"
