@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim AS admin-builder
+FROM node:26-bookworm-slim AS admin-builder
 
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json ./
