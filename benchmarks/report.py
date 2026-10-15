@@ -17,6 +17,8 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--chart', type=Path)
     parser.add_argument('--vus', type=int, default=32)
+    parser.add_argument('--environment-label', default='Local Docker VM',
+                        help='chart caption describing the measured environment; does not change data')
     args = parser.parse_args()
     source = args.input.resolve()
     output = args.output.resolve()
@@ -83,7 +85,7 @@ def main():
             spine.set_visible(False)
         ax.set_title(f'{args.vus} VUs · 1 KiB · requests/s', loc='left', fontsize=20, color='#173a45', pad=20)
         repeats = min(row['repeats'] for row in selected)
-        fig.text(.07, .06, f'Median of {repeats} runs; whiskers show min–max.\nLocal Docker VM; not a capacity guarantee.', fontsize=12, color='#526a70')
+        fig.text(.07, .06, f'Median of {repeats} runs; whiskers show min–max.\n{args.environment_label}; not a capacity guarantee.', fontsize=12, color='#526a70')
         fig.subplots_adjust(left=.07, right=.96, top=.88, bottom=.14)
         args.chart.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(args.chart, facecolor=fig.get_facecolor())

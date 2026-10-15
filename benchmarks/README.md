@@ -55,4 +55,6 @@ python3 benchmarks/report.py --input target/benchmarks-local --output target/ben
 
 汇总中提供 Senix 容器 CPU 窗口均值的三次中位数、结束时 RSS 最大样本，以及进程 HWM。它们不能替代精确进程剖析；直连场景下网关处于空闲，不应将该资源数与代理负载比较。
 
+在其他环境测量后绘图，用 `--environment-label` 填写准确的环境说明，例如 `--environment-label 'GitHub Linux runner'`。此选项只更改图注，不改变测量数据；环境与镜像身份仍以元数据为准。
+
 仓库另含仅 `workflow_dispatch` 触发的 [benchmark 工作流](../.github/workflows/benchmark.yml)，会构建镜像并保存原始结果，即使失败也尝试上传结果。本轮验证在本机执行，没有触发远端工作流，也没有用共享 CI runner 的波动数据设置硬性能门槛。
