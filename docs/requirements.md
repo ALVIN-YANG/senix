@@ -197,7 +197,7 @@ GET    /metrics
 - 正式构建目标为 Linux x86_64、Linux ARM64、macOS x86_64 和 macOS ARM64。
 - GitHub Release 提供压缩包和 SHA-256 清单；安装脚本先校验再写入目标目录。
 - GHCR 镜像以非 root UID 10001 运行，内置进程健康检查。
-- Docker Demo 包含两个真实后端、持久化卷、Owner 初始化和代理验证。
+- Docker Demo 包含两个真实后端、持久化卷、Owner 初始化和代理验证；引导凭据与 Owner 账号分步确认，重跑补齐尚未创建的账号并保留已有账号和数据。
 - CI 在 Rust 1.88 上运行格式检查、严格 Clippy、全部测试、前端构建、嵌入产物校验和交付文件检查。
 - RustSec 定期扫描依赖；Dependabot 覆盖 Cargo、npm、Docker 和 GitHub Actions。
 

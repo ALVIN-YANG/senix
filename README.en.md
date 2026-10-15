@@ -29,7 +29,7 @@ cd senix
 ./scripts/demo.sh
 ```
 
-The script prints the admin URL, Owner username, generated password and a real backend response. Open `http://127.0.0.1:9080/admin/` and sign in with those credentials. The admin UI is currently in Chinese; the [English AI guide](./docs/ai-configuration.en.md) includes the exact UI labels.
+The script prints the admin URL, Owner username, generated password and a real backend response. If Demo Owner creation was interrupted, fix the error and run the demo again to finish account setup. An existing account keeps its original password. Open `http://127.0.0.1:9080/admin/` and sign in with those credentials. The admin UI is currently in Chinese; the [English AI guide](./docs/ai-configuration.en.md) includes the exact UI labels.
 
 Check the proxy yourself; the `Host` header selects the demo route, so no DNS change is needed:
 
@@ -241,8 +241,8 @@ The check uses the published Compose image by default. Each run creates an isola
 
 Images must already be cached. To check source, build it first and pass `--image senix:local`. Override occupied ports with `--proxy-port` and `--admin-port`. This check uses test Owner REST APIs; it does not establish AI-client behavior, first-download reliability or long-term stability.
 
-Add `--startup-failure` to occupy the proxy port first. The check requires startup to fail within 75 seconds while preserving the generated Owner password, then releases the port and verifies recovery and the full flow. CI runs this recovery check and uploads sanitized evidence after failure. Demo probes now limit each request to 2 seconds, and the first password is printed immediately after Owner creation so it remains available if startup fails.
+Add `--startup-failure` to occupy the proxy port first. The check requires startup to fail within 75 seconds while preserving the generated Owner password, then releases the port and verifies recovery and the full flow. Add `--bootstrap-failure` to reject a short Owner password first, then verify that retry completes account setup and preserves it. CI combines both recovery checks and uploads sanitized evidence after failure. Demo probes now limit each request to 2 seconds, and the first password is printed immediately after Owner creation so it remains available if startup fails.
 
-[Failure reproduction, acceptance and sanitized evidence](./docs/validation/2026-10-15-demo-recovery.md)
+[Failure reproduction, acceptance and sanitized evidence](./docs/validation/2026-10-15-demo-recovery.md) · [Owner bootstrap recovery validation, Chinese](./docs/validation/2026-10-15-demo-owner-recovery.md)
 
 [Apache License 2.0](./LICENSE)

@@ -1,0 +1,8 @@
+{
+  "initial_demo_exit": 1,
+  "retry_demo_exit": 0,
+  "retry_reports_ready": true,
+  "owner_login_status": 409,
+  "owner_error": "OWNER_ACCOUNT_NOT_INITIALIZED",
+  "recovery_passed": false
+}

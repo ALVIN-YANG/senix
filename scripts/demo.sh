@@ -50,27 +50,36 @@ bootstrap_output=$(senix_command credential bootstrap \
   --label demo-owner 2>&1) || bootstrap_status=$?
 bootstrap_status=${bootstrap_status:-0}
 
-if [ "$bootstrap_status" -eq 0 ]; then
-  if [ -n "${SENIX_DEMO_PASSWORD:-}" ]; then
-    owner_password=$SENIX_DEMO_PASSWORD
-  elif command -v openssl >/dev/null 2>&1; then
-    owner_password=$(openssl rand -hex 12)
-  else
-    owner_password=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)
-  fi
-  printf '%s' "$owner_password" | senix_command owner bootstrap \
-    --db /var/lib/senix/senix.db \
-    --username admin \
-    --password-stdin >/dev/null
+if [ "$bootstrap_status" -ne 0 ] && ! printf '%s' "$bootstrap_output" | grep -Eq 'management credential bootstrap has already completed|already initialized'; then
+  printf '%s\n' "$bootstrap_output" >&2
+  exit "$bootstrap_status"
+fi
+
+# Credential creation and Owner account creation are separate durable steps.
+# Retry the Owner step even if an earlier attempt already created the credential.
+if [ -n "${SENIX_DEMO_PASSWORD:-}" ]; then
+  owner_password=$SENIX_DEMO_PASSWORD
+elif command -v openssl >/dev/null 2>&1; then
+  owner_password=$(openssl rand -hex 12)
+else
+  owner_password=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)
+fi
+owner_output=$(printf '%s' "$owner_password" | senix_command owner bootstrap \
+  --db /var/lib/senix/senix.db \
+  --username admin \
+  --password-stdin 2>&1) || owner_status=$?
+owner_status=${owner_status:-0}
+
+if [ "$owner_status" -eq 0 ]; then
   initialized=true
   echo "Owner account initialized. Save these credentials before startup continues:"
   echo "Owner: admin"
   echo "Password: $owner_password"
-elif printf '%s' "$bootstrap_output" | grep -Eq 'management credential bootstrap has already completed|already initialized'; then
+elif printf '%s' "$owner_output" | grep -Fq 'owner account bootstrap has already completed'; then
   initialized=false
 else
-  printf '%s\n' "$bootstrap_output" >&2
-  exit "$bootstrap_status"
+  printf '%s\n' "$owner_output" >&2
+  exit "$owner_status"
 fi
 
 compose up --detach

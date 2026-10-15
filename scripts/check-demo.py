@@ -41,7 +41,7 @@ def run_case(args, output, number):
     result = {'run': number, 'project': project, 'status': 'running', 'checks': []}
     started = time.monotonic()
 
-    def command(arguments, timeout=120, expect_failure=False):
+    def command(arguments, timeout=120, expect_failure=False, expected_error=None):
         nonlocal password
         try:
             completed = subprocess.run(arguments, cwd=ROOT, env=env, text=True,
@@ -65,6 +65,8 @@ def run_case(args, output, number):
         checked(completed is not None, 'command timed out; see sanitized run log')
         checked((completed.returncode != 0) if expect_failure else (completed.returncode == 0),
                 f'unexpected command exit {completed.returncode}; see sanitized run log')
+        if expected_error:
+            checked(expected_error in captured, 'command failed for an unexpected reason; see sanitized run log')
         return completed.stdout
 
     def request(path, body=None, headers=None, proxy=False):
@@ -91,7 +93,8 @@ def run_case(args, output, number):
 
     def login():
         status, body, headers = request('/api/v1/auth/login', {'username': 'admin', 'password': password})
-        checked(status == 200 and body.get('username') == 'admin', 'original Owner password no longer works')
+        checked(status == 200 and body.get('username') == 'admin',
+                f'Owner login failed (HTTP {status}, {body.get("code", "unexpected response")})')
         return {'Cookie': headers['Set-Cookie'].split(';')[0], 'X-Senix-CSRF': '1'}
 
     def pass_check(name):
@@ -106,6 +109,15 @@ def run_case(args, output, number):
             info = json.loads(command(['docker', 'image', 'inspect', name, '--format',
                                       '{"Id":{{json .Id}},"RepoDigests":{{json .RepoDigests}},"Architecture":{{json .Architecture}}}']))
             result['images'][name] = {key: info.get(key) for key in ('Id', 'RepoDigests', 'Architecture')}
+        if args.bootstrap_failure:
+            result['phase'] = 'bootstrap-failure'
+            env['SENIX_DEMO_PASSWORD'] = 'short'
+            try:
+                command([str(ROOT / 'scripts/demo.sh')], expect_failure=True,
+                        expected_error='owner password must contain')
+            finally:
+                env.pop('SENIX_DEMO_PASSWORD', None)
+            pass_check('invalid Owner password fails with the expected validation error')
         if args.startup_failure:
             result['phase'] = 'startup-failure'
             with socket.socket() as blocked:
@@ -122,7 +134,7 @@ def run_case(args, output, number):
         owner = login()
         status, initial, _ = request('/api/v1/config', headers=owner)
         checked(status == 200 and initial['version'] == 1, 'fresh project did not start at Snapshot v1')
-        pass_check(('retry after failed startup' if args.startup_failure else 'fresh start') + ', real proxy and Owner login')
+        pass_check(('retry after failed bootstrap/startup' if args.bootstrap_failure or args.startup_failure else 'fresh start') + ', real proxy and Owner login')
 
         result['phase'] = 'running-repeat'
         command([str(ROOT / 'scripts/demo.sh')])
@@ -182,6 +194,7 @@ def main():
     parser.add_argument('--image', help='cached source image; otherwise use the published Compose default')
     parser.add_argument('--runs', type=int, default=1, help='number of independent clean projects (sequential)')
     parser.add_argument('--startup-failure', action='store_true', help='occupy the proxy port first; require bounded failure and recovery with the generated password')
+    parser.add_argument('--bootstrap-failure', action='store_true', help='reject a short Owner password first; require retry to finish account setup and preserve it')
     parser.add_argument('--proxy-port', type=int, default=18080)
     parser.add_argument('--admin-port', type=int, default=19080)
     parser.add_argument('--output', type=Path, help='new output directory; defaults to target/demo-check-<random>')
@@ -196,7 +209,7 @@ def main():
               'harness_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
               'options': {'image': args.image, 'runs': args.runs, 'proxy_port': args.proxy_port,
                           'admin_port': args.admin_port, 'password_source': 'demo-generated',
-                          'startup_failure': args.startup_failure},
+                          'startup_failure': args.startup_failure, 'bootstrap_failure': args.bootstrap_failure},
               'note': 'Cached Linux images; clean data per run. Uses test Owner REST APIs, not an AI client.',
               'runs': []}
     for number in range(1, args.runs + 1):

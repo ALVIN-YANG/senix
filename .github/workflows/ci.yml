@@ -48,7 +48,7 @@ jobs:
         run: |
           docker compose --file examples/demo/compose.yml pull
           # Keep evidence outside the cached Rust target directory, including on reruns.
-          python3 scripts/check-demo.py --startup-failure --output "${RUNNER_TEMP}/senix-demo-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          python3 scripts/check-demo.py --bootstrap-failure --startup-failure --output "${RUNNER_TEMP}/senix-demo-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
       - name: Preserve failed demo evidence
         if: failure() && steps.demo.outcome == 'failure'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
