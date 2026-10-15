@@ -1,0 +1,28 @@
+{
+  "archive_sha256": "e7562c40f43250bbc8a266c6e852471642b0de1f85c9c30ad47e5644f7e1812f",
+  "cases": [
+    {
+      "password_recovery_case": false,
+      "documented_bash_blocks_executed": true,
+      "password_echo_disabled_and_restored": true,
+      "password_absent_from_terminal_output": true,
+      "owner_login": 200,
+      "bootstrap_key_after_owner_creation": 401,
+      "database_mode": "0600",
+      "curl_health_and_real_proxy_passed": true,
+      "restart_preserves_owner_and_saved_config": true
+    },
+    {
+      "password_recovery_case": true,
+      "documented_bash_blocks_executed": true,
+      "password_echo_disabled_and_restored": true,
+      "password_absent_from_terminal_output": true,
+      "owner_login": 200,
+      "bootstrap_key_after_owner_creation": 401,
+      "database_mode": "0600",
+      "curl_health_and_real_proxy_passed": true,
+      "restart_preserves_owner_and_saved_config": true
+    }
+  ],
+  "temporary_fixtures_removed": true
+}

@@ -1,0 +1,57 @@
+{
+  "recorded_at_utc": "2026-10-15T15:00:31.772097+00:00",
+  "binary_source_commit": "a3d2c14135ce5149e48493109bf179881161fdca",
+  "binary_reported_version": "senixd 0.4.0",
+  "build_ci": {
+    "headSha": "a3d2c14135ce5149e48493109bf179881161fdca",
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/ALVIN-YANG/senix/actions/runs/38753251787"
+  },
+  "package_jobs": [
+    {
+      "name": "Package x86_64-unknown-linux-gnu",
+      "conclusion": "success"
+    },
+    {
+      "name": "Package aarch64-apple-darwin",
+      "conclusion": "success"
+    },
+    {
+      "name": "Package x86_64-apple-darwin",
+      "conclusion": "success"
+    },
+    {
+      "name": "Package aarch64-unknown-linux-gnu",
+      "conclusion": "success"
+    }
+  ],
+  "publish_jobs_skipped": true,
+  "repackaging": "local: same binary bytes from downloaded CI archives; current script and guide",
+  "source_sha256": {
+    "scripts/package-release.sh": "79b78aedbe75c3f928b11b28ea0ceb2bc473a61dd6be17d837a64bc8973ff721",
+    "docs/releases/archive-readme.md": "5d26fd97dcdf50802d700dd4b2822a663388ac8b42ede3d6f3d698a8dbd2f142"
+  },
+  "static_checks": {
+    "bash_blocks_parse": true,
+    "packaging_shell_parses": true,
+    "invalid_version_rejected_before_output_write": 4
+  },
+  "runtime_checks": {
+    "macos_arm64": "full MCP, exact embedded assets, guide startup and weak-password recovery, restart",
+    "linux_arm64": "full MCP, exact embedded assets, Rocky Linux 9 load",
+    "macos_x86_64": "Rosetta --version only",
+    "linux_x86_64": "native CI build and Rocky Linux 9 load only"
+  },
+  "cleanup": {
+    "senixd_processes_remaining": 0,
+    "guide_temporary_directories_remaining": 0,
+    "owned_container_remaining": 0
+  },
+  "limits": [
+    "Not a new published version; existing v0.4.0 release assets and image tags untouched.",
+    "Binary package version remains 0.4.0; edge archive identifies unreleased source commit.",
+    "Guide commands exercised on macOS ARM64; not a promise for every terminal/platform.",
+    "No new performance/capacity or soak results."
+  ]
+}

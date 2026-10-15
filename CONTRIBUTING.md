@@ -34,3 +34,5 @@ docker run --rm --network none \
 ```
 
 产物验证包括解包后的文件与运行环境；编译成功和 `--version` 通过只分别证明构建与基本加载。完整代理、MCP、批准与重启流程的验证范围见 [发布包兼容性记录](docs/validation/2026-10-15-portable-release.md)。
+
+归档内的中英文说明来自 [独立模板](docs/releases/archive-readme.md)，与仓库首页分开维护。打包时将在线文档链接固定到版本标签，`edge-<commit>` 则固定到对应提交。修改模板或打包脚本后，应从归档解包验证说明步骤、Owner 初始化、代理请求与数据保留；不能只检查文案存在。见 [四平台打包与归档入门验收](docs/validation/2026-10-15-archive-onboarding.md)。

@@ -1,0 +1,20 @@
+{
+  "binary_sha256": "d1c4b2835f5991af35205ab5d7d5a829dd9598f7afb6b9ace78d370e1b84f9f6",
+  "checks": [
+    "packaged CLI and exact embedded HTML/JS/CSS",
+    "Owner bootstrap, login and scoped Key",
+    "MCP typed version precondition",
+    "read-plan-owner approval-apply",
+    "unapproved apply rejected",
+    "repeat apply idempotent",
+    "changed, unchanged and old host requests",
+    "restart preserves v2, exact config, Owner and Key"
+  ],
+  "version": "senixd 0.4.0",
+  "embedded_assets_sha256": {
+    "admin.html": "746a11b19aeaa353a76dc63d8834144abd70d552512005e7d4b3ccb1f8242889",
+    "admin.js": "d3abaff63abfa8e3f78f3330633c5dc91d459d315777c7b7ed063456737a59c1",
+    "admin.css": "c62db04067240676cc0f8b3314649fcbd85ce7af16ee9cde8ce860ecf3cb2532"
+  },
+  "status": "passed"
+}
