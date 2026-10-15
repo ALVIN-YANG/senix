@@ -1,0 +1,9 @@
+{
+  "source_parent": "e552e60",
+  "before": "valid-checksum candidate returned failure after replacing the previous binary",
+  "after": "candidate execution fails before replacement; prior bytes and successful execution preserved",
+  "worktree_tests_passed": 82,
+  "gateway_e2e_tests_passed": 28,
+  "normal_interrupted_download_retry": "passed",
+  "failure_fixture": "controlled nonzero executable; real GLIBC loader failure is documented in the portable-release validation"
+}

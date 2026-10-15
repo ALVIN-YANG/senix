@@ -116,6 +116,11 @@ tar -xzf "${temporary_dir}/${asset}" -C "$temporary_dir"
 binary="${temporary_dir}/senix-${version}-${target}/senixd"
 [ -x "$binary" ] || { echo "release archive does not contain senixd" >&2; exit 1; }
 
+version_output=$("$binary" --version) || {
+  echo "release binary cannot run on this system; existing installation was not changed" >&2
+  exit 1
+}
+
 if [ -d "$install_dir" ] && [ -w "$install_dir" ]; then
   install -m 0755 "$binary" "${install_dir}/senixd"
 elif command -v sudo >/dev/null 2>&1; then
@@ -127,4 +132,4 @@ else
 fi
 
 echo "Installed ${install_dir}/senixd"
-"${install_dir}/senixd" --version
+printf '%s\n' "$version_output"

@@ -24,7 +24,7 @@ Senix 是面向个人开发者和小团队的 Rust 网关。AI 通过受限 MCP 
 | AI | 当前 AI 助手实际通过 MCP 读取、规划、等待测试 Owner 批准、应用并验证新旧域名及无关路由。见 [首次验收](./docs/validation/2026-10-15-ai-configuration.md)；新增 [版本冲突与重试验收](./docs/validation/2026-10-15-mcp-version-guard.md)。 |
 | 监控 | Prometheus、Grafana、VictoriaMetrics、OTel Collector、Alloy、Loki 的本机真实链路通过。见 [采集结果与截图](./docs/validation/2026-10-15-observability.md)。 |
 | 性能 | Linux AMD64 runner 的 36 次测量完成 464.23 万请求，其中 306.68 万次经过 Senix，失败率为 0；另保留 ARM64 本机基线。见 [性能基线](#性能基线)。 |
-| 回归 | Rust 1.88 下 81 项测试通过，含 27 项真实进程 E2E；格式、严格 Clippy 和前端审计通过。依赖审计仍有 [4 条上游提示](./CONTRIBUTING.md)。 |
+| 回归 | Rust 1.88 下 82 项测试通过，含 28 项真实进程 E2E；格式、严格 Clippy 和前端审计通过。依赖审计仍有 [4 条上游提示](./CONTRIBUTING.md)。 |
 
 以上新增能力使用当前源码验收，尚未发布；下方默认安装和 Demo 使用已发布的 `v0.3.1`。
 
@@ -51,7 +51,7 @@ curl --proto '=https' --tlsv1.2 -LsSf \
   https://raw.githubusercontent.com/ALVIN-YANG/senix/main/install.sh | sh
 ```
 
-安装器支持 Linux 和 macOS 的 x86_64、ARM64，下载 GitHub Release 并校验 SHA-256。已发布 `v0.3.1` 的 Linux 包实际要求 glibc 2.38，glibc 2.34–2.37 环境可先用 Docker Demo。当前源码已修复打包基线并验证 glibc 2.34，修复尚未发布；见 [兼容性验收](./docs/validation/2026-10-15-portable-release.md)。也可以先下载并检查 [`install.sh`](./install.sh) 再执行。
+安装器支持 Linux 和 macOS 的 x86_64、ARM64，下载 GitHub Release、校验 SHA-256，并在覆盖前试运行新程序；新程序无法运行时保留原安装。已发布 `v0.3.1` 的 Linux 包实际要求 glibc 2.38，glibc 2.34–2.37 环境可先用 Docker Demo。当前源码已修复打包基线并验证 glibc 2.34，修复尚未发布；见 [兼容性验收](./docs/validation/2026-10-15-portable-release.md)。也可以先下载并检查 [`install.sh`](./install.sh) 再执行。
 
 下载遇到临时断连会自动重试。无法直连 GitHub 时，可将 `SENIX_RELEASE_BASE_URL` 设置为自己信任的 HTTPS Release 镜像根地址；归档仍会按镜像中同版本的 `checksums.txt` 校验，因此镜像本身必须可信。
 

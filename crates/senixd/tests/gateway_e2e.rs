@@ -97,6 +97,91 @@ fn healthcheck_command_checks_the_admin_process() {
 
 #[cfg(unix)]
 #[test]
+fn installer_keeps_the_previous_binary_when_a_verified_release_cannot_run() {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let directory = tempfile::tempdir().unwrap();
+    let target = match (std::env::consts::ARCH, std::env::consts::OS) {
+        ("x86_64", "linux") => "x86_64-unknown-linux-gnu",
+        ("aarch64", "linux") => "aarch64-unknown-linux-gnu",
+        ("x86_64", "macos") => "x86_64-apple-darwin",
+        ("aarch64", "macos") => "aarch64-apple-darwin",
+        current => panic!("unsupported installer test platform: {current:?}"),
+    };
+    let package = format!("senix-v0.3.1-{target}");
+    let asset = format!("{package}.tar.gz");
+    let staged = directory.path().join(&package);
+    fs::create_dir(&staged).unwrap();
+    let candidate = staged.join("senixd");
+    // A valid checksum does not prove that the OS loader can execute a release.
+    fs::write(
+        &candidate,
+        "#!/bin/sh\necho 'synthetic loader failure' >&2\nexit 1\n",
+    )
+    .unwrap();
+    fs::set_permissions(&candidate, fs::Permissions::from_mode(0o755)).unwrap();
+    let archive = directory.path().join(&asset);
+    assert!(
+        Command::new("tar")
+            .arg("-czf")
+            .arg(&archive)
+            .arg("-C")
+            .arg(directory.path())
+            .arg(&package)
+            .status()
+            .unwrap()
+            .success()
+    );
+    let archive_bytes = fs::read(&archive).unwrap();
+    let mut digest = String::with_capacity(64);
+    for byte in Sha256::digest(&archive_bytes) {
+        write!(&mut digest, "{byte:02x}").unwrap();
+    }
+    let checksum = format!("{digest}  {asset}\n");
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = thread::spawn(move || {
+        for stream in listener.incoming().take(2) {
+            let mut stream = stream.unwrap();
+            let request = read_headers(&mut stream);
+            if request.starts_with(&format!("GET /releases/download/v0.3.1/{asset} ")) {
+                write_test_http_response(&mut stream, &archive_bytes);
+            } else {
+                assert!(request.starts_with("GET /releases/download/v0.3.1/checksums.txt "));
+                write_test_http_response(&mut stream, checksum.as_bytes());
+            }
+        }
+    });
+    let installed = directory.path().join("installed");
+    fs::create_dir(&installed).unwrap();
+    let original = b"#!/bin/sh\necho 'previous working Senix'\n";
+    fs::write(installed.join("senixd"), original).unwrap();
+    fs::set_permissions(installed.join("senixd"), fs::Permissions::from_mode(0o755)).unwrap();
+    let output = Command::new("sh")
+        .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../install.sh"))
+        .args(["--version", "v0.3.1", "--install-dir"])
+        .arg(&installed)
+        .env(
+            "SENIX_RELEASE_BASE_URL",
+            format!("http://{address}/releases"),
+        )
+        .output()
+        .unwrap();
+    server.join().unwrap();
+    assert!(!output.status.success());
+    assert_eq!(fs::read(installed.join("senixd")).unwrap(), original);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("synthetic loader failure"));
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("Installed "));
+    let previous = Command::new(installed.join("senixd"))
+        .arg("--version")
+        .output()
+        .unwrap();
+    assert!(previous.status.success());
+    assert_eq!(previous.stdout, b"previous working Senix\n");
+}
+
+#[cfg(unix)]
+#[test]
 fn installer_retries_an_interrupted_trusted_mirror_download() {
     use std::os::unix::fs::PermissionsExt as _;
 
