@@ -4,6 +4,10 @@ Senix 使用[语义化版本](https://semver.org/lang/zh-CN/)。`0.x` 阶段仍�
 
 ## [Unreleased]
 
+### Changed
+
+- 正式发布后，主分支 Demo 默认镜像更新为 `0.4.0`；`v0.4.0` 标签内的快速开始命令通过 `SENIX_IMAGE` 显式选择同一版本。
+
 ## [0.4.0] - 2026-10-15
 
 ### Added
