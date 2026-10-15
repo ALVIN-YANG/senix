@@ -51,7 +51,7 @@ curl --proto '=https' --tlsv1.2 -LsSf \
   https://raw.githubusercontent.com/ALVIN-YANG/senix/main/install.sh | sh
 ```
 
-安装器支持 Linux 和 macOS 的 x86_64、ARM64，下载 GitHub Release 并校验 SHA-256。Linux 需要 glibc 2.34 或更新版本；也可以先下载并检查 [`install.sh`](./install.sh) 再执行。
+安装器支持 Linux 和 macOS 的 x86_64、ARM64，下载 GitHub Release 并校验 SHA-256。已发布 `v0.3.1` 的 Linux 包实际要求 glibc 2.38，glibc 2.34–2.37 环境可先用 Docker Demo。当前源码已修复打包基线并验证 glibc 2.34，修复尚未发布；见 [兼容性验收](./docs/validation/2026-10-15-portable-release.md)。也可以先下载并检查 [`install.sh`](./install.sh) 再执行。
 
 下载遇到临时断连会自动重试。无法直连 GitHub 时，可将 `SENIX_RELEASE_BASE_URL` 设置为自己信任的 HTTPS Release 镜像根地址；归档仍会按镜像中同版本的 `checksums.txt` 校验，因此镜像本身必须可信。
 

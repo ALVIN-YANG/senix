@@ -1,0 +1,8 @@
+{
+  "tag": "v0.3.1",
+  "archive_sha256": "0503e3bcf32f5d0930a81a4c10dbcd8761f0a15cb54e8bffe59da695e74362f5",
+  "glibc_2_38_imports": [
+    "0000000000000000      DF *UND*\t0000000000000000 (GLIBC_2.38) __isoc23_strtol"
+  ],
+  "runtime_execution": "not executed on this ARM64 host"
+}

@@ -1,0 +1,7 @@
+{
+  "container": "node:24-bookworm-slim (Debian 12, glibc 2.36)",
+  "binary_sha256": "123e59e45b1a2657437fd42ad7341c22e3ec9e98959a5e463a22b83a3c934d29",
+  "exit_code": 1,
+  "stdout": "",
+  "stderr": "/senixd: /lib/aarch64-linux-gnu/libc.so.6: version `GLIBC_2.38' not found (required by /senixd)\n"
+}

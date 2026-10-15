@@ -1,0 +1,19 @@
+{
+  "tag": "v0.3.1",
+  "archive_sha256": "785a338d3ce54d5c953e8ffe1762140c753ed47124278f56bc54fe317aa3d808",
+  "glibc_symbol_versions": [
+    "GLIBC_2.17",
+    "GLIBC_2.18",
+    "GLIBC_2.25",
+    "GLIBC_2.27",
+    "GLIBC_2.28",
+    "GLIBC_2.29",
+    "GLIBC_2.32",
+    "GLIBC_2.33",
+    "GLIBC_2.34",
+    "GLIBC_2.38"
+  ],
+  "runtime_exit": 1,
+  "stdout": "",
+  "stderr": "/senixd: /lib64/libc.so.6: version `GLIBC_2.38' not found (required by /senixd)\n"
+}

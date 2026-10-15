@@ -21,3 +21,14 @@ Pull Request 需要说明改动目的、验证命令和仍未覆盖的真实环�
 修改代理热路径时，可用 [基准脚本](benchmarks/README.md) 建立前后基线，保留原始数据、机器条件与重复波动；不要从功能测试推导吞吐量。监控配置使用 [只读验收脚本](scripts/check-observability.py) 检查真实采集；示例的凭据文件只放在忽略的测试目录或外部 Secret 中。
 
 修改 Docker Demo、引导或交付脚本后，使用 [Demo 验收脚本](scripts/check-demo.py) 检查真实启动和重启保留：先拉取 Compose 镜像，再运行 `python3 scripts/check-demo.py`。检查源码镜像时先构建，再通过 `--image senix:local` 指定；不能把发布镜像的结果当作源码镜像已验收。命令和资源边界见 [README](README.md#验证)。
+
+Linux 发布包与 Docker 镜像共享 Bookworm 构建阶段，CI 在 glibc 2.34 的 Rocky Linux 9 中执行二进制，防止宿主系统抬高运行基线。可导出当前 Docker 平台的 Linux 二进制并检查：
+
+```bash
+docker build --target binary --output type=local,dest=target/release-portable .
+docker run --rm --network none \
+  --mount "type=bind,src=${PWD}/target/release-portable/senixd,dst=/senixd,readonly" \
+  --entrypoint /senixd rockylinux:9-minimal --version
+```
+
+产物验证包括解包后的文件与运行环境；编译成功和 `--version` 通过只分别证明构建与基本加载。完整代理、MCP、批准与重启流程的验证范围见 [发布包兼容性记录](docs/validation/2026-10-15-portable-release.md)。

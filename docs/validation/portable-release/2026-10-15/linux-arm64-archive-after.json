@@ -1,0 +1,18 @@
+{
+  "archive_sha256": "80cd030429af9486916b036d8f1c821d25617236ba1832b4c7dcc044af7bb037",
+  "binary_sha256": "b96c22c240eadb60515f5c1bacd68aa72d90a1496fcfe55a93c750ba80cf4c7c",
+  "checks": [
+    {
+      "image": "rockylinux:9-minimal",
+      "exit_code": 0,
+      "stdout": "senixd 0.3.1\n",
+      "stderr": ""
+    },
+    {
+      "image": "node:24-bookworm-slim",
+      "exit_code": 0,
+      "stdout": "senixd 0.3.1\n",
+      "stderr": ""
+    }
+  ]
+}

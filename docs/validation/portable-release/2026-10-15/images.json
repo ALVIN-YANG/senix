@@ -1,0 +1,26 @@
+{
+  "rockylinux:9-minimal": {
+    "Id": "sha256:45c1236bb3d5d554f242182c151ed0e491267267ced07a8eb61b1d2fa1b519bb",
+    "RepoDigests": [
+      "rockylinux@sha256:305de618a5681ff75b1d608fd22b10f362867dff2f550a4f1d427d21cd7f42b4"
+    ],
+    "Architecture": "arm64",
+    "Os": "linux"
+  },
+  "node:24-bookworm-slim": {
+    "Id": "sha256:b3b84798a1d94a7e155f059b3a2f125725578d0738e404fd6d976cf2dcd11912",
+    "RepoDigests": [
+      "node@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5"
+    ],
+    "Architecture": "arm64",
+    "Os": "linux"
+  },
+  "python:3.12-slim-bookworm": {
+    "Id": "sha256:eb7d16fec874f15b584063275012ac719885a2b87574d124c0da9c156d504629",
+    "RepoDigests": [
+      "python@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258"
+    ],
+    "Architecture": "arm64",
+    "Os": "linux"
+  }
+}

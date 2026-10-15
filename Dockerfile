@@ -18,6 +18,10 @@ COPY --from=admin-builder /src/crates/senixd/assets/admin.html /src/crates/senix
 COPY --from=admin-builder /src/crates/senixd/assets/admin.js /src/crates/senixd/assets/admin.js
 RUN cargo build --release --locked -p senixd
 
+FROM scratch AS binary
+
+COPY --from=builder /src/target/release/senixd /senixd
+
 FROM debian:bookworm-slim
 
 LABEL org.opencontainers.image.source="https://github.com/ALVIN-YANG/senix" \

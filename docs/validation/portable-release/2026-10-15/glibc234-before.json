@@ -1,0 +1,20 @@
+{
+  "baseline_image": [
+    "rockylinux@sha256:305de618a5681ff75b1d608fd22b10f362867dff2f550a4f1d427d21cd7f42b4"
+  ],
+  "baseline_libc": "GNU C Library (GNU libc) stable release version 2.34.",
+  "runs": [
+    {
+      "binary": "ubuntu-build",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "/senixd: /lib64/libc.so.6: version `GLIBC_2.38' not found (required by /senixd)\n"
+    },
+    {
+      "binary": "bookworm-reference",
+      "exit_code": 0,
+      "stdout": "senixd 0.3.1\n",
+      "stderr": ""
+    }
+  ]
+}

@@ -66,7 +66,7 @@ curl --proto '=https' --tlsv1.2 -LsSf \
   https://raw.githubusercontent.com/ALVIN-YANG/senix/main/install.sh | sh
 ```
 
-The installer supports Linux and macOS on x86_64 and ARM64, downloads a GitHub Release and checks its SHA-256. Linux requires glibc 2.34 or newer. You can [inspect the installer](./install.sh) first. `SENIX_RELEASE_BASE_URL` can point to a trusted HTTPS Release mirror; the mirror also supplies the checksum, so you must trust it.
+The installer supports Linux and macOS on x86_64 and ARM64, downloads a GitHub Release and checks its SHA-256. Published v0.3.1 Linux archives require glibc 2.38; use the Docker demo on glibc 2.34–2.37. Current-source packaging has been corrected and checked on glibc 2.34; this fix is unreleased. See the [compatibility evidence, Chinese](./docs/validation/2026-10-15-portable-release.md). You can [inspect the installer](./install.sh) first. `SENIX_RELEASE_BASE_URL` can point to a trusted HTTPS Release mirror; the mirror also supplies the checksum, so you must trust it.
 
 A source build needs Rust 1.88, a C/C++ compiler and CMake:
 

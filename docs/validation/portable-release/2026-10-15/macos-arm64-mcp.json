@@ -1,0 +1,15 @@
+{
+  "binary_sha256": "59fb878c9903025851ee4db5931ceefbcbe2b273c8435cd98fd5657fdcc0b8bb",
+  "checks": [
+    "packaged CLI and embedded console",
+    "Owner bootstrap, login and scoped Key",
+    "MCP typed version precondition",
+    "read-plan-owner approval-apply",
+    "unapproved apply rejected",
+    "repeat apply idempotent",
+    "changed, unchanged and old host requests",
+    "restart preserves v2, exact config, Owner and Key"
+  ],
+  "version": "senixd 0.3.1",
+  "status": "passed"
+}

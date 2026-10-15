@@ -1,0 +1,18 @@
+{
+  "archive": "senix-edge-e1a6313bfcb7cc9e7696c913b934bf1477eb154b-aarch64-unknown-linux-gnu.tar.gz",
+  "archive_sha256": "845e4b727e8f56e1888625e8fc7bf560b6edc4e09ce06a2d7cfdf3b05ca2873a",
+  "binary_sha256": "123e59e45b1a2657437fd42ad7341c22e3ec9e98959a5e463a22b83a3c934d29",
+  "glibc_symbol_versions": [
+    "GLIBC_2.17",
+    "GLIBC_2.18",
+    "GLIBC_2.25",
+    "GLIBC_2.27",
+    "GLIBC_2.28",
+    "GLIBC_2.29",
+    "GLIBC_2.32",
+    "GLIBC_2.33",
+    "GLIBC_2.34",
+    "GLIBC_2.38"
+  ],
+  "binary": "<REPO>/target/package-preflight-linux-arm64/extracted/senix-edge-e1a6313bfcb7cc9e7696c913b934bf1477eb154b-aarch64-unknown-linux-gnu/senixd"
+}

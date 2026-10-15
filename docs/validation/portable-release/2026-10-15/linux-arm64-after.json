@@ -1,0 +1,28 @@
+{
+  "binary_sha256": "b96c22c240eadb60515f5c1bacd68aa72d90a1496fcfe55a93c750ba80cf4c7c",
+  "glibc_symbol_versions": [
+    "GLIBC_2.17",
+    "GLIBC_2.18",
+    "GLIBC_2.25",
+    "GLIBC_2.27",
+    "GLIBC_2.28",
+    "GLIBC_2.29",
+    "GLIBC_2.32",
+    "GLIBC_2.33",
+    "GLIBC_2.34"
+  ],
+  "runtime_checks": [
+    {
+      "image": "rockylinux:9-minimal",
+      "exit_code": 0,
+      "stdout": "senixd 0.3.1\n",
+      "stderr": ""
+    },
+    {
+      "image": "node:24-bookworm-slim",
+      "exit_code": 0,
+      "stdout": "senixd 0.3.1\n",
+      "stderr": ""
+    }
+  ]
+}
