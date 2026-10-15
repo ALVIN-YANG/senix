@@ -25,7 +25,7 @@ Senix 是面向个人开发者和小团队的 Rust 网关。AI 通过受限 MCP 
 | AI | 当前 AI 助手实际通过 MCP 读取、规划、等待测试 Owner 批准、应用并验证新旧域名及无关路由。见 [首次验收](./docs/validation/2026-10-15-ai-configuration.md)；新增 [版本冲突与重试验收](./docs/validation/2026-10-15-mcp-version-guard.md)。 |
 | 监控 | Prometheus、Grafana、VictoriaMetrics、OTel Collector、Alloy、Loki 的本机真实链路通过。见 [采集结果与截图](./docs/validation/2026-10-15-observability.md)。 |
 | 长响应与实时连接 | 当前源码通过真实 SSE 分段转发、WebSocket 双向收发与关闭、TLS/HTTP2 上的 gRPC 双向消息和成功/错误 trailers；摘流后新请求转到备用后端，已有流继续完成。见 [SSE / WebSocket](./docs/validation/2026-10-15-streaming.md) 与 [gRPC 协议验收](./docs/validation/2026-10-15-grpc.md)。 |
-| 性能 | Linux AMD64 runner 的 36 次测量完成 464.23 万请求，其中 306.68 万次经过 Senix，失败率为 0；另保留 ARM64 本机基线。见 [性能基线](#性能基线)。 |
+| 性能 | Linux AMD64 runner 的 36 次短请求测量完成 464.23 万请求，其中 306.68 万次经过 Senix，失败率为 0；另有 [27 次 SSE 长响应测量与原始事件样本](./docs/validation/2026-10-15-sse-performance.md)。见 [性能基线](#性能基线)。 |
 | 回归 | 当前源码在 Rust 1.88 下 86 项测试通过，含 32 项真实进程 E2E；格式、严格 Clippy 和前端审计通过。依赖审计仍有 [4 条上游提示](./CONTRIBUTING.md)。 |
 
 `v0.4.0` 包含以上 AI 配置与监控能力。旧 MCP 调用方须补 `expected_version`；详见 [升级说明](./docs/releases/v0.4.0.md)。性能结果保留其原始提交和测量环境，不代表此版本的生产容量。
@@ -221,6 +221,16 @@ GitHub 托管 Linux AMD64 runner（4 CPU / 15.62 GiB），Senix、k6、后端各
 这是共享 runner 的短时基线，尚不能证明生产容量、长期稳定性或比其他网关更快。[ARM64 本机基线](./docs/validation/2026-10-15-performance.md) 也完整保留；不同机器间的数值差异不能解释为优化收益。
 
 [Linux 完整结果、环境与原始数据 →](./docs/validation/2026-10-15-linux-performance.md) · [运行相同基准](./benchmarks/README.md)
+
+### SSE 长响应
+
+独立的 [Linux SSE 基线](./docs/validation/2026-10-15-sse-performance.md) 固定在干净提交 `dba2841`：27 次测量完成 6,498 条完整流、649,800 条事件，其中 4,263 条流经过 Senix，流失败为 0。每条流发送 100 条预先构造的事件，每条 JSON 数据 512 字节，按 50 ms 定时器调度；这是定速合成输出。
+
+![Linux runner，32 个客户端任务的首个完整 SSE 事件 p95；三次运行中位数与范围](./assets/readme/sse-first-event.png)
+
+32 VU 下，首个完整事件 p95 的三次中位数为 Senix HTTP/1.1 **15.312 ms**、TLS/HTTP2 **13.920 ms**，包含初始连接等待和客户端解析。所有代理场景的 RSS 最大结束样本为 **42.63 MiB**。
+
+完整矩阵也保留了排队结果：128 VU 共用一条 HTTP/2 连接时，服务端通告上限为 100 个并发流，后端峰值为 100，首事件 p95 为 **5,000.579 ms**。这不是相同活动流数下的协议成本对比。原始微秒样本、环境、连接策略和重算结果均可核对；该基线不测真实模型推理，也不证明最大容量或长期稳定性。
 
 ## 已经能做什么
 

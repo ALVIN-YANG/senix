@@ -13,13 +13,13 @@
 | 人工批准后执行 | AI 只有应用已批准计划的工具；过期基线拒绝，重复应用返回原版本 | [实际流程记录](validation/2026-10-15-ai-configuration.md) |
 | 处理失败 | 稳定错误码、证据、可读取操作状态 | 指南覆盖权限、批准、过期与并发重读 |
 | 小上下文接入 | [llms.txt](../llms.txt) 和单一工作流指南 | 文档索引；不宣称所有客户端自动读取它 |
-| AI 应用的长响应与实时连接 | SSE 逐段转发、WebSocket 双向消息与关闭、TLS/HTTP2 gRPC 消息与成功/错误 trailers；摘流后已有流保留，新请求转移 | [SSE / WebSocket](validation/2026-10-15-streaming.md)、[gRPC 协议回归](validation/2026-10-15-grpc.md)；流式容量与稳定性仍待独立压测 |
+| AI 应用的长响应与实时连接 | SSE 逐段转发、WebSocket 双向消息与关闭、TLS/HTTP2 gRPC 消息与成功/错误 trailers；摘流后已有流保留，新请求转移 | [SSE / WebSocket](validation/2026-10-15-streaming.md)、[gRPC 协议回归](validation/2026-10-15-grpc.md)、[独立定速 SSE 基线](validation/2026-10-15-sse-performance.md)；最大容量与长期稳定性仍待验证 |
 | 可观测与性能核查 | 标准指标、可选 JSON 日志、原始基准数据 | [监控指南](observability.md)、[基准脚本](../benchmarks/README.md) |
 
 ## 还应补的内容，按优先级排序
 
 1. **建立 Agent 任务评测，而不仅是工具测试。** 固定任务集应覆盖“只改一个域名、保留无关路由”“不健康实例回接”“批准过期”“权限不足”“并发变更后重新合并”。目前验证了当前 AI 助手的真实 MCP 调用、Owner 批准与请求结果，还没有多个客户端/模型的成功率、错误恢复率和误操作率数据。
 2. **补齐需要跨服务定位问题时的追踪。** 当前已有指标和日志路径，没有原生 trace/span 或 OTLP trace 输出；接入 OTel metrics receiver 不等于完整 APM。应先确定上下文传播、采样、敏感字段和长流 span 生命周期，再实现 Tempo/Jaeger 等后端验证。
-3. **扩展性能证据的代表性。** 当前已有 [Linux AMD64 runner](validation/2026-10-15-linux-performance.md) 和 ARM64 本机两套基线，均为固定 1 KiB、HTTP/HTTPS、1/100 路由、短时闭环并发。长期稳定性、大响应/请求体、SSE/WebSocket/gRPC、故障切换和流量中发布配置仍需要独立负载模型；也应在 Linux 独立服务器上重测。不能将本机或共享 runner 基准解释为容量保证。
+3. **扩展性能证据的代表性。** 已有 [Linux AMD64 runner](validation/2026-10-15-linux-performance.md) 和 ARM64 本机的固定 1 KiB 短请求基线，以及 [SSE 首事件、事件间隔与完整性模型](validation/2026-10-15-sse-performance.md)。SSE 仍是短时定速输出，保留了单连接 HTTP/2 流槽位排队数据。长期稳定性、大响应/请求体、WebSocket/gRPC、故障切换和流量中发布配置仍需要独立负载模型；也应在 Linux 独立服务器上重测。不能将这些基线解释为容量保证。
 
-以上是后续候选范围，尚未实现。对外推荐先展示“可读状态 → 可审查计划 → 人工批准 → 结果证据”的完整路径，再收集用户首次运行成功率、重复使用和问题反馈；Star 数是后续结果，不是当前技术验证的通过条件。
+以上列出的未覆盖部分是后续候选范围；现有回归和基线不能替代这些验收。对外推荐先展示“可读状态 → 可审查计划 → 人工批准 → 结果证据”的完整路径，再收集用户首次运行成功率、重复使用和问题反馈；Star 数是后续结果，不是当前技术验证的通过条件。

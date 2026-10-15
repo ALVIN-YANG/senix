@@ -1,0 +1,75 @@
+{
+  "workload": "paced-sse",
+  "started_utc": "2026-10-15T15:38:02Z",
+  "git_head": "dba2841a57ec9da51ad9dbc888f5f9c1103c2be4",
+  "dirty": false,
+  "source_sha256": "ba9e0c877b3fde0937f4bff525cb9108649e8d37c7474caf0cf9201201afb3a7",
+  "host": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+  "docker": {
+    "ServerVersion": "28.0.4",
+    "OperatingSystem": "Ubuntu 24.04.5 LTS",
+    "Architecture": "x86_64",
+    "NCPU": 4,
+    "MemTotal": 16765374464,
+    "KernelVersion": "6.17.0-1022-azure"
+  },
+  "images": {
+    "senix:benchmark": {
+      "Id": "sha256:fb292fbbfdab3bd69a9dbfa124fbd46a1b2dadf82034613020dd45e43dfaec35",
+      "RepoDigests": [],
+      "Architecture": "amd64",
+      "Os": "linux"
+    },
+    "node:24-bookworm-slim": {
+      "Id": "sha256:a797d6440ed0b09e51fb884f30e47ec14cbf58482c5e19db681a0cb8df45b089",
+      "RepoDigests": [
+        "node@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5"
+      ],
+      "Architecture": "amd64",
+      "Os": "linux"
+    }
+  },
+  "options": {
+    "image": "senix:benchmark",
+    "output": "linux-raw",
+    "vus": "1,32,128",
+    "repeats": 3,
+    "duration_seconds": 20,
+    "warmup_seconds": 3,
+    "events": 100,
+    "interval_ms": 50,
+    "data_bytes": 512
+  },
+  "limits_per_container": {
+    "cpus": 2,
+    "memory_bytes": 1073741824
+  },
+  "backend_workers": 1,
+  "fixture_sha256": {
+    "benchmarks/streaming.py": "1bd06427008e8291a223ad0dc8366fc0712538bf489e97c9c05c438cabcd58c9",
+    "benchmarks/sse-load.mjs": "155074d674ce23cde732af7a70b665b9dd0e9600fb58c330b156f329aa0b50d3",
+    "benchmarks/sse-backend.mjs": "b1a2bdaef5cc9b9158e95938f2660816014f6bed91e15fa2b87abf88f4b57116",
+    "benchmarks/run.py": "4262150122ef6c0c906c58038e543807d85ff7d327753caf57eead2a9bebfc75",
+    "Dockerfile": "0313740112ec535c00fa795f1184d9c80769a3ebb7cb0cba64db25372dfae8ab",
+    ".dockerignore": "62cf20c912b91121f18a4cfcb5fc51c83cf3b54519b43858416e5a44753cccb3"
+  },
+  "latency_samples": "microseconds rounded from performance.now(); percentiles use linear interpolation",
+  "latency_scope": "request start to complete validated first event; includes initial DNS/TCP/TLS wait and client scheduling/parsing",
+  "connections": "HTTP/1.1 keep-alive pool up to VUs; TLS/HTTP2 uses one multiplexed session per load process",
+  "window": "stop starting requests at duration; allow active streams to finish; rates use actual load-process window",
+  "resource_method": "cgroup v2 CPU counters and PID 1 RSS/HWM before/after; CPU window includes load-container startup/exit",
+  "tls": "disposable self-signed gateway certificate; benchmark H2 client disables verification",
+  "access_logging": false,
+  "external_monitoring": false,
+  "container_prefix": "senix-sse-cdf3935541",
+  "status": "passed",
+  "model": {
+    "events_per_stream": 100,
+    "interval_ms": 50,
+    "data_bytes_per_event": 512,
+    "body_bytes_per_stream": 52690
+  },
+  "node_version": "v24.22.0",
+  "finished_utc": "2026-10-15T15:50:18Z",
+  "publication_note": "Absolute output path replaced with the local input directory name; measurement fields unchanged."
+}

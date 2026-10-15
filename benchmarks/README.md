@@ -63,8 +63,9 @@ python3 benchmarks/report.py --input target/benchmarks-local --output target/ben
 
 - [GitHub Linux AMD64 runner](../docs/validation/2026-10-15-linux-performance.md)：干净提交 `af40d95`、36 次真实测量、464 万请求；[工作流](https://github.com/ALVIN-YANG/senix/actions/runs/38707502445) 与完整原始数据可核对。
 - [ARM64 本机 Docker VM](../docs/validation/2026-10-15-performance.md)：保留首次 36 次矩阵、波动与排查记录。
+- [Linux SSE 长响应](../docs/validation/2026-10-15-sse-performance.md)：干净提交 `dba2841`、27 次测量、6,498 条完整流；保留全部微秒样本、重算校验、单连接 H2 的排队结果及图表。
 
-两套环境不同，不作为性能优化前后对比，也不设置固定 RPS 的 CI 门槛。
+这些基线的模型、源码或环境不同，不作为性能优化前后对比，也不设置固定 RPS 的 CI 门槛。
 
 ## SSE 长响应
 
@@ -78,7 +79,7 @@ python3 benchmarks/streaming.py --image senix:benchmark --output target/streamin
 
 环境前提、每容器 2 CPU / 1 GiB 的限额、隔离网络和资源清理与上面的短请求模型相同。默认比较直连 HTTP/1.1、Senix HTTP/1.1、Senix TLS/HTTP2，均访问同一个单 worker 后端。上游始终为 HTTP/1.1。客户端按实际协议统计完成流数；TLS 仅对一次性自签名测试证书关闭验证。
 
-- 每条流包含 100 条有序事件；每条 `data:` 是 512 字节的 JSON，包含中文和序号。首条立即生成，之后每次写入间隔至少 50 ms。完整流约五秒，实际间隔还受后端调度和背压影响。这是合成的定速输出，不是真实模型推理。
+- 每条流包含 100 条预先构造的有序事件；每条 `data:` 是 512 字节的 JSON，包含中文和序号。收到请求后立即写入首条，之后按 50 ms 定时器调度。完整流约五秒，实际间隔还受后端调度和背压影响。这是合成的定速输出，不是真实模型推理。
 - 每场景使用 1、32、128 个 VU，预热窗口 3 秒；每次测量窗口 20 秒，重复 3 次，共 27 次测量。VU 是客户端闭环工作任务数：每个任务在流完成后才发下一条。窗口结束只停止新请求，已开始的流允许完成，因此实际测量通常更长。速率分母使用实际负载窗口。
 - HTTP/1.1 使用最多 VU 条 Keep-Alive 连接；TLS/HTTP2 使用单条共享连接复用流。`backend_peak_active` 单独记录后端实际同时处理的流数，不能把 VU、TCP 连接数和后端活动流数当作同一指标。
 - `http2_remote_max_concurrent_streams` 记录服务端对单条连接通告的流上限。超过该上限的 VU 会在客户端等候可用流槽位，首事件延迟包含这段等待；有排队时，不能把其与 HTTP/1.1 的结果当作相同活动流数下的协议成本对比，也不能由此推导网关总并发上限。
@@ -96,5 +97,16 @@ python3 benchmarks/streaming.py --image senix:benchmark --vus 1,4 --repeats 1 \
 ```
 
 `node --test benchmarks/sse-load.test.mjs` 会通过真实 HTTP 响应验证正常、截断、乱序和损坏内容的检测，并纳入普通 CI。正式矩阵仍只在手动 benchmark 工作流中运行，选择 `workload=paced-sse`；默认的短请求矩阵保持不变。
+
+`report.py` 会识别 SSE 元数据，独立重算原始样本分位数，交叉核对计数、协议和资源，再生成表格、原始数据归档与 SHA-256。修改过的样本或未完成的矩阵会被拒绝。绘图仍使用可选的 matplotlib，不参与测量：
+
+```bash
+python3 benchmarks/report.py --input target/streaming-benchmark --output target/streaming-report
+# 可选：同一数据生成 32 VU 首事件图，输出目录需换成新的目录。
+python3 benchmarks/report.py --input target/streaming-benchmark --output target/streaming-report-chart \
+  --chart target/sse-first-event.png --vus 32 --environment-label 'Your measured environment'
+```
+
+`python3 benchmarks/report_test.py` 用已归档的真实矩阵检查导出、样本被改动和输出目录嵌套三种情况；它纳入普通 CI，只检查报表处理，不重新运行负载。
 
 这项模型没有慢消费者、网络故障、摘流/配置发布、WebSocket/gRPC 压测或长期稳定性测量。正式结果应与原始样本、源码和镜像身份一同发布，不能由短时零错误推导生产容量或长期可靠性。

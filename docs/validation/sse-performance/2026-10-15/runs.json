@@ -1,0 +1,1487 @@
+[
+  {
+    "case": "direct-sse",
+    "vus": 1,
+    "repeat": 1,
+    "configured_seconds": 20,
+    "measured_seconds": 24.947566039,
+    "client_peak_outstanding": 1,
+    "streams_completed": 5,
+    "streams_failed": 0,
+    "events_received": 500,
+    "response_body_bytes": 263450,
+    "protocols": {
+      "1.1": 5
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": null,
+    "streams_per_second": 0.2004203533195826,
+    "events_per_second": 20.04203533195826,
+    "first_event_ms": {
+      "count": 5,
+      "min": 0.766,
+      "p50": 1.034,
+      "p95": 9.867399999999998,
+      "p99": 11.60708,
+      "max": 12.042
+    },
+    "event_gap_ms": {
+      "count": 495,
+      "min": 47.862,
+      "p50": 50.339,
+      "p95": 50.5735,
+      "p99": 51.41856,
+      "max": 51.518
+    },
+    "complete_stream_ms": {
+      "count": 5,
+      "min": 4983.004,
+      "p50": 4986.898,
+      "p95": 5000.3294000000005,
+      "p99": 5002.795480000001,
+      "max": 5003.412
+    },
+    "delivery_batches": {
+      "count": 5,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 1,
+    "gateway_cpu_percent_of_window": 0.45130735274826694,
+    "gateway_rss_mib_end_sample": 20.83984375,
+    "gateway_process_hwm_mib": 20.83984375
+  },
+  {
+    "case": "direct-sse",
+    "vus": 1,
+    "repeat": 2,
+    "configured_seconds": 20,
+    "measured_seconds": 24.918739688000002,
+    "client_peak_outstanding": 1,
+    "streams_completed": 5,
+    "streams_failed": 0,
+    "events_received": 500,
+    "response_body_bytes": 263450,
+    "protocols": {
+      "1.1": 5
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": null,
+    "streams_per_second": 0.20065220242289483,
+    "events_per_second": 20.065220242289485,
+    "first_event_ms": {
+      "count": 5,
+      "min": 0.649,
+      "p50": 0.887,
+      "p95": 9.642799999999998,
+      "p99": 11.35896,
+      "max": 11.788
+    },
+    "event_gap_ms": {
+      "count": 495,
+      "min": 48.924,
+      "p50": 50.281,
+      "p95": 50.4459,
+      "p99": 51.387260000000005,
+      "max": 51.71
+    },
+    "complete_stream_ms": {
+      "count": 5,
+      "min": 4978.554,
+      "p50": 4981.386,
+      "p95": 4993.248,
+      "p99": 4995.4928,
+      "max": 4996.054
+    },
+    "delivery_batches": {
+      "count": 5,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 1,
+    "gateway_cpu_percent_of_window": 0.5412397803119299,
+    "gateway_rss_mib_end_sample": 20.83984375,
+    "gateway_process_hwm_mib": 20.83984375
+  },
+  {
+    "case": "direct-sse",
+    "vus": 1,
+    "repeat": 3,
+    "configured_seconds": 20,
+    "measured_seconds": 24.917640592,
+    "client_peak_outstanding": 1,
+    "streams_completed": 5,
+    "streams_failed": 0,
+    "events_received": 500,
+    "response_body_bytes": 263450,
+    "protocols": {
+      "1.1": 5
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": null,
+    "streams_per_second": 0.20066105302142,
+    "events_per_second": 20.066105302142002,
+    "first_event_ms": {
+      "count": 5,
+      "min": 0.616,
+      "p50": 0.883,
+      "p95": 10.539799999999998,
+      "p99": 12.40316,
+      "max": 12.869
+    },
+    "event_gap_ms": {
+      "count": 495,
+      "min": 48.715,
+      "p50": 50.27,
+      "p95": 50.4719,
+      "p99": 51.3639,
+      "max": 51.393
+    },
+    "complete_stream_ms": {
+      "count": 5,
+      "min": 4977.609,
+      "p50": 4979.031,
+      "p95": 4997.093599999999,
+      "p99": 5000.33712,
+      "max": 5001.148
+    },
+    "delivery_batches": {
+      "count": 5,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 1,
+    "gateway_cpu_percent_of_window": 0.44807553812469353,
+    "gateway_rss_mib_end_sample": 20.83984375,
+    "gateway_process_hwm_mib": 20.83984375
+  },
+  {
+    "case": "direct-sse",
+    "vus": 32,
+    "repeat": 1,
+    "configured_seconds": 20,
+    "measured_seconds": 20.037148368999997,
+    "client_peak_outstanding": 32,
+    "streams_completed": 128,
+    "streams_failed": 0,
+    "events_received": 12800,
+    "response_body_bytes": 6744320,
+    "protocols": {
+      "1.1": 128
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": null,
+    "streams_per_second": 6.388134561005307,
+    "events_per_second": 638.8134561005307,
+    "first_event_ms": {
+      "count": 128,
+      "min": 0.305,
+      "p50": 2.982,
+      "p95": 14.359599999999999,
+      "p99": 15.313900000000002,
+      "max": 22.766
+    },
+    "event_gap_ms": {
+      "count": 12672,
+      "min": 38.375,
+      "p50": 50.648,
+      "p95": 51.086,
+      "p99": 51.797,
+      "max": 61.35
+    },
+    "complete_stream_ms": {
+      "count": 128,
+      "min": 4984.564,
+      "p50": 4999.747,
+      "p95": 5031.6951,
+      "p99": 5032.13509,
+      "max": 5036.451
+    },
+    "delivery_batches": {
+      "count": 128,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 32,
+    "gateway_cpu_percent_of_window": 0.5184349466721215,
+    "gateway_rss_mib_end_sample": 20.83984375,
+    "gateway_process_hwm_mib": 20.83984375
+  },
+  {
+    "case": "direct-sse",
+    "vus": 32,
+    "repeat": 2,
+    "configured_seconds": 20,
+    "measured_seconds": 20.024733206,
+    "client_peak_outstanding": 32,
+    "streams_completed": 128,
+    "streams_failed": 0,
+    "events_received": 12800,
+    "response_body_bytes": 6744320,
+    "protocols": {
+      "1.1": 128
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": null,
+    "streams_per_second": 6.39209514969455,
+    "events_per_second": 639.209514969455,
+    "first_event_ms": {
+      "count": 128,
+      "min": 0.392,
+      "p50": 4.868,
+      "p95": 15.7701,
+      "p99": 16.821630000000003,
+      "max": 24.238
+    },
+    "event_gap_ms": {
+      "count": 12672,
+      "min": 38.19,
+      "p50": 50.611,
+      "p95": 51.127,
+      "p99": 51.921,
+      "max": 61.458
+    },
+    "complete_stream_ms": {
+      "count": 128,
+      "min": 4977.411,
+      "p50": 4997.866,
+      "p95": 5034.995,
+      "p99": 5035.52941,
+      "max": 5040.057
+    },
+    "delivery_batches": {
+      "count": 128,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 32,
+    "gateway_cpu_percent_of_window": 0.5139890950889012,
+    "gateway_rss_mib_end_sample": 20.83984375,
+    "gateway_process_hwm_mib": 20.83984375
+  },
+  {
+    "case": "direct-sse",
+    "vus": 32,
+    "repeat": 3,
+    "configured_seconds": 20,
+    "measured_seconds": 24.989051487,
+    "client_peak_outstanding": 32,
+    "streams_completed": 146,
+    "streams_failed": 0,
+    "events_received": 14600,
+    "response_body_bytes": 7692740,
+    "protocols": {
+      "1.1": 146
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": null,
+    "streams_per_second": 5.842558693192227,
+    "events_per_second": 584.2558693192227,
+    "first_event_ms": {
+      "count": 146,
+      "min": 0.546,
+      "p50": 3.4555,
+      "p95": 14.5815,
+      "p99": 15.624850000000002,
+      "max": 22.959
+    },
+    "event_gap_ms": {
+      "count": 14454,
+      "min": 40.132,
+      "p50": 50.549,
+      "p95": 51.143,
+      "p99": 51.76347,
+      "max": 60.307
+    },
+    "complete_stream_ms": {
+      "count": 146,
+      "min": 4984.831,
+      "p50": 4989.8225,
+      "p95": 5028.61,
+      "p99": 5028.866400000001,
+      "max": 5033.98
+    },
+    "delivery_batches": {
+      "count": 146,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 32,
+    "gateway_cpu_percent_of_window": 0.44840332237194525,
+    "gateway_rss_mib_end_sample": 20.83984375,
+    "gateway_process_hwm_mib": 20.83984375
+  },
+  {
+    "case": "direct-sse",
+    "vus": 128,
+    "repeat": 1,
+    "configured_seconds": 20,
+    "measured_seconds": 24.964220722,
+    "client_peak_outstanding": 128,
+    "streams_completed": 538,
+    "streams_failed": 0,
+    "events_received": 53800,
+    "response_body_bytes": 28347220,
+    "protocols": {
+      "1.1": 538
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": null,
+    "streams_per_second": 21.550842944033157,
+    "events_per_second": 2155.0842944033157,
+    "first_event_ms": {
+      "count": 538,
+      "min": 0.154,
+      "p50": 3.3775,
+      "p95": 54.03545,
+      "p99": 56.057269999999995,
+      "max": 64.149
+    },
+    "event_gap_ms": {
+      "count": 53262,
+      "min": 27.415,
+      "p50": 50.31,
+      "p95": 51.245,
+      "p99": 51.85639,
+      "max": 70.101
+    },
+    "complete_stream_ms": {
+      "count": 538,
+      "min": 4959.639,
+      "p50": 4970.314,
+      "p95": 5077.141,
+      "p99": 5079.076230000001,
+      "max": 5079.803
+    },
+    "delivery_batches": {
+      "count": 538,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 128,
+    "gateway_cpu_percent_of_window": 0.44592209016845036,
+    "gateway_rss_mib_end_sample": 20.83984375,
+    "gateway_process_hwm_mib": 20.83984375
+  },
+  {
+    "case": "direct-sse",
+    "vus": 128,
+    "repeat": 2,
+    "configured_seconds": 20,
+    "measured_seconds": 24.941335218,
+    "client_peak_outstanding": 128,
+    "streams_completed": 640,
+    "streams_failed": 0,
+    "events_received": 64000,
+    "response_body_bytes": 33721600,
+    "protocols": {
+      "1.1": 640
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": null,
+    "streams_per_second": 25.660214034496285,
+    "events_per_second": 2566.0214034496285,
+    "first_event_ms": {
+      "count": 640,
+      "min": 0.155,
+      "p50": 1.355,
+      "p95": 50.13414999999999,
+      "p99": 52.30344,
+      "max": 60.389
+    },
+    "event_gap_ms": {
+      "count": 63360,
+      "min": 31.584,
+      "p50": 50.211,
+      "p95": 50.863049999999994,
+      "p99": 51.082409999999996,
+      "max": 68.646
+    },
+    "complete_stream_ms": {
+      "count": 640,
+      "min": 4957.511,
+      "p50": 4967.523,
+      "p95": 5024.986349999999,
+      "p99": 5029.3048499999995,
+      "max": 5030.25
+    },
+    "delivery_batches": {
+      "count": 640,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 128,
+    "gateway_cpu_percent_of_window": 0.4382242738051467,
+    "gateway_rss_mib_end_sample": 20.83984375,
+    "gateway_process_hwm_mib": 20.83984375
+  },
+  {
+    "case": "direct-sse",
+    "vus": 128,
+    "repeat": 3,
+    "configured_seconds": 20,
+    "measured_seconds": 24.927687575,
+    "client_peak_outstanding": 128,
+    "streams_completed": 640,
+    "streams_failed": 0,
+    "events_received": 64000,
+    "response_body_bytes": 33721600,
+    "protocols": {
+      "1.1": 640
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": null,
+    "streams_per_second": 25.674262727917714,
+    "events_per_second": 2567.426272791771,
+    "first_event_ms": {
+      "count": 640,
+      "min": 0.141,
+      "p50": 1.6625,
+      "p95": 45.245549999999994,
+      "p99": 47.68674000000001,
+      "max": 56.042
+    },
+    "event_gap_ms": {
+      "count": 63360,
+      "min": 35.143,
+      "p50": 50.219,
+      "p95": 50.856049999999996,
+      "p99": 51.13540999999999,
+      "max": 67.224
+    },
+    "complete_stream_ms": {
+      "count": 640,
+      "min": 4959.947,
+      "p50": 4966.9605,
+      "p95": 5026.5009,
+      "p99": 5028.61802,
+      "max": 5029.358
+    },
+    "delivery_batches": {
+      "count": 640,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 128,
+    "gateway_cpu_percent_of_window": 0.530598743351912,
+    "gateway_rss_mib_end_sample": 20.83984375,
+    "gateway_process_hwm_mib": 20.83984375
+  },
+  {
+    "case": "senix-sse-http",
+    "vus": 1,
+    "repeat": 1,
+    "configured_seconds": 20,
+    "measured_seconds": 24.848279637,
+    "client_peak_outstanding": 1,
+    "streams_completed": 5,
+    "streams_failed": 0,
+    "events_received": 500,
+    "response_body_bytes": 263450,
+    "protocols": {
+      "1.1": 5
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": null,
+    "streams_per_second": 0.2012211739823958,
+    "events_per_second": 20.12211739823958,
+    "first_event_ms": {
+      "count": 5,
+      "min": 0.796,
+      "p50": 1.026,
+      "p95": 9.929999999999998,
+      "p99": 11.682,
+      "max": 12.12
+    },
+    "event_gap_ms": {
+      "count": 495,
+      "min": 48.694,
+      "p50": 50.217,
+      "p95": 50.3046,
+      "p99": 50.38094,
+      "max": 50.742
+    },
+    "complete_stream_ms": {
+      "count": 5,
+      "min": 4966.275,
+      "p50": 4967.967,
+      "p95": 4974.2884,
+      "p99": 4975.03048,
+      "max": 4975.216
+    },
+    "delivery_batches": {
+      "count": 5,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 1,
+    "gateway_cpu_percent_of_window": 0.908612766095452,
+    "gateway_rss_mib_end_sample": 21.640625,
+    "gateway_process_hwm_mib": 21.640625
+  },
+  {
+    "case": "senix-sse-http",
+    "vus": 1,
+    "repeat": 2,
+    "configured_seconds": 20,
+    "measured_seconds": 24.844729939,
+    "client_peak_outstanding": 1,
+    "streams_completed": 5,
+    "streams_failed": 0,
+    "events_received": 500,
+    "response_body_bytes": 263450,
+    "protocols": {
+      "1.1": 5
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": null,
+    "streams_per_second": 0.20124992351602314,
+    "events_per_second": 20.124992351602312,
+    "first_event_ms": {
+      "count": 5,
+      "min": 0.728,
+      "p50": 0.897,
+      "p95": 9.641399999999997,
+      "p99": 11.348279999999999,
+      "max": 11.775
+    },
+    "event_gap_ms": {
+      "count": 495,
+      "min": 48.897,
+      "p50": 50.214,
+      "p95": 50.2943,
+      "p99": 50.371019999999994,
+      "max": 50.748
+    },
+    "complete_stream_ms": {
+      "count": 5,
+      "min": 4964.583,
+      "p50": 4966.704,
+      "p95": 4976.1388,
+      "p99": 4977.50216,
+      "max": 4977.843
+    },
+    "delivery_batches": {
+      "count": 5,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 1,
+    "gateway_cpu_percent_of_window": 0.8189650074600433,
+    "gateway_rss_mib_end_sample": 21.640625,
+    "gateway_process_hwm_mib": 21.640625
+  },
+  {
+    "case": "senix-sse-http",
+    "vus": 1,
+    "repeat": 3,
+    "configured_seconds": 20,
+    "measured_seconds": 24.857527794,
+    "client_peak_outstanding": 1,
+    "streams_completed": 5,
+    "streams_failed": 0,
+    "events_received": 500,
+    "response_body_bytes": 263450,
+    "protocols": {
+      "1.1": 5
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": null,
+    "streams_per_second": 0.20114631034253044,
+    "events_per_second": 20.114631034253044,
+    "first_event_ms": {
+      "count": 5,
+      "min": 0.775,
+      "p50": 1.057,
+      "p95": 9.616399999999997,
+      "p99": 11.32808,
+      "max": 11.756
+    },
+    "event_gap_ms": {
+      "count": 495,
+      "min": 48.862,
+      "p50": 50.231,
+      "p95": 50.3082,
+      "p99": 50.3949,
+      "max": 50.589
+    },
+    "complete_stream_ms": {
+      "count": 5,
+      "min": 4966.094,
+      "p50": 4970.155,
+      "p95": 4978.5942000000005,
+      "p99": 4979.94204,
+      "max": 4980.279
+    },
+    "delivery_batches": {
+      "count": 5,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 1,
+    "gateway_cpu_percent_of_window": 0.9191429330340462,
+    "gateway_rss_mib_end_sample": 21.640625,
+    "gateway_process_hwm_mib": 21.640625
+  },
+  {
+    "case": "senix-sse-http",
+    "vus": 32,
+    "repeat": 1,
+    "configured_seconds": 20,
+    "measured_seconds": 24.880322141,
+    "client_peak_outstanding": 32,
+    "streams_completed": 160,
+    "streams_failed": 0,
+    "events_received": 16000,
+    "response_body_bytes": 8430400,
+    "protocols": {
+      "1.1": 160
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": null,
+    "streams_per_second": 6.430784902754045,
+    "events_per_second": 643.0784902754045,
+    "first_event_ms": {
+      "count": 160,
+      "min": 0.27,
+      "p50": 1.1195,
+      "p95": 15.296199999999997,
+      "p99": 16.43565,
+      "max": 23.852
+    },
+    "event_gap_ms": {
+      "count": 15840,
+      "min": 44.73,
+      "p50": 50.234,
+      "p95": 50.883,
+      "p99": 51.196,
+      "max": 54.902
+    },
+    "complete_stream_ms": {
+      "count": 160,
+      "min": 4961.089,
+      "p50": 4970.2025,
+      "p95": 4986.5675,
+      "p99": 4987.93931,
+      "max": 4988.224
+    },
+    "delivery_batches": {
+      "count": 160,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 32,
+    "gateway_cpu_percent_of_window": 2.658695740283537,
+    "gateway_rss_mib_end_sample": 25.515625,
+    "gateway_process_hwm_mib": 25.515625
+  },
+  {
+    "case": "senix-sse-http",
+    "vus": 32,
+    "repeat": 2,
+    "configured_seconds": 20,
+    "measured_seconds": 24.905159130999998,
+    "client_peak_outstanding": 32,
+    "streams_completed": 160,
+    "streams_failed": 0,
+    "events_received": 16000,
+    "response_body_bytes": 8430400,
+    "protocols": {
+      "1.1": 160
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": null,
+    "streams_per_second": 6.4243717198676515,
+    "events_per_second": 642.4371719867652,
+    "first_event_ms": {
+      "count": 160,
+      "min": 0.263,
+      "p50": 1.2765,
+      "p95": 16.330299999999998,
+      "p99": 17.483919999999998,
+      "max": 25.002
+    },
+    "event_gap_ms": {
+      "count": 15840,
+      "min": 45.686,
+      "p50": 50.201,
+      "p95": 51.031,
+      "p99": 51.24761,
+      "max": 54.42
+    },
+    "complete_stream_ms": {
+      "count": 160,
+      "min": 4963.267,
+      "p50": 4971.686,
+      "p95": 4998.115900000001,
+      "p99": 4998.29833,
+      "max": 4998.449
+    },
+    "delivery_batches": {
+      "count": 160,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 32,
+    "gateway_cpu_percent_of_window": 2.5140498187894313,
+    "gateway_rss_mib_end_sample": 25.79296875,
+    "gateway_process_hwm_mib": 25.79296875
+  },
+  {
+    "case": "senix-sse-http",
+    "vus": 32,
+    "repeat": 3,
+    "configured_seconds": 20,
+    "measured_seconds": 24.906903876,
+    "client_peak_outstanding": 32,
+    "streams_completed": 160,
+    "streams_failed": 0,
+    "events_received": 16000,
+    "response_body_bytes": 8430400,
+    "protocols": {
+      "1.1": 160
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": null,
+    "streams_per_second": 6.423921688402793,
+    "events_per_second": 642.3921688402793,
+    "first_event_ms": {
+      "count": 160,
+      "min": 0.341,
+      "p50": 1.6405,
+      "p95": 15.312499999999996,
+      "p99": 16.515919999999998,
+      "max": 23.91
+    },
+    "event_gap_ms": {
+      "count": 15840,
+      "min": 43.845,
+      "p50": 50.113,
+      "p95": 51.063,
+      "p99": 51.290440000000004,
+      "max": 56.708
+    },
+    "complete_stream_ms": {
+      "count": 160,
+      "min": 4960.852,
+      "p50": 4976.7885,
+      "p95": 4987.92155,
+      "p99": 4988.67886,
+      "max": 4989.047
+    },
+    "delivery_batches": {
+      "count": 160,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 32,
+    "gateway_cpu_percent_of_window": 2.667446887138913,
+    "gateway_rss_mib_end_sample": 26.7578125,
+    "gateway_process_hwm_mib": 26.7578125
+  },
+  {
+    "case": "senix-sse-http",
+    "vus": 128,
+    "repeat": 1,
+    "configured_seconds": 20,
+    "measured_seconds": 24.982170454,
+    "client_peak_outstanding": 128,
+    "streams_completed": 638,
+    "streams_failed": 0,
+    "events_received": 63800,
+    "response_body_bytes": 33616220,
+    "protocols": {
+      "1.1": 638
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": null,
+    "streams_per_second": 25.538213390015805,
+    "events_per_second": 2553.821339001581,
+    "first_event_ms": {
+      "count": 638,
+      "min": 0.26,
+      "p50": 2.5505,
+      "p95": 60.09289999999999,
+      "p99": 62.527,
+      "max": 70.874
+    },
+    "event_gap_ms": {
+      "count": 63162,
+      "min": 39.243,
+      "p50": 50.271,
+      "p95": 51.005,
+      "p99": 51.42739,
+      "max": 65.952
+    },
+    "complete_stream_ms": {
+      "count": 638,
+      "min": 4963.186,
+      "p50": 4975.066,
+      "p95": 5041.219599999999,
+      "p99": 5044.7310099999995,
+      "max": 5045.53
+    },
+    "delivery_batches": {
+      "count": 638,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 128,
+    "gateway_cpu_percent_of_window": 7.171745671682783,
+    "gateway_rss_mib_end_sample": 39.1796875,
+    "gateway_process_hwm_mib": 39.1796875
+  },
+  {
+    "case": "senix-sse-http",
+    "vus": 128,
+    "repeat": 2,
+    "configured_seconds": 20,
+    "measured_seconds": 24.980158275999997,
+    "client_peak_outstanding": 128,
+    "streams_completed": 623,
+    "streams_failed": 0,
+    "events_received": 62300,
+    "response_body_bytes": 32825870,
+    "protocols": {
+      "1.1": 623
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": null,
+    "streams_per_second": 24.93979394031923,
+    "events_per_second": 2493.979394031923,
+    "first_event_ms": {
+      "count": 623,
+      "min": 0.239,
+      "p50": 2.301,
+      "p95": 44.96939999999999,
+      "p99": 49.594939999999994,
+      "max": 57.942
+    },
+    "event_gap_ms": {
+      "count": 61677,
+      "min": 31.207,
+      "p50": 50.274,
+      "p95": 51.067,
+      "p99": 51.48,
+      "max": 67.134
+    },
+    "complete_stream_ms": {
+      "count": 623,
+      "min": 4964.716,
+      "p50": 4978.132,
+      "p95": 5036.2799,
+      "p99": 5037.6007199999995,
+      "max": 5038.331
+    },
+    "delivery_batches": {
+      "count": 623,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 128,
+    "gateway_cpu_percent_of_window": 7.090127120547241,
+    "gateway_rss_mib_end_sample": 40.50390625,
+    "gateway_process_hwm_mib": 40.50390625
+  },
+  {
+    "case": "senix-sse-http",
+    "vus": 128,
+    "repeat": 3,
+    "configured_seconds": 20,
+    "measured_seconds": 24.979567156,
+    "client_peak_outstanding": 128,
+    "streams_completed": 617,
+    "streams_failed": 0,
+    "events_received": 61700,
+    "response_body_bytes": 32509730,
+    "protocols": {
+      "1.1": 617
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": null,
+    "streams_per_second": 24.700187803366273,
+    "events_per_second": 2470.0187803366275,
+    "first_event_ms": {
+      "count": 617,
+      "min": 0.286,
+      "p50": 2.433,
+      "p95": 57.97159999999999,
+      "p99": 60.2828,
+      "max": 68.582
+    },
+    "event_gap_ms": {
+      "count": 61083,
+      "min": 38.382,
+      "p50": 50.296,
+      "p95": 51.042,
+      "p99": 51.53618,
+      "max": 63.923
+    },
+    "complete_stream_ms": {
+      "count": 617,
+      "min": 4968.925,
+      "p50": 4978.187,
+      "p95": 5041.8568,
+      "p99": 5045.19228,
+      "max": 5046.31
+    },
+    "delivery_batches": {
+      "count": 617,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 128,
+    "gateway_cpu_percent_of_window": 7.15132763323893,
+    "gateway_rss_mib_end_sample": 41.296875,
+    "gateway_process_hwm_mib": 41.296875
+  },
+  {
+    "case": "senix-sse-https-h2",
+    "vus": 1,
+    "repeat": 1,
+    "configured_seconds": 20,
+    "measured_seconds": 24.898299041999998,
+    "client_peak_outstanding": 1,
+    "streams_completed": 5,
+    "streams_failed": 0,
+    "events_received": 500,
+    "response_body_bytes": 263450,
+    "protocols": {
+      "h2": 5
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": 100,
+    "streams_per_second": 0.20081693097049277,
+    "events_per_second": 20.08169309704928,
+    "first_event_ms": {
+      "count": 5,
+      "min": 0.824,
+      "p50": 1.23,
+      "p95": 13.236599999999997,
+      "p99": 15.51452,
+      "max": 16.084
+    },
+    "event_gap_ms": {
+      "count": 495,
+      "min": 47.964,
+      "p50": 50.238,
+      "p95": 50.369699999999995,
+      "p99": 51.2668,
+      "max": 51.426
+    },
+    "complete_stream_ms": {
+      "count": 5,
+      "min": 4974.911,
+      "p50": 4975.381,
+      "p95": 4990.7034,
+      "p99": 4993.10948,
+      "max": 4993.711
+    },
+    "delivery_batches": {
+      "count": 5,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 1,
+    "gateway_cpu_percent_of_window": 0.8760002225126771,
+    "gateway_rss_mib_end_sample": 42.546875,
+    "gateway_process_hwm_mib": 42.546875
+  },
+  {
+    "case": "senix-sse-https-h2",
+    "vus": 1,
+    "repeat": 2,
+    "configured_seconds": 20,
+    "measured_seconds": 24.893959148999997,
+    "client_peak_outstanding": 1,
+    "streams_completed": 5,
+    "streams_failed": 0,
+    "events_received": 500,
+    "response_body_bytes": 263450,
+    "protocols": {
+      "h2": 5
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": 100,
+    "streams_per_second": 0.20085194042751744,
+    "events_per_second": 20.085194042751745,
+    "first_event_ms": {
+      "count": 5,
+      "min": 0.908,
+      "p50": 1.201,
+      "p95": 12.869599999999997,
+      "p99": 15.12112,
+      "max": 15.684
+    },
+    "event_gap_ms": {
+      "count": 495,
+      "min": 49.122,
+      "p50": 50.233,
+      "p95": 50.3906,
+      "p99": 51.26536,
+      "max": 51.445
+    },
+    "complete_stream_ms": {
+      "count": 5,
+      "min": 4974.223,
+      "p50": 4975.602,
+      "p95": 4987.839400000001,
+      "p99": 4989.806280000001,
+      "max": 4990.298
+    },
+    "delivery_batches": {
+      "count": 5,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 1,
+    "gateway_cpu_percent_of_window": 1.0115361301074168,
+    "gateway_rss_mib_end_sample": 42.546875,
+    "gateway_process_hwm_mib": 42.546875
+  },
+  {
+    "case": "senix-sse-https-h2",
+    "vus": 1,
+    "repeat": 3,
+    "configured_seconds": 20,
+    "measured_seconds": 24.910196588999998,
+    "client_peak_outstanding": 1,
+    "streams_completed": 5,
+    "streams_failed": 0,
+    "events_received": 500,
+    "response_body_bytes": 263450,
+    "protocols": {
+      "h2": 5
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": 100,
+    "streams_per_second": 0.20072101728044697,
+    "events_per_second": 20.072101728044697,
+    "first_event_ms": {
+      "count": 5,
+      "min": 0.948,
+      "p50": 1.218,
+      "p95": 13.342399999999998,
+      "p99": 15.64928,
+      "max": 16.226
+    },
+    "event_gap_ms": {
+      "count": 495,
+      "min": 49.106,
+      "p50": 50.264,
+      "p95": 50.4148,
+      "p99": 51.33636,
+      "max": 51.37
+    },
+    "complete_stream_ms": {
+      "count": 5,
+      "min": 4976.112,
+      "p50": 4981.626,
+      "p95": 4987.959599999999,
+      "p99": 4988.97192,
+      "max": 4989.225
+    },
+    "delivery_batches": {
+      "count": 5,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 1,
+    "gateway_cpu_percent_of_window": 0.8917420181446126,
+    "gateway_rss_mib_end_sample": 42.546875,
+    "gateway_process_hwm_mib": 42.546875
+  },
+  {
+    "case": "senix-sse-https-h2",
+    "vus": 32,
+    "repeat": 1,
+    "configured_seconds": 20,
+    "measured_seconds": 24.947084982,
+    "client_peak_outstanding": 32,
+    "streams_completed": 160,
+    "streams_failed": 0,
+    "events_received": 16000,
+    "response_body_bytes": 8430400,
+    "protocols": {
+      "h2": 160
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": 100,
+    "streams_per_second": 6.413574977414971,
+    "events_per_second": 641.357497741497,
+    "first_event_ms": {
+      "count": 160,
+      "min": 0.339,
+      "p50": 1.3285,
+      "p95": 13.970799999999997,
+      "p99": 14.7744,
+      "max": 20.338
+    },
+    "event_gap_ms": {
+      "count": 15840,
+      "min": 45.063,
+      "p50": 50.316,
+      "p95": 51.215,
+      "p99": 51.49322,
+      "max": 52.269
+    },
+    "complete_stream_ms": {
+      "count": 160,
+      "min": 4969.926,
+      "p50": 4982.3135,
+      "p95": 5000.566400000001,
+      "p99": 5004.2425,
+      "max": 5004.308
+    },
+    "delivery_batches": {
+      "count": 160,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 32,
+    "gateway_cpu_percent_of_window": 3.1672927857652122,
+    "gateway_rss_mib_end_sample": 42.609375,
+    "gateway_process_hwm_mib": 42.609375
+  },
+  {
+    "case": "senix-sse-https-h2",
+    "vus": 32,
+    "repeat": 2,
+    "configured_seconds": 20,
+    "measured_seconds": 24.962289901,
+    "client_peak_outstanding": 32,
+    "streams_completed": 160,
+    "streams_failed": 0,
+    "events_received": 16000,
+    "response_body_bytes": 8430400,
+    "protocols": {
+      "h2": 160
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": 100,
+    "streams_per_second": 6.409668369150314,
+    "events_per_second": 640.9668369150313,
+    "first_event_ms": {
+      "count": 160,
+      "min": 0.338,
+      "p50": 1.5245,
+      "p95": 12.408649999999998,
+      "p99": 12.81857,
+      "max": 21.02
+    },
+    "event_gap_ms": {
+      "count": 15840,
+      "min": 45.753,
+      "p50": 50.265,
+      "p95": 51.245,
+      "p99": 51.53483,
+      "max": 55.128
+    },
+    "complete_stream_ms": {
+      "count": 160,
+      "min": 4968.3,
+      "p50": 4984.133,
+      "p95": 5011.98625,
+      "p99": 5014.5520400000005,
+      "max": 5014.876
+    },
+    "delivery_batches": {
+      "count": 160,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 32,
+    "gateway_cpu_percent_of_window": 3.2662323103022457,
+    "gateway_rss_mib_end_sample": 42.609375,
+    "gateway_process_hwm_mib": 42.609375
+  },
+  {
+    "case": "senix-sse-https-h2",
+    "vus": 32,
+    "repeat": 3,
+    "configured_seconds": 20,
+    "measured_seconds": 24.983261598,
+    "client_peak_outstanding": 32,
+    "streams_completed": 159,
+    "streams_failed": 0,
+    "events_received": 15900,
+    "response_body_bytes": 8377710,
+    "protocols": {
+      "h2": 159
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": 100,
+    "streams_per_second": 6.364261102430619,
+    "events_per_second": 636.4261102430618,
+    "first_event_ms": {
+      "count": 159,
+      "min": 0.34,
+      "p50": 2.004,
+      "p95": 13.92,
+      "p99": 14.316739999999998,
+      "max": 21.632
+    },
+    "event_gap_ms": {
+      "count": 15741,
+      "min": 43.874,
+      "p50": 50.266,
+      "p95": 51.253,
+      "p99": 51.501,
+      "max": 55.919
+    },
+    "complete_stream_ms": {
+      "count": 159,
+      "min": 4976.019,
+      "p50": 4986.086,
+      "p95": 5013.5291,
+      "p99": 5014.35912,
+      "max": 5018.669
+    },
+    "delivery_batches": {
+      "count": 159,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 32,
+    "gateway_cpu_percent_of_window": 3.019482777479214,
+    "gateway_rss_mib_end_sample": 42.609375,
+    "gateway_process_hwm_mib": 42.609375
+  },
+  {
+    "case": "senix-sse-https-h2",
+    "vus": 128,
+    "repeat": 1,
+    "configured_seconds": 20,
+    "measured_seconds": 25.028497641,
+    "client_peak_outstanding": 128,
+    "streams_completed": 486,
+    "streams_failed": 0,
+    "events_received": 48600,
+    "response_body_bytes": 25607340,
+    "protocols": {
+      "h2": 486
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": 100,
+    "streams_per_second": 19.417865465638958,
+    "events_per_second": 1941.7865465638956,
+    "first_event_ms": {
+      "count": 486,
+      "min": 4.563,
+      "p50": 20.7915,
+      "p95": 5000.5795,
+      "p99": 5003.23625,
+      "max": 5007.067
+    },
+    "event_gap_ms": {
+      "count": 48114,
+      "min": 43.018,
+      "p50": 50.474,
+      "p95": 51.323,
+      "p99": 51.69774,
+      "max": 55.856
+    },
+    "complete_stream_ms": {
+      "count": 486,
+      "min": 4981.491,
+      "p50": 5012.3895,
+      "p95": 9983.39925,
+      "p99": 9988.3189,
+      "max": 9989.112
+    },
+    "delivery_batches": {
+      "count": 486,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 100,
+    "gateway_cpu_percent_of_window": 6.647418659829267,
+    "gateway_rss_mib_end_sample": 42.6328125,
+    "gateway_process_hwm_mib": 42.6328125
+  },
+  {
+    "case": "senix-sse-https-h2",
+    "vus": 128,
+    "repeat": 2,
+    "configured_seconds": 20,
+    "measured_seconds": 25.010370187,
+    "client_peak_outstanding": 128,
+    "streams_completed": 469,
+    "streams_failed": 0,
+    "events_received": 46900,
+    "response_body_bytes": 24711610,
+    "protocols": {
+      "h2": 469
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": 100,
+    "streams_per_second": 18.752221438280785,
+    "events_per_second": 1875.2221438280785,
+    "first_event_ms": {
+      "count": 469,
+      "min": 3.897,
+      "p50": 19.423,
+      "p95": 4990.445,
+      "p99": 4997.53136,
+      "max": 5002.212
+    },
+    "event_gap_ms": {
+      "count": 46431,
+      "min": 42.684,
+      "p50": 50.474,
+      "p95": 51.309,
+      "p99": 51.689,
+      "max": 54.445
+    },
+    "complete_stream_ms": {
+      "count": 469,
+      "min": 4985.441,
+      "p50": 5011.39,
+      "p95": 9971.908800000001,
+      "p99": 9980.63592,
+      "max": 9983.071
+    },
+    "delivery_batches": {
+      "count": 469,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 100,
+    "gateway_cpu_percent_of_window": 6.2354482872890555,
+    "gateway_rss_mib_end_sample": 42.6328125,
+    "gateway_process_hwm_mib": 42.6328125
+  },
+  {
+    "case": "senix-sse-https-h2",
+    "vus": 128,
+    "repeat": 3,
+    "configured_seconds": 20,
+    "measured_seconds": 25.034205714,
+    "client_peak_outstanding": 128,
+    "streams_completed": 441,
+    "streams_failed": 0,
+    "events_received": 44100,
+    "response_body_bytes": 23236290,
+    "protocols": {
+      "h2": 441
+    },
+    "errors": [],
+    "http2_remote_max_concurrent_streams": 100,
+    "streams_per_second": 17.615897426031673,
+    "events_per_second": 1761.5897426031675,
+    "first_event_ms": {
+      "count": 441,
+      "min": 4.205,
+      "p50": 21.405,
+      "p95": 5012.897,
+      "p99": 5014.005,
+      "max": 5014.482
+    },
+    "event_gap_ms": {
+      "count": 43659,
+      "min": 40.783,
+      "p50": 50.464,
+      "p95": 51.425,
+      "p99": 51.82026,
+      "max": 58.572
+    },
+    "complete_stream_ms": {
+      "count": 441,
+      "min": 4987.899,
+      "p50": 5017.284,
+      "p95": 9994.265,
+      "p99": 10012.739800000001,
+      "max": 10013.247
+    },
+    "delivery_batches": {
+      "count": 441,
+      "min": 100,
+      "p50": 100,
+      "p95": 100,
+      "p99": 100,
+      "max": 100
+    },
+    "backend_peak_active": 100,
+    "gateway_cpu_percent_of_window": 6.105820713554619,
+    "gateway_rss_mib_end_sample": 42.6328125,
+    "gateway_process_hwm_mib": 42.6328125
+  }
+]

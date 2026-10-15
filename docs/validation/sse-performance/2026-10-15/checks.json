@@ -1,0 +1,45 @@
+{
+  "measurement_commit": "dba2841a57ec9da51ad9dbc888f5f9c1103c2be4",
+  "measurement_worktree_dirty": false,
+  "ci_url": "https://github.com/ALVIN-YANG/senix/actions/runs/38761262564",
+  "ci_conclusion": "success",
+  "source_artifact": {
+    "id": 11986064240,
+    "name": "benchmark-dba2841a57ec9da51ad9dbc888f5f9c1103c2be4",
+    "size_in_bytes": 1449691,
+    "digest": "sha256:8fcea52fe65e4dd70612d7d057f45ad649513bbb8b4237e86de2cfe659c728d8"
+  },
+  "download_digest_verified": true,
+  "publication": {
+    "all_original_non_metadata_files_byte_identical": true,
+    "metadata_only_changes": "output path replaced with local input directory name; publication note added",
+    "report_script_sha256": "173cafd746d1c8b6b43602c6b98084f47766eb280bc1d15c8406d4aaebbb1fe6",
+    "chart": {
+      "path": "assets/readme/sse-first-event.png",
+      "sha256": "a8e93e818eba22d7b144997c860abf6ee79ed7d88d3d7b6dca419190e5f93755",
+      "vu": 32,
+      "matplotlib": "3.11.2"
+    },
+    "report_cli_tests_sha256": "91f3b67ec9b24c4067854877fb6b39aaba074c23cef9cc127ad7afa5d0de5e7c"
+  },
+  "verification": {
+    "verified_measurements": 27,
+    "streams_completed": 6498,
+    "events_received": 649800,
+    "method": "independently recomputed Node latency quantiles from raw integer samples; cross-checked counts, protocol and resources"
+  },
+  "additional_checks": {
+    "valid_local_report_generated": true,
+    "modified_raw_sample_rejected_before_report_creation": true,
+    "nested_output_rejected_before_copy": true,
+    "historical_short_request_resource_summary_unchanged": true,
+    "load_client_integrity_cases_passed": 4,
+    "report_cli_regression_cases_passed": 3
+  },
+  "limits": [
+    "Synthetic paced SSE, not actual model inference or a maximum-capacity benchmark.",
+    "Single shared H2 connection; 128 workers include queueing under the advertised 100-stream connection limit.",
+    "No slow-consumer, failure injection, configuration/drain-under-load, WebSocket/gRPC load or long soak result.",
+    "Gateway process reused across cases; end RSS and process-lifetime HWM are distinct measurements."
+  ]
+}

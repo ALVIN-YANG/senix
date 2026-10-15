@@ -18,7 +18,7 @@ Senix helps individual developers and small teams operate a gateway with an AI c
 | Can an AI change configuration safely? | A real MCP workflow read v1, planned a hostname change, waited for test Owner approval and applied v2. Requests checked the new hostname, old hostname and an unaffected route. [Initial validation](./docs/validation/2026-10-15-ai-configuration.md) and [version conflict/retry validation, Chinese](./docs/validation/2026-10-15-mcp-version-guard.md). |
 | Can I monitor it? | Local Prometheus, Grafana, VictoriaMetrics, OTel Collector, Alloy and Loki paths were exercised. [Validation record, Chinese](./docs/validation/2026-10-15-observability.md) and [raw results](./docs/validation/2026-10-15-observability.json). |
 | Do live streams survive draining? | Current-source tests check incremental SSE, WebSocket messages/close, and bidirectional gRPC over TLS/HTTP2 with success and error trailers. New requests reach the other backend while existing streams finish. [SSE / WebSocket](./docs/validation/2026-10-15-streaming.md) and [gRPC wire-protocol validation, Chinese](./docs/validation/2026-10-15-grpc.md). |
-| Is there a performance baseline? | 36 Linux AMD64 measurements completed 4,642,339 requests, including 3,066,768 through Senix, with zero HTTP failures. The ARM64 local baseline is also preserved. See [performance evidence](#performance-baselines). |
+| Is there a performance baseline? | 36 Linux AMD64 short-request measurements completed 4,642,339 requests, including 3,066,768 through Senix, with zero HTTP failures. A separate [27-run SSE matrix, Chinese](./docs/validation/2026-10-15-sse-performance.md) preserves raw event-latency samples. See [performance evidence](#performance-baselines). |
 | What passed regression checks? | Current source on Rust 1.88: 86 tests, including 32 real-process E2E tests; formatting, strict Clippy, frontend build and npm audit. Rust dependency audit still reports [four upstream warnings, Chinese](./CONTRIBUTING.md). |
 
 ## Try the Docker demo
@@ -189,7 +189,7 @@ GitHub-hosted Linux AMD64 runner with 4 CPUs and 15.62 GiB RAM. Senix, k6 and th
 
 The [actual workflow](https://github.com/ALVIN-YANG/senix/actions/runs/38707502445) measured clean commit `af40d95`, before the MCP planning version guard. The four-case matrix at 1/32/128 VUs completed 4,642,339 requests, including 3,066,768 through Senix, with zero HTTP failures and all status/size checks passing. The HTTPS case observed 834,076 HTTP/2 responses. Latency includes sending, waiting and receiving, but excludes DNS/TCP/TLS connection setup. RSS is an end sample, not a per-run peak.
 
-This shared runner provides a short baseline, not a production capacity or long-term stability guarantee. It does not establish superiority over other gateways. The [ARM64 local baseline](./docs/validation/2026-10-15-performance.md) remains available; differences between machines do not measure an optimization gain. Access logging and external collectors were off. Large bodies, long streams, failure recovery and configuration changes under load were not measured.
+This shared runner provides a short baseline, not a production capacity or long-term stability guarantee. It does not establish superiority over other gateways. The [ARM64 local baseline](./docs/validation/2026-10-15-performance.md) remains available; differences between machines do not measure an optimization gain. Access logging and external collectors were off. This short-request matrix did not measure large bodies, long streams, failure recovery or configuration changes under load; the separate SSE results follow below.
 
 To repeat the matrix, install Python 3, Docker with Linux containers and cgroup v2, openssl, and allow about 4 GiB of free memory. Stop other load first:
 
@@ -203,6 +203,16 @@ python3 benchmarks/run.py --image senix:observability --output target/benchmarks
 Use a new output directory each time. The harness records raw k6 summaries and logs, cgroup/procfs resources, image identities, source hashes and machine conditions. Each run uses randomly named test containers on a Docker bridge with no host ports and cleans them up on exit.
 
 [Linux method and results, Chinese](./docs/validation/2026-10-15-linux-performance.md) · [Raw Linux runs](./docs/validation/benchmarks/2026-10-15-linux/runs.json) · [Checksums](./docs/validation/benchmarks/2026-10-15-linux/SHA256SUMS) · [Harness details, Chinese](./benchmarks/README.md)
+
+### SSE delivery
+
+The [separate Linux SSE baseline, Chinese](./docs/validation/2026-10-15-sse-performance.md) measured clean commit `dba2841`: 27 measurements completed 6,498 streams and 649,800 events, including 4,263 streams through Senix, with zero stream failures. Each stream emits 100 prebuilt events with 512-byte JSON data, scheduled with 50 ms timers. This is synthetic paced output.
+
+![Linux runner, 32 client workers: first complete SSE event p95, with three-run medians and ranges](./assets/readme/sse-first-event.png)
+
+At 32 client workers, the median of three first-event p95s was **15.312 ms** for Senix HTTP/1.1 and **13.920 ms** for TLS/HTTP2, including initial connection wait and client parsing. The maximum gateway end-of-run RSS sample across proxy cases was **42.63 MiB**.
+
+The full matrix also retains queueing: with 128 workers sharing one H2 connection, the server advertised a 100-stream limit, the backend peak was 100 active streams, and first-event p95 was **5,000.579 ms**. These are different active-stream counts, so they do not isolate protocol overhead. Raw microsecond samples, environment, connection policy and independent recalculation are preserved. This does not measure model inference, maximum capacity or long-term stability.
 
 ## Security, backup and limits
 

@@ -1,0 +1,6 @@
+{
+  "verified_measurements": 27,
+  "streams_completed": 6498,
+  "events_received": 649800,
+  "method": "independently recomputed Node latency quantiles from raw integer samples; cross-checked counts, protocol and resources"
+}
