@@ -4,22 +4,21 @@
 
 An AI client can read the complete configuration, propose a change and apply it after the human Owner approves the exact plan. The AI accesses Senix through MCP. Application deployment remains your responsibility.
 
-> `get_current_config`, the planning version guard, configuration JSON Schema and Key presets are unreleased source features. The default Docker demo uses published v0.3.1. Build the current source to complete this workflow. The admin UI is currently in Chinese; exact labels are included below.
+> This workflow uses v0.4.0, including `get_current_config`, version-aware plans, configuration JSON Schema and Key presets. Existing MCP callers must add `expected_version`; see the [upgrade notes](releases/v0.4.0.md). The admin UI is currently in Chinese; exact labels are included below.
 
-## 1. Start the current source
+## 1. Start v0.4.0
 
-You need Git, Docker with Linux containers, Docker Compose v2, curl and access to build images and package registries. From a clone of this repository, run:
+You need Git, Docker with Linux containers, Docker Compose v2, curl and access to the image registry. From a v0.4.0 clone of this repository (see the README), run:
 
 ```bash
-docker build -t senix:local .
-SENIX_IMAGE=senix:local SENIX_DEMO_PULL=0 ./scripts/demo.sh
+SENIX_IMAGE=ghcr.io/alvin-yang/senix:0.4.0 ./scripts/demo.sh
 ```
 
-The first build downloads and compiles dependencies; allow time for it. The script prints the admin URL, Owner username, generated password and a real proxy response. The default ports `8080` and `9080` and Docker subnet `172.28.0.0/24` must be available. The admin port is bound to loopback; the proxy port accepts connections on all host interfaces.
+No compilation is needed. The script prints the admin URL, Owner username, generated password and a real proxy response. The default ports `8080` and `9080` and Docker subnet `172.28.0.0/24` must be available. The admin port is bound to loopback; the proxy port accepts connections on all host interfaces.
 
 If a port is occupied, prefix the demo command with `SENIX_DEMO_PROXY_PORT=18080 SENIX_DEMO_ADMIN_PORT=19080`. Update the browser, MCP and curl addresses below accordingly. Keep these overrides when restarting or stopping the demo.
 
-Stop any older demo with the stop command printed by the script before starting the source image. Repeated starts keep the account and configuration; use the original password. Once the database contains a Snapshot, editing the example JSON does not replace the saved configuration.
+Stop any older demo with the stop command printed by the script before starting v0.4.0. Repeated starts keep the account and configuration; use the original password. Once the database contains a Snapshot, editing the example JSON does not replace the saved configuration.
 
 ## 2. Issue a configuration collaboration Key
 

@@ -4,6 +4,8 @@ Senix 使用[语义化版本](https://semver.org/lang/zh-CN/)。`0.x` 阶段仍�
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-15
+
 ### Added
 
 - MCP `plan_change.candidate` 改为实际配置类型派生的 JSON Schema，公开路由、后端、TLS 和健康检查字段。
@@ -12,7 +14,7 @@ Senix 使用[语义化版本](https://semver.org/lang/zh-CN/)。`0.x` 阶段仍�
 - 增加英文 README 和完整 AI 配置操作指南，中英文页面互链，`llms.txt` 提供两种语言入口。
 - MCP `get_current_config` 通过全局 `change.read` 返回配置版本与完整配置，便于 AI 保留其他路由后生成变更计划。
 - 后台增加只读诊断、配置提案和配置协作 Key 模板，明确显示全局范围和各自的操作边界。
-- 增加当前源码的 Docker 启动、Cursor 接入、Owner 批准及真实请求验证指南。
+- 增加 Docker 启动、Cursor 接入、Owner 批准及真实请求验证指南。
 - 增加普通请求与长连接分离的 Prometheus 耗时直方图；网关生成的错误响应也计入状态类别。
 - 增加 `--log-format json` 和显式开启的脱敏逐请求事件，便于外部日志采集。
 - 增加 Prometheus/Grafana、VictoriaMetrics、OTel Collector、Alloy/Loki 可运行示例，以及其他监控系统的协议接入配置与验证级别。
@@ -21,7 +23,7 @@ Senix 使用[语义化版本](https://semver.org/lang/zh-CN/)。`0.x` 阶段仍�
 
 ### Changed
 
-- **MCP 破坏性调整（未发布）**：`plan_change` 必填 `expected_version`，旧调用方须传入 `get_current_config` 返回的版本；版本不符返回 `CONFIG_VERSION_MISMATCH`，不创建计划，须重读并合并配置。缺参或配置结构错误由 SDK 返回工具错误。REST v1 的现有请求体及 `plan_rollback` 保持兼容。
+- **MCP 破坏性调整**：`plan_change` 必填 `expected_version`，旧调用方须传入 `get_current_config` 返回的版本；版本不符返回 `CONFIG_VERSION_MISMATCH`，不创建计划，须重读并合并配置。缺参或配置结构错误由 SDK 返回工具错误。REST v1 的现有请求体及 `plan_rollback` 保持兼容。
 
 ### Fixed
 
@@ -70,3 +72,5 @@ Senix 使用[语义化版本](https://semver.org/lang/zh-CN/)。`0.x` 阶段仍�
 
 [0.3.0]: https://github.com/ALVIN-YANG/senix/compare/v0.2.2...v0.3.0
 [0.3.1]: https://github.com/ALVIN-YANG/senix/compare/v0.3.0...v0.3.1
+[0.4.0]: https://github.com/ALVIN-YANG/senix/compare/v0.3.1...v0.4.0
+[Unreleased]: https://github.com/ALVIN-YANG/senix/compare/v0.4.0...HEAD

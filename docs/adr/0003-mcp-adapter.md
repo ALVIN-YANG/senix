@@ -23,7 +23,7 @@ MCP 挂载在管理端口的 `/mcp`。Bearer Key 由与 REST 相同的 HTTP 中�
 
 MCP 默认只允许 loopback Host。私网或反向代理域名必须通过启动参数显式加入 Host 允许列表；浏览器来源必须加入 Origin 允许列表。管理面 TLS 仍由后续内置能力或受信反向代理解决。
 
-2026-10-15 接口增量：旧 MCP 调用方须补版本参数，缺参及配置结构错误由 MCP SDK 返回工具错误（`isError: true`），不进入领域规划；业务校验仍使用计划 `issues`。REST v1 的原请求体和 `plan_rollback` 保持兼容。此增量尚未进入已发布的 v0.3.1。
+2026-10-15 接口增量：旧 MCP 调用方须补版本参数，缺参及配置结构错误由 MCP SDK 返回工具错误（`isError: true`），不进入领域规划；业务校验仍使用计划 `issues`。REST v1 的原请求体和 `plan_rollback` 保持兼容。此增量在 v0.4.0 发布；旧 v0.3.1 不包含这些能力。
 
 ## Consequences
 

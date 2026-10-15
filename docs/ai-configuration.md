@@ -4,15 +4,14 @@
 
 本流程让 AI 读取完整配置、提出变更，并在 Owner 批准后应用。AI 只访问 Senix MCP；部署应用仍由用户或外部脚本负责。
 
-> `get_current_config`、规划版本校验、配置 JSON Schema 和权限模板是当前源码的新功能，尚未发布。默认 Docker Demo 固定在已发布的 `0.3.1`，只用于体验原有代理和管理能力。验证本页完整流程时，请先构建当前源码。
+> 本流程使用 `v0.4.0`，包含 `get_current_config`、规划版本校验、配置 JSON Schema 和权限模板。旧 MCP 调用方须补 `expected_version`，见 [升级说明](releases/v0.4.0.md)。
 
-## 1. 启动当前源码
+## 1. 启动 v0.4.0
 
-需要 Git、Docker、Docker Compose v2 和 curl，并能访问构建使用的镜像及包仓库。以下命令在仓库根目录执行。首次构建需要下载和编译依赖，不计入五分钟操作体验。
+需要 Git、Docker、Docker Compose v2 和 curl，并能访问镜像仓库。以下命令在 `v0.4.0` 仓库根目录执行（克隆命令见 README），无需本地编译。
 
 ```bash
-docker build -t senix:local .
-SENIX_IMAGE=senix:local SENIX_DEMO_PULL=0 ./scripts/demo.sh
+SENIX_IMAGE=ghcr.io/alvin-yang/senix:0.4.0 ./scripts/demo.sh
 ```
 
 脚本输出管理地址、Owner 用户名、首次生成的密码和真实代理响应。管理端口只绑定本机；端口 `8080`、`9080` 和 Docker 子网 `172.28.0.0/24` 必须可用。重跑会保留配置和账号，使用首次密码登录，不会重置现场数据。

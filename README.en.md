@@ -7,7 +7,7 @@
 Senix helps individual developers and small teams operate a gateway with an AI client. The AI reads live state and proposes a configuration; the human Owner reviews the exact plan before it can be applied. One `senixd` binary contains the Pingora proxy, SQLite control plane and admin console. It needs no external database. Your scripts handle application deployment.
 
 > [!IMPORTANT]
-> Senix is a working **v0.3 preview**. Validate your traffic, failure and recovery requirements before production use. The default installer and Docker demo use the published **v0.3.1**. New configuration-reading tools, planning version guards, configuration JSON Schema, Key presets, duration metrics and JSON logs are available in the current source and have not been released yet.
+> The current version is **[v0.4.0](https://github.com/ALVIN-YANG/senix/releases/tag/v0.4.0)**. Senix is in its 0.x phase: validate your traffic, failure and recovery requirements before production use. This release includes configuration reads, version-aware plans, configuration JSON Schema, Key presets, duration metrics and JSON logs. Existing MCP callers must add `expected_version`; see the [upgrade notes](./docs/releases/v0.4.0.md).
 
 ## Evidence you can inspect
 
@@ -24,9 +24,9 @@ Senix helps individual developers and small teams operate a gateway with an AI c
 Install Git, Docker with Linux containers, Docker Compose v2 and curl. The demo needs access to the image registry, free ports `8080` and `9080`, and an available Docker subnet `172.28.0.0/24`.
 
 ```bash
-git clone https://github.com/ALVIN-YANG/senix.git
+git clone --branch v0.4.0 --depth 1 https://github.com/ALVIN-YANG/senix.git
 cd senix
-./scripts/demo.sh
+SENIX_IMAGE=ghcr.io/alvin-yang/senix:0.4.0 ./scripts/demo.sh
 ```
 
 The script prints the admin URL, Owner username, generated password and a real backend response. If Demo Owner creation was interrupted, fix the error and run the demo again to finish account setup. An existing account keeps its original password. Open `http://127.0.0.1:9080/admin/` and sign in with those credentials. The admin UI is currently in Chinese; the [English AI guide](./docs/ai-configuration.en.md) includes the exact UI labels.
@@ -47,7 +47,7 @@ docker compose --project-directory examples/demo -f examples/demo/compose.yml do
 
 Stopping keeps the saved configuration and account. Run the script again and use the original password. Add `--volumes` to the stop command **only to delete the demo data and start over**. Keep any image and port overrides when restarting or stopping.
 
-The default demo uses `ghcr.io/alvin-yang/senix:0.3.1`. To try the new AI workflow and observability features, build the current source:
+The command above uses `ghcr.io/alvin-yang/senix:0.4.0` and needs no compilation. For local development, you can build the source instead:
 
 ```bash
 docker build -t senix:local .
@@ -66,7 +66,7 @@ curl --proto '=https' --tlsv1.2 -LsSf \
   https://raw.githubusercontent.com/ALVIN-YANG/senix/main/install.sh | sh
 ```
 
-The installer supports Linux and macOS on x86_64 and ARM64, downloads a GitHub Release, checks its SHA-256 and runs the candidate before replacing an existing installation. If it cannot run, the existing binary is preserved. Published v0.3.1 Linux archives require glibc 2.38; use the Docker demo on glibc 2.34–2.37. Current-source packaging has been corrected and checked on glibc 2.34; this fix is unreleased. See the [compatibility evidence, Chinese](./docs/validation/2026-10-15-portable-release.md). You can [inspect the installer](./install.sh) first. `SENIX_RELEASE_BASE_URL` can point to a trusted HTTPS Release mirror; the mirror also supplies the checksum, so you must trust it.
+The installer supports Linux and macOS on x86_64 and ARM64, downloads a GitHub Release, checks its SHA-256 and runs the candidate before replacing an existing installation. If it cannot run, the existing binary is preserved. v0.4.0 Linux archives require glibc 2.34 or newer; both architectures run a glibc 2.34 check during packaging. Older v0.3.1 Linux archives require glibc 2.38 and have not been replaced. See the [compatibility evidence, Chinese](./docs/validation/2026-10-15-portable-release.md). You can [inspect the installer](./install.sh) first. `SENIX_RELEASE_BASE_URL` can point to a trusted HTTPS Release mirror; the mirror also supplies the checksum, so you must trust it.
 
 A source build needs Rust 1.88, a C/C++ compiler and CMake:
 
@@ -88,14 +88,14 @@ A manual binary deployment also needs reachable application backends, a configur
 | Manage one gateway | Embedded Owner console, scoped API Keys, management audit, instance controls and structured request diagnostics |
 | Let an AI help | Stateless Streamable HTTP MCP; tool catalog filtered by permissions and every call authorized again |
 | Terminate and use TLS | Downstream static PEM or HTTP-01/SNI certificate activation; upstream HTTPS with system CA validation and H1/H2 ALPN |
-| Observe behavior | Protected Prometheus metrics, traffic/health/in-flight state and certificate expiry; current source adds duration histograms, optional JSON access events and integration examples |
+| Observe behavior | Protected Prometheus metrics, traffic/health/in-flight state and certificate expiry; v0.4.0 adds duration histograms, optional JSON access events and integration examples |
 | Run and recover | Process health probe, non-root container, shutdown grace, consistent online SQLite backups, verification and restore to a new database |
 
 The console and MCP use the same authorization and audit rules as REST. The control plane persists configuration in SQLite, then publishes an immutable runtime Snapshot. Business requests read the in-memory Snapshot and do not query SQLite.
 
 ## AI configuration changes
 
-The [English walkthrough](./docs/ai-configuration.en.md) covers source startup, Key issuance, Cursor configuration, prompts, approval, verification and failures.
+The [English walkthrough](./docs/ai-configuration.en.md) covers startup, Key issuance, Cursor configuration, prompts, approval, verification and failures.
 
 1. Call `get_current_config` and keep its `version` and complete `config`.
 2. Change only the requested fields and call `plan_change` with the complete `candidate` and the read version as required `expected_version`. Its input Schema describes routes, backends, TLS and health checks.
@@ -154,7 +154,7 @@ curl -H "Authorization: Bearer $SENIX_METRICS_KEY" \
   http://127.0.0.1:9080/metrics
 ```
 
-Metrics cover request counts, response classes, proxy errors, Snapshot version, instance state, in-flight requests and certificate expiry. The current source adds request-lifetime histograms with separate ordinary and long-lived series. Optional JSON access events omit Host, URL, query, authorization, Cookies and request bodies.
+Metrics cover request counts, response classes, proxy errors, Snapshot version, instance state, in-flight requests and certificate expiry. v0.4.0 adds request-lifetime histograms with separate ordinary and long-lived series. Optional JSON access events omit Host, URL, query, authorization, Cookies and request bodies.
 
 | Stack | Integration | Verification level |
 | --- | --- | --- |

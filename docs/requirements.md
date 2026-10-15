@@ -1,6 +1,6 @@
 # Senix 产品需求与交付边界
 
-> 状态：v0.3 已实现边界
+> 状态：v0.4 已实现边界
 >
 > 更新：2026-08-14
 >
@@ -27,11 +27,11 @@ Senix 只管理网关和流量。SSH、Shell、容器更新、Kubernetes 操作�
 - 使用 systemd、Docker Compose 或简单 CI 脚本的小团队。
 - 希望让 AI 协助排障和流量操作，但不愿授予服务器 Shell 权限的用户。
 
-## 2. v0.3 已交付能力
+## 2. v0.4 已交付能力
 
 ### 2.1 代理与协议
 
-| 能力 | v0.3 边界 |
+| 能力 | v0.4 边界 |
 | --- | --- |
 | 下游 HTTP | 明文 HTTP/1.1；TLS 监听支持 HTTP/1.1 和 HTTP/2 ALPN |
 | 上游 HTTP | HTTP/1.1；HTTPS 可选择 HTTP/1.1、HTTP/2 或协商两者 |
@@ -52,7 +52,7 @@ Senix 只管理网关和流量。SSH、Shell、容器更新、Kubernetes 操作�
 - HTTPS 后端的 HTTP 健康检查复用同一证书校验、SNI 和 ALPN 设置。
 - 配置拒绝未知字段、重复路由、无效 Host、重复或冲突 Instance、零总权重及不安全检查参数。
 
-v0.3 尚无独立 Service 和 BackendPool 实体，也不支持按方法、请求头或正则匹配，以及重定向、改写和请求头修改动作。
+v0.4 尚无独立 Service 和 BackendPool 实体，也不支持按方法、请求头或正则匹配，以及重定向、改写和请求头修改动作。
 
 ### 2.3 配置变更
 
@@ -97,7 +97,7 @@ candidate
 - 审计记录操作者、动作、资源、结果和风险，不保存密码、Cookie、Key、Authorization、私钥或请求正文。
 - 所有管理错误和登录响应禁止缓存。
 
-管理端口默认绑定 `127.0.0.1:9080`。v0.3 不内置管理面 TLS；不要直接暴露到公网。通过受信 TLS 入口访问时启用 `--admin-secure-cookie`，并显式配置 MCP 允许的 Host 和 Origin。
+管理端口默认绑定 `127.0.0.1:9080`。v0.4 不内置管理面 TLS；不要直接暴露到公网。通过受信 TLS 入口访问时启用 `--admin-secure-cookie`，并显式配置 MCP 允许的 Host 和 Origin。
 
 ### 2.6 MCP
 
@@ -114,7 +114,7 @@ MCP 使用无会话 Streamable HTTP，挂载在管理端口 `/mcp`。每个请�
 - `list_certificates`、`issue_certificate`
 - `list_audit_events`
 
-未发布的源码增量增加 `get_current_config`：要求全局 `change.read`，返回当前 Snapshot 的版本和完整配置；MCP `plan_change` 必填 `expected_version`，版本冲突时不创建计划，并提供从配置类型生成的 JSON Schema；旧 MCP 调用方须补版本参数，REST v1 和 `plan_rollback` 保持兼容。权限模板与完整操作流程见 [AI 配置变更指南](./ai-configuration.md)。此增量不属于已发布的 `v0.3.1` 包。
+v0.4.0 增加 `get_current_config`：要求全局 `change.read`，返回当前 Snapshot 的版本和完整配置；MCP `plan_change` 必填 `expected_version`，版本冲突时不创建计划，并提供从配置类型生成的 JSON Schema；旧 MCP 调用方须补版本参数，REST v1 和 `plan_rollback` 保持兼容。权限模板与完整操作流程见 [AI 配置变更指南](./ai-configuration.md)。这些能力不属于旧 `v0.3.1` 包。
 
 工具目录按当前 Key 的动作和范围裁剪；每次调用仍重新授权。MCP 不提供 Key 创建、计划批准、Shell、SSH、Docker、Kubernetes、数据库或私钥工具。
 
@@ -126,14 +126,14 @@ MCP 使用无会话 Streamable HTTP，挂载在管理端口 `/mcp`。每个请�
 - 主密钥位于独立普通文件；Unix 上拒绝 group 或 others 可读写的文件。
 - 后台允许对当前证书再次显式签发；Prometheus 暴露过期、30 天内到期和最早到期时间。
 
-续期由用户或脚本控制。v0.3 不做自动调度、DNS-01、证书上传或 DNS 提供商集成。
+续期由用户或脚本控制。v0.4 不做自动调度、DNS-01、证书上传或 DNS 提供商集成。
 
 ### 2.8 可观测性与备份
 
 - `/healthz` 是公开的进程探针；`senixd healthcheck` 和容器 HEALTHCHECK 使用同一入口。
 - `/metrics` 需要带全局 `metrics.read` 的 Bearer Key。
 - 指标覆盖请求、响应状态类别、代理错误、配置版本、实例状态、普通和长连接在途数、证书到期风险。
-- 当前源码新增按普通请求/长连接区分的请求生命周期直方图，以及显式开启的脱敏 JSON 访问日志；未包含在 `v0.3.1` 发布包中。监控接入与实测范围见 [监控指南](observability.md)。
+- v0.4.0 新增按普通请求/长连接区分的请求生命周期直方图，以及显式开启的脱敏 JSON 访问日志；未包含在 `v0.3.1` 发布包中。监控接入与实测范围见 [监控指南](observability.md)。
 - 指标不使用 Host、域名、URL、Key 或请求体标签，避免秘密泄漏和高基数。
 - 请求诊断从运行 Snapshot 输出结构化路由证据，不依赖访问日志猜测。
 - SQLite 使用 WAL、`synchronous=FULL`、忙等待、完整性检查和明确 Schema 版本。
@@ -201,7 +201,7 @@ GET    /metrics
 - CI 在 Rust 1.88 上运行格式检查、严格 Clippy、全部测试、前端构建、嵌入产物校验和交付文件检查。
 - RustSec 定期扫描依赖；Dependabot 覆盖 Cargo、npm、Docker 和 GitHub Actions。
 
-Senix 收到 `SIGTERM` 后停止接收新连接，给已有连接配置的宽限时间，再等待运行时退出。超过期限的长连接仍可能被终止。v0.3 不承诺单机进程间的既有连接迁移，也不内置多节点高可用。
+Senix 收到 `SIGTERM` 后停止接收新连接，给已有连接配置的宽限时间，再等待运行时退出。超过期限的长连接仍可能被终止。v0.4 不承诺单机进程间的既有连接迁移，也不内置多节点高可用。
 
 ## 6. 验收要求
 
@@ -224,7 +224,7 @@ Senix 收到 `SIGTERM` 后停止接收新连接，给已有连接配置的宽限
 - 任意 Rust 动态库加载或未经隔离的请求脚本。
 - 在单节点 SQLite 上虚构多节点一致性或网关集群管理。
 
-## 8. 后续候选，不属于 v0.3 承诺
+## 8. 后续候选，不属于 v0.4 承诺
 
 按需求证据再决定，不预建空入口：
 

@@ -2,11 +2,11 @@
 
 Senix 使用两条开放通路：管理端口的 Prometheus 0.0.4 指标，以及可选的 JSON 行日志。网关不依赖采集器运行。监控系统、存储、告警通知和宿主机指标仍由外部工具负责。
 
-请求耗时直方图、JSON 日志和本目录示例属于当前源码，尚未包含在 `v0.3.1` 发布包中。
+请求耗时直方图和 JSON 日志从 `v0.4.0` 开始提供；旧 `v0.3.1` 包不包含这些能力。
 
 ## 本机启动 Prometheus + Grafana
 
-需要 Docker Compose v2；先按 [AI 配置指南](ai-configuration.md) 构建当前源码镜像并启动 Demo。需要本机有 bash。先在管理后台创建一把全局范围、仅含 `metrics.read` 的 Key。该 Key 只能读取指标，不能读取配置或执行变更。
+需要 Docker Compose v2；先按 [AI 配置指南](ai-configuration.md) 使用 `0.4.0` 镜像启动 Demo。需要本机有 bash。先在管理后台创建一把全局范围、仅含 `metrics.read` 的 Key。该 Key 只能读取指标，不能读取配置或执行变更。
 
 从仓库根目录执行，将一次性展示的 Key 粘贴到终端提示中：
 
@@ -97,7 +97,7 @@ sum by (kind) (senix_instance_in_flight)
 
 ## JSON 日志
 
-默认保持文本格式、默认不记录逐请求日志。当前源码可显式开启：
+默认保持文本格式、默认不记录逐请求日志。`v0.4.0` 可显式开启：
 
 ```bash
 RUST_LOG=senixd=info,senix_pingora::access=debug senixd \

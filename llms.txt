@@ -2,7 +2,7 @@
 
 > Self-contained Rust reverse proxy with a scoped MCP control plane. Single-node SQLite; owner-approved, immutable configuration changes. This is not an LLM API router.
 
-The current source has unreleased additions beyond v0.3.1. Never assume a published binary exposes a tool until tools/list confirms it.
+The current release is v0.4.0. It adds configuration reads, required expected_version and typed planning Schema. Older versions differ; confirm tool availability and input contracts through tools/list.
 
 ## Operate through MCP
 

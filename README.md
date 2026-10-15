@@ -14,7 +14,7 @@
 Senix 是面向个人开发者和小团队的 Rust 网关。AI 通过受限 MCP 读取状态、提出配置计划，Owner 核对后批准，AI 再应用并验证结果。一个二进制包含 Pingora 代理、SQLite 控制面和管理后台，不依赖 Nginx 或外部数据库；实际部署由用户或外部脚本执行。
 
 > [!IMPORTANT]
-> 当前是可运行的 `v0.3` 预览版。生产使用前请按自己的流量、故障模型和恢复要求完成验收；已实现能力与暂不支持范围都列在下方。
+> 当前版本为 [`v0.4.0`](https://github.com/ALVIN-YANG/senix/releases/tag/v0.4.0)，处于 `0.x` 阶段。生产使用前请按自己的流量、故障模型和恢复要求完成验收；已实现能力与暂不支持范围都列在下方。
 
 ## 可核对的证据
 
@@ -26,21 +26,21 @@ Senix 是面向个人开发者和小团队的 Rust 网关。AI 通过受限 MCP 
 | 性能 | Linux AMD64 runner 的 36 次测量完成 464.23 万请求，其中 306.68 万次经过 Senix，失败率为 0；另保留 ARM64 本机基线。见 [性能基线](#性能基线)。 |
 | 回归 | Rust 1.88 下 82 项测试通过，含 28 项真实进程 E2E；格式、严格 Clippy 和前端审计通过。依赖审计仍有 [4 条上游提示](./CONTRIBUTING.md)。 |
 
-以上新增能力使用当前源码验收，尚未发布；下方默认安装和 Demo 使用已发布的 `v0.3.1`。
+`v0.4.0` 包含以上 AI 配置与监控能力。旧 MCP 调用方须补 `expected_version`；详见 [升级说明](./docs/releases/v0.4.0.md)。性能结果保留其原始提交和测量环境，不代表此版本的生产容量。
 
 ## 快速开始
 
 有 Docker 时，直接启动一个 Senix 和两个演示后端：
 
 ```bash
-git clone https://github.com/ALVIN-YANG/senix.git
+git clone --branch v0.4.0 --depth 1 https://github.com/ALVIN-YANG/senix.git
 cd senix
-./scripts/demo.sh
+SENIX_IMAGE=ghcr.io/alvin-yang/senix:0.4.0 ./scripts/demo.sh
 ```
 
 脚本会生成 Owner 密码，并输出管理后台地址和一次真实代理结果。Owner 创建未完成时，修正错误后重跑会继续创建账号；已创建的账号保留原密码。停止演示不会删除数据；执行输出中的重置命令才会清空演示卷。
 
-默认 Demo 固定使用已发布的 `0.3.1` 镜像。要体验当前源码新增的 MCP 配置读取、Key 权限模板、耗时指标和 JSON 日志，请按 [AI 配置变更指南](./docs/ai-configuration.md) 构建本地镜像，再完成“读取 → 规划 → Owner 批准 → 应用 → 真实请求验证”。首次构建耗时与网络、硬件有关。
+以上命令直接使用 `0.4.0` 镜像，无需编译。按 [AI 配置变更指南](./docs/ai-configuration.md) 完成“读取 → 规划 → Owner 批准 → 应用 → 真实请求验证”。
 
 端口冲突时可覆盖 `SENIX_DEMO_PROXY_PORT` 和 `SENIX_DEMO_ADMIN_PORT`，例如 `SENIX_DEMO_PROXY_PORT=18080 SENIX_DEMO_ADMIN_PORT=19080 ./scripts/demo.sh`。
 
@@ -51,7 +51,7 @@ curl --proto '=https' --tlsv1.2 -LsSf \
   https://raw.githubusercontent.com/ALVIN-YANG/senix/main/install.sh | sh
 ```
 
-安装器支持 Linux 和 macOS 的 x86_64、ARM64，下载 GitHub Release、校验 SHA-256，并在覆盖前试运行新程序；新程序无法运行时保留原安装。已发布 `v0.3.1` 的 Linux 包实际要求 glibc 2.38，glibc 2.34–2.37 环境可先用 Docker Demo。当前源码已修复打包基线并验证 glibc 2.34，修复尚未发布；见 [兼容性验收](./docs/validation/2026-10-15-portable-release.md)。也可以先下载并检查 [`install.sh`](./install.sh) 再执行。
+安装器支持 Linux 和 macOS 的 x86_64、ARM64，下载 GitHub Release、校验 SHA-256，并在覆盖前试运行新程序；新程序无法运行时保留原安装。`v0.4.0` Linux 包要求 glibc 2.34 或更新版本，两种架构均在 glibc 2.34 上执行检查。旧 `v0.3.1` Linux 包实际要求 glibc 2.38，旧包未替换；见 [兼容性验收](./docs/validation/2026-10-15-portable-release.md)。也可以先下载并检查 [`install.sh`](./install.sh) 再执行。
 
 下载遇到临时断连会自动重试。无法直连 GitHub 时，可将 `SENIX_RELEASE_BASE_URL` 设置为自己信任的 HTTPS Release 镜像根地址；归档仍会按镜像中同版本的 `checksums.txt` 校验，因此镜像本身必须可信。
 
@@ -265,7 +265,7 @@ Owner 控制台、REST 脚本和 MCP 客户端共享同一权限与审计边界�
 - 创建最小权限 Key、吊销 Key，并查看无秘密审计记录。
 - 查看证书有效期，手动发起 HTTP-01 签发并热切换。
 
-当前源码增加了“只读诊断”“配置提案”“配置协作”三种 Key 模板，签发前仍可核对和修改动作、范围与有效期。诊断和配置动作需要全局范围，模板会明确选中所有当前和未来实例；它们不提供实例隔离。
+`v0.4.0` 增加了“只读诊断”“配置提案”“配置协作”三种 Key 模板，签发前仍可核对和修改动作、范围与有效期。诊断和配置动作需要全局范围，模板会明确选中所有当前和未来实例；它们不提供实例隔离。
 
 最后一个可用后端和不健康实例回接不会被静默绕过。只有操作者显式选择 `force` 才能继续，操作会被标记为高风险。
 
@@ -324,7 +324,7 @@ curl -H "Authorization: Bearer $SENIX_METRICS_KEY" \
   http://127.0.0.1:9080/metrics
 ```
 
-指标覆盖请求量、响应类别、代理错误、快照版本、实例状态、在途数和证书到期风险。当前源码新增普通请求/长连接分开的耗时直方图，可计算 p50/p95/p99，并可显式开启脱敏 JSON 访问日志。标签不包含 Host、URL、Key 或请求体。
+指标覆盖请求量、响应类别、代理错误、快照版本、实例状态、在途数和证书到期风险。`v0.4.0` 新增普通请求/长连接分开的耗时直方图，可计算 p50/p95/p99，并可显式开启脱敏 JSON 访问日志。标签不包含 Host、URL、Key 或请求体。
 
 | 使用中的系统 | 接入通路 | 本轮证据 |
 | --- | --- | --- |
@@ -393,7 +393,7 @@ Streamable HTTP MCP 位于 `http://127.0.0.1:9080/mcp`。每个请求都使用�
 
 当前工具覆盖实例查询与流量控制、请求诊断、配置与回滚规划、应用已批准计划、证书查询与 HTTP-01 签发、审计读取。证书工具只返回元数据，不返回 ACME 账户凭据或证书私钥。
 
-当前源码新增 `get_current_config`，使用全局 `change.read` 权限返回当前 Snapshot 的 `version` 和完整 `config`。AI 可据此保留其他路由并创建候选配置；MCP `plan_change` 必须携带读取的 `expected_version`，版本变化会在创建计划前拒绝；候选字段由配置 JSON Schema 公开。旧 MCP 调用方需补版本参数，REST v1 保持兼容。完整接入和故障处理见 [AI 配置变更指南](./docs/ai-configuration.md)。这些新增能力尚未包含在 `v0.3.1` 发布包中。
+`v0.4.0` 新增 `get_current_config`，使用全局 `change.read` 权限返回当前 Snapshot 的 `version` 和完整 `config`。AI 可据此保留其他路由并创建候选配置；MCP `plan_change` 必须携带读取的 `expected_version`，版本变化会在创建计划前拒绝；候选字段由配置 JSON Schema 公开。旧 MCP 调用方需补版本参数，REST v1 保持兼容。完整接入和故障处理见 [AI 配置变更指南](./docs/ai-configuration.md)。旧 `v0.3.1` 包不包含这些新增能力。
 
 工具清单会按 Key 的动作和实例范围裁剪，实际调用仍会再次授权。MCP 不提供 Key 创建、计划批准、Shell、SSH、Docker 或 Kubernetes 工具。
 
