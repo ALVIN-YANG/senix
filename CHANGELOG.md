@@ -2,6 +2,28 @@
 
 Senix 使用[语义化版本](https://semver.org/lang/zh-CN/)。`0.x` 阶段仍可能调整接口，破坏性变化会在发布说明中明确标出。
 
+## [Unreleased]
+
+### Added
+
+- MCP `get_current_config` 通过全局 `change.read` 返回配置版本与完整配置，便于 AI 保留其他路由后生成变更计划。
+- 后台增加只读诊断、配置提案和配置协作 Key 模板，明确显示全局范围和各自的操作边界。
+- 增加当前源码的 Docker 启动、Cursor 接入、Owner 批准及真实请求验证指南。
+- 增加普通请求与长连接分离的 Prometheus 耗时直方图；网关生成的错误响应也计入状态类别。
+- 增加 `--log-format json` 和显式开启的脱敏逐请求事件，便于外部日志采集。
+- 增加 Prometheus/Grafana、VictoriaMetrics、OTel Collector、Alloy/Loki 可运行示例，以及其他监控系统的协议接入配置与验证级别。
+- 增加固定负载、多次重复、保存原始数据的 Docker/k6 基准及手动触发工作流；README 展示真实操作与性能证据。
+- 增加 `llms.txt` 文档入口与 AI 使用能力核查，明确现有保证和仍缺少的接口约束与评测能力。
+
+### Fixed
+
+- 更新 `h2`、`rustls`、`chacha20` 和前端传递依赖 `source-map-js`，修复已知漏洞并移除已撤回的锁定版本；前端 CI 增加官方 npm 审计。
+- 默认 Demo 使用已发布的 `0.3.1` 镜像；本地构建可通过 `SENIX_DEMO_PULL=0` 使用，不强制拉取远程同名镜像。
+- Demo 支持覆盖代理和管理端口，并在启动容器前校验端口范围。
+- 重跑已启动的 Demo 时复用运行容器执行本机引导检查，避免临时容器与静态 IP 冲突；保留已有账号和数据。
+- Cargo 更新按工作区 Rust 1.88 要求选择兼容依赖，避免自动更新引入更高编译器要求。
+- RustSec 检查增加对 cargo-audit 退出状态的独立检查，已登记的漏洞和已撤回版本也会阻止检查通过。
+
 ## [0.3.1] - 2026-08-14
 
 ### Fixed

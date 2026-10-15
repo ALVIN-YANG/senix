@@ -19,6 +19,8 @@ MCP 挂载在管理端口的 `/mcp`。Bearer Key 由与 REST 相同的 HTTP 中�
 
 首版工具不包含 Credential 管理、批准、任意配置写入、Shell、SSH、Docker 或 Kubernetes。`plan_change` 和 `plan_rollback` 持久化不可修改的 Change Plan；`apply_approved_change` 只能应用 Owner 已批准且仍在有效期内的精确计划，不能修改或自行批准计划。
 
+`get_current_config` 直接读取 `ConfigEngine` 的当前 Snapshot，沿用 REST 配置读取的全局 `change.read` 权限。返回版本和完整配置，使调用方可以保留未修改的路由；调用方必须核对读取版本与计划的 `base_version`，不能把 `instance.read` 当成读取全局配置的授权。
+
 MCP 默认只允许 loopback Host。私网或反向代理域名必须通过启动参数显式加入 Host 允许列表；浏览器来源必须加入 Origin 允许列表。管理面 TLS 仍由后续内置能力或受信反向代理解决。
 
 ## Consequences
@@ -31,6 +33,8 @@ MCP 默认只允许 loopback Host。私网或反向代理域名必须通过启�
 ## Verification
 
 系统测试通过真实 `/mcp` HTTP 请求验证：无 Key 返回 401；合法 Key 可以初始化；工具目录按权限裁剪；允许的实例读取和摘流成功；对范围外 Instance 的伪造调用仍返回 `FORBIDDEN`；摘流结果立即反映在 Pingora 数据面。
+
+配置流程还覆盖 MCP 读取、规划、拒绝未批准应用、Owner 测试账号批准、MCP 应用与真实代理结果；确认无关路由保持一致，重复应用返回原版本，旧基线计划被拒绝。只读 Key、实例范围 Key 和吊销后的 Key 均不能绕过各自边界。
 
 ## References
 

@@ -28,12 +28,17 @@ jobs:
       - name: Build embedded admin
         working-directory: web
         run: npm ci --ignore-scripts && npm run build
+      - name: Audit admin dependencies
+        working-directory: web
+        run: npm audit --registry=https://registry.npmjs.org --audit-level=moderate
       - name: Verify embedded admin is current
         run: git diff --exit-code -- crates/senixd/assets
       - name: Verify delivery files
         run: |
           sh -n install.sh scripts/*.sh
           docker compose --file examples/demo/compose.yml config --quiet
+          SENIX_METRICS_KEY_FILE=/dev/null docker compose --file examples/observability/compose.yml --profile collectors config --quiet
+          python3 -m py_compile benchmarks/run.py benchmarks/report.py scripts/check-observability.py
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked

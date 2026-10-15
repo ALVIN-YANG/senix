@@ -1,0 +1,174 @@
+{
+  "date": "2026-10-15",
+  "image_id": "sha256:55b61e0c0b43020214b38f922e525eeb4dabddc1ff2f21140ad53e704634f259",
+  "checks": [
+    "PASS metrics authorization and least privilege",
+    "PASS Prometheus scrape is UP",
+    "PASS Prometheus histogram has real requests",
+    "PASS PromQL p95 returns a positive measured value",
+    "PASS Grafana provisioned dashboard",
+    "PASS Grafana datasource queries real Senix series",
+    "PASS three alert rules loaded",
+    "PASS OTel Collector scrapes and exports Senix histogram",
+    "PASS VictoriaMetrics direct scrape",
+    "PASS Alloy scrape and remote_write to VictoriaMetrics",
+    "PASS Alloy file collection and Loki query of actual access events"
+  ],
+  "prometheus_targets": [
+    {
+      "scrapeUrl": "http://senix:9080/metrics",
+      "health": "up",
+      "lastError": ""
+    }
+  ],
+  "histogram_counts": [
+    {
+      "metric": {
+        "__name__": "senix_proxy_request_duration_seconds_count",
+        "instance": "senix:9080",
+        "job": "senix",
+        "kind": "ordinary"
+      },
+      "value": [
+        1792047313.554,
+        "301"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "senix_proxy_request_duration_seconds_count",
+        "instance": "senix:9080",
+        "job": "senix",
+        "kind": "long_lived"
+      },
+      "value": [
+        1792047313.554,
+        "0"
+      ]
+    }
+  ],
+  "victoriametrics_scrapes": [
+    {
+      "metric": {
+        "__name__": "up",
+        "instance": "senix:9080",
+        "job": "senix"
+      },
+      "value": [
+        1792047313,
+        "1"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "up",
+        "instance": "senix:9080",
+        "job": "senix_alloy"
+      },
+      "value": [
+        1792047313,
+        "1"
+      ]
+    }
+  ],
+  "grafana": {
+    "uid": "senix-overview",
+    "panels": [
+      "Requests / second",
+      "5xx response ratio",
+      "Ordinary request p95",
+      "In-flight requests",
+      "Configuration snapshot",
+      "Certificates expiring in 30 days",
+      "Proxy errors / second",
+      "Instance state"
+    ]
+  },
+  "rules": [
+    "SenixScrapeFailed",
+    "SenixProxy5xxRatioHigh",
+    "SenixCertificateExpiring"
+  ],
+  "loki": [
+    {
+      "stream": {
+        "detected_level": "debug",
+        "filename": "/var/log/senix/senix.jsonl",
+        "job": "senix",
+        "level": "DEBUG",
+        "service_name": "senix"
+      },
+      "values": [
+        [
+          "1792047313100334118",
+          "{\"timestamp\":\"2026-10-15T06:55:13.051137Z\",\"level\":\"DEBUG\",\"fields\":{\"message\":\"proxy_request_completed\",\"status\":200,\"duration_seconds\":0.001691225,\"long_lived\":false,\"instance_id\":\"backend-b\",\"proxy_error\":false},\"target\":\"senix_pingora::access\"}"
+        ],
+        [
+          "1792047313089442282",
+          "{\"timestamp\":\"2026-10-15T06:55:13.014531Z\",\"level\":\"DEBUG\",\"fields\":{\"message\":\"proxy_request_completed\",\"status\":200,\"duration_seconds\":0.001503603,\"long_lived\":false,\"instance_id\":\"backend-a\",\"proxy_error\":false},\"target\":\"senix_pingora::access\"}"
+        ],
+        [
+          "1792047313089435949",
+          "{\"timestamp\":\"2026-10-15T06:55:12.975967Z\",\"level\":\"DEBUG\",\"fields\":{\"message\":\"proxy_request_completed\",\"status\":200,\"duration_seconds\":0.000475492,\"long_lived\":false,\"instance_id\":\"backend-b\",\"proxy_error\":false},\"target\":\"senix_pingora::access\"}"
+        ]
+      ]
+    }
+  ],
+  "revoked_key_scrape": [
+    {
+      "metric": {
+        "__name__": "up",
+        "instance": "senix:9080",
+        "job": "senix"
+      },
+      "value": [
+        1792047419.992,
+        "0"
+      ]
+    }
+  ],
+  "images": {
+    "prom/prometheus:v3.15.0": {
+      "id": "sha256:21cfe572fdc08ad4007adb5c556dd4ffb256ae2e2f484962c63090f60de9ce28",
+      "digests": [
+        "prom/prometheus@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e"
+      ],
+      "architecture": "arm64"
+    },
+    "grafana/grafana:13.2.4": {
+      "id": "sha256:af26b41119f782122b18b8be3bfdad5ccc1c4f389205fad7ac15706d20926df5",
+      "digests": [
+        "grafana/grafana@sha256:dbbc38ea21103cefb50396340cd88afec779c7e070b0a7bf5a75b4ce46651d3f"
+      ],
+      "architecture": "arm64"
+    },
+    "otel/opentelemetry-collector-contrib:0.162.0": {
+      "id": "sha256:4fde0edd6eb23e0e92bc9f52a839210e9235e7dfba93fe4034a6ff6718ca4d32",
+      "digests": [
+        "otel/opentelemetry-collector-contrib@sha256:39923a8e431bd1f57be82411999d389fcfe40857492e4365456d97a4c1f74be6"
+      ],
+      "architecture": "arm64"
+    },
+    "victoriametrics/victoria-metrics:v1.154.0": {
+      "id": "sha256:c28611e78aadced07f7822d50df2eacbcf8221e6e0d5067ef3b9bc38273f048d",
+      "digests": [
+        "victoriametrics/victoria-metrics@sha256:4bd592341587d669b7f57d54bbb82bd21ac8675f4e24234b7703a7c0f85197d8"
+      ],
+      "architecture": "arm64"
+    },
+    "grafana/alloy:v1.20.1": {
+      "id": "sha256:eb542f56595e42ab1750020d4707cf24c0d88a1654e196c0e24b9bac889ba6d2",
+      "digests": [
+        "grafana/alloy@sha256:2aa2099af76c0098d4af7a4d6e48f86cb66dc1a000222ad927a1c67c6542d13f"
+      ],
+      "architecture": "arm64"
+    },
+    "grafana/loki:3.7.8": {
+      "id": "sha256:fff3104ee2effa83031d1bb75363f346e4af0af5202036e590648da680fdb082",
+      "digests": [
+        "grafana/loki@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193"
+      ],
+      "architecture": "arm64"
+    }
+  }
+}

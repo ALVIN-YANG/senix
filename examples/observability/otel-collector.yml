@@ -1,0 +1,22 @@
+receivers:
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: senix
+          scrape_interval: 5s
+          authorization:
+            credentials_file: /run/secrets/senix_metrics_key
+          static_configs:
+            - targets: [senix:9080]
+processors:
+  batch: {}
+exporters:
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion: {enabled: false}
+service:
+  pipelines:
+    metrics:
+      receivers: [prometheus]
+      processors: [batch]
+      exporters: [prometheus]

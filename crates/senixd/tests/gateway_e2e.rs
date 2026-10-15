@@ -38,16 +38,25 @@ impl Drop for ChildGuard {
 }
 
 #[test]
-fn demo_waits_for_the_public_health_probe() {
-    let script = include_str!("../../../scripts/demo.sh");
-    assert!(
-        script.contains("http://127.0.0.1:9080/healthz"),
-        "the demo must wait on the public health endpoint"
-    );
-    assert!(
-        !script.contains("/api/health"),
-        "the obsolete health path makes quick start time out"
-    );
+fn demo_rejects_invalid_ports_before_starting_containers() {
+    let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../scripts/demo.sh");
+    for variable in ["SENIX_DEMO_PROXY_PORT", "SENIX_DEMO_ADMIN_PORT"] {
+        for port in [
+            "0",
+            "65536",
+            "8080/path",
+            "not-a-port",
+            "99999999999999999999",
+        ] {
+            let output = Command::new("sh")
+                .arg(&script)
+                .env(variable, port)
+                .output()
+                .unwrap();
+            assert_eq!(output.status.code(), Some(2));
+            assert!(String::from_utf8_lossy(&output.stderr).contains("Demo ports"));
+        }
+    }
 }
 
 #[test]
@@ -406,6 +415,7 @@ fn prometheus_metrics_are_scoped_and_cover_the_real_proxy_path() {
         "{body}"
     );
     assert!(body.contains("senix_proxy_errors_total 0\n"), "{body}");
+    assert_request_duration_histogram(body, 2);
     assert!(body.contains("senix_config_snapshot_version 1\n"), "{body}");
     assert!(
         body.contains("senix_certificate_store_enabled 0\n"),
@@ -418,6 +428,117 @@ fn prometheus_metrics_are_scoped_and_cover_the_real_proxy_path() {
         "{body}"
     );
     assert!(!body.contains(&metrics_key));
+    let missing = raw_http(
+        proxy,
+        "GET / HTTP/1.1\r\nHost: missing.test\r\nConnection: close\r\n\r\n",
+    );
+    assert!(missing.starts_with("HTTP/1.1 404"));
+    let after_error = raw_http(
+        admin,
+        &format!(
+            "GET /metrics HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer {metrics_key}\r\nConnection: close\r\n\r\n"
+        ),
+    );
+    assert_request_duration_histogram(&after_error, 3);
+    assert!(after_error.contains("senix_proxy_responses_total{class=\"4xx\"} 1\n"));
+    drop(senix);
+}
+
+fn assert_request_duration_histogram(body: &str, expected: u64) {
+    let buckets = body
+        .lines()
+        .filter(|line| {
+            line.starts_with("senix_proxy_request_duration_seconds_bucket{kind=\"ordinary\",")
+        })
+        .map(|line| {
+            line.split_whitespace()
+                .last()
+                .unwrap()
+                .parse::<u64>()
+                .unwrap()
+        })
+        .collect::<Vec<_>>();
+    assert!(!buckets.is_empty(), "{body}");
+    assert!(buckets.windows(2).all(|window| window[0] <= window[1]));
+    assert_eq!(buckets.last(), Some(&expected));
+    assert!(body.contains(&format!(
+        "senix_proxy_request_duration_seconds_count{{kind=\"ordinary\"}} {expected}\n"
+    )));
+    let sum = body
+        .lines()
+        .find_map(|line| {
+            line.strip_prefix("senix_proxy_request_duration_seconds_sum{kind=\"ordinary\"} ")
+        })
+        .unwrap()
+        .parse::<f64>()
+        .unwrap();
+    assert!(sum > 0.0 && sum.is_finite());
+}
+
+#[test]
+fn json_access_logs_are_parseable_without_request_secrets() {
+    let backend = spawn_backend("LOGS", Duration::ZERO);
+    let proxy = free_address();
+    let admin = free_address();
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("senix.db");
+    let config = dir.path().join("gateway.json");
+    let log = dir.path().join("output.jsonl");
+    write_single_backend_config(&config, backend);
+    let senix = ChildGuard(
+        Command::new(env!("CARGO_BIN_EXE_senixd"))
+            .args([
+                "--log-format",
+                "json",
+                "--listen",
+                &proxy.to_string(),
+                "--admin-listen",
+                &admin.to_string(),
+                "--db",
+                db.to_str().unwrap(),
+                "--config",
+                config.to_str().unwrap(),
+            ])
+            .env("RUST_LOG", "senixd=info,senix_pingora::access=debug")
+            .stdout(fs::File::create(&log).unwrap())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
+    wait_until_ready(admin, proxy);
+    let response = raw_http(
+        proxy,
+        "GET /private-path?token=query-secret HTTP/1.1\r\nHost: example.test\r\nAuthorization: Bearer header-secret\r\nCookie: session=cookie-secret\r\nConnection: close\r\n\r\n",
+    );
+    assert!(response.starts_with("HTTP/1.1 200"));
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        let output = fs::read_to_string(&log).unwrap();
+        let records = output
+            .lines()
+            .map(|line| serde_json::from_str::<Value>(line).unwrap())
+            .collect::<Vec<_>>();
+        if let Some(access) = records
+            .iter()
+            .find(|record| record["fields"]["message"] == "proxy_request_completed")
+        {
+            assert_eq!(access["fields"]["status"], 200);
+            assert_eq!(access["fields"]["instance_id"], "instance-a");
+            assert_eq!(access["fields"]["long_lived"], false);
+            assert!(access["fields"]["duration_seconds"].as_f64().unwrap() > 0.0);
+            for secret in [
+                "private-path",
+                "query-secret",
+                "header-secret",
+                "cookie-secret",
+            ] {
+                assert!(!output.contains(secret), "request secret in log: {secret}");
+            }
+            break;
+        }
+        assert!(Instant::now() < deadline, "access log was not emitted");
+        thread::sleep(Duration::from_millis(20));
+    }
     drop(senix);
 }
 
@@ -574,12 +695,13 @@ fn repeated_owner_login_failures_are_rate_limited_by_peer_address() {
 #[test]
 fn an_ai_key_can_apply_only_the_exact_change_plan_approved_by_the_owner() {
     let backend = spawn_backend("A", Duration::ZERO);
+    let api_backend = spawn_backend("B", Duration::ZERO);
     let proxy = free_address();
     let admin = free_address();
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("senix.db");
     let config = dir.path().join("gateway.json");
-    write_single_backend_config(&config, backend);
+    write_overlapping_route_config(&config, backend, api_backend);
 
     bootstrap_owner_key(&db);
     bootstrap_owner_account(&db, "admin", "correct horse battery staple");
@@ -587,30 +709,45 @@ fn an_ai_key_can_apply_only_the_exact_change_plan_approved_by_the_owner() {
     wait_until_ready(admin, proxy);
     let cookie = login_owner_cookie(admin, "correct horse battery staple");
 
-    let mut candidate: Value = serde_json::from_slice(&fs::read(&config).unwrap()).unwrap();
-    candidate["routes"][0]["host"] = json!("approved.test");
-    let (status, planned, _) = admin_response_with_headers(
+    let apply_key = issue_global_api_key_with_cookie(
         admin,
-        "POST",
-        "/api/v1/changes/plan",
-        Some(candidate),
-        &[("Cookie", &cookie), ("X-Senix-CSRF", "1")],
+        &cookie,
+        "config-agent",
+        &["change.read", "change.plan", "change.apply"],
     );
-    assert_eq!(status, 201);
+    assert_change_apply_tools(admin, &apply_key);
+    let snapshot = call_mcp_tool(admin, &apply_key, "get_current_config", &json!({}));
+    let snapshot = &snapshot["structuredContent"];
+    assert_eq!(snapshot["version"], 1);
+    let untouched_route = snapshot["config"]["routes"][0].clone();
+    let mut candidate = snapshot["config"].clone();
+    candidate["routes"][1]["host"] = json!("approved.test");
+    let result = call_mcp_tool(
+        admin,
+        &apply_key,
+        "plan_change",
+        &json!({"candidate": candidate}),
+    );
+    let planned = &result["structuredContent"];
     assert_eq!(planned["status"], "PLANNED");
-    assert_eq!(planned["created_by"]["label"], "admin");
+    assert_eq!(planned["created_by"]["label"], "config-agent");
     assert_eq!(planned["candidate_digest"].as_str().unwrap().len(), 64);
+    assert_eq!(planned["diff"]["changed_routes"], json!(["route-api"]));
+    assert_eq!(planned["diff"]["removed_routes"], json!([]));
+    assert_eq!(proxy_get(proxy, "/api/before-approval"), "B");
     let change_id = planned["change_id"].as_str().unwrap();
 
-    let (status, missing_approval, _) = admin_response_with_headers(
+    let missing_approval = call_mcp_tool(
         admin,
-        "POST",
-        &format!("/api/v1/changes/{change_id}/apply"),
-        None,
-        &[("Cookie", &cookie), ("X-Senix-CSRF", "1")],
+        &apply_key,
+        "apply_approved_change",
+        &json!({"change_id": change_id}),
     );
-    assert_eq!(status, 409);
-    assert_eq!(missing_approval["code"], "CHANGE_APPROVAL_REQUIRED");
+    assert_eq!(missing_approval["isError"], true);
+    assert_eq!(
+        missing_approval["structuredContent"]["code"],
+        "CHANGE_APPROVAL_REQUIRED"
+    );
 
     let (status, approved, _) = admin_response_with_headers(
         admin,
@@ -621,13 +758,6 @@ fn an_ai_key_can_apply_only_the_exact_change_plan_approved_by_the_owner() {
     );
     assert_eq!(status, 200);
     assert_eq!(approved["status"], "APPROVED");
-
-    let apply_key = issue_global_api_key_with_cookie(
-        admin,
-        &cookie,
-        "config-agent",
-        &["change.read", "change.apply"],
-    );
 
     let (status, denied_approval) = admin_response_with_bearer(
         admin,
@@ -640,46 +770,180 @@ fn an_ai_key_can_apply_only_the_exact_change_plan_approved_by_the_owner() {
     assert_eq!(status, 403);
     assert_eq!(denied_approval["evidence"]["action"], "change.approve");
 
-    assert_change_apply_tools(admin, &apply_key);
-
-    let (_, applied) = mcp_request(
+    let applied = call_mcp_tool(
         admin,
-        Some(&apply_key),
-        41,
-        "tools/call",
-        &json!({
-            "name": "apply_approved_change",
-            "arguments": {"change_id": change_id}
-        }),
+        &apply_key,
+        "apply_approved_change",
+        &json!({"change_id": change_id}),
     );
-    assert_eq!(applied["result"]["structuredContent"]["version"], 2);
-    let (status, replayed) = admin_response_with_bearer(
+    assert_eq!(applied["structuredContent"]["version"], 2);
+    let replayed = call_mcp_tool(
         admin,
-        "POST",
-        &format!("/api/v1/changes/{change_id}/apply"),
-        None,
-        None,
-        Some(&apply_key),
+        &apply_key,
+        "apply_approved_change",
+        &json!({"change_id": change_id}),
     );
-    assert_eq!(status, 200);
-    assert_eq!(replayed["version"], 2);
-
-    let (status, changes) = admin_response_with_bearer(
-        admin,
-        "GET",
-        "/api/v1/changes",
-        None,
-        None,
-        Some(&apply_key),
-    );
-    assert_eq!(status, 200);
-    assert_eq!(changes[0]["status"], "APPLIED");
-    assert_eq!(changes[0]["applied_version"], 2);
-    let (status, current) =
+    assert_eq!(replayed, applied);
+    let (status, rest_current) =
         admin_response_with_bearer(admin, "GET", "/api/v1/config", None, None, Some(&apply_key));
     assert_eq!(status, 200);
+    let result = call_mcp_tool(admin, &apply_key, "get_current_config", &json!({}));
+    let current = &result["structuredContent"];
+    assert_eq!(*current, rest_current);
     assert_eq!(current["version"], 2);
-    assert_eq!(current["config"]["routes"][0]["host"], "approved.test");
+    assert_eq!(current["config"]["routes"][0], untouched_route);
+    assert_eq!(current["config"]["routes"][1]["host"], "approved.test");
+    assert_eq!(
+        proxy_get_host(proxy, "approved.test", "/api/after-approval"),
+        "B"
+    );
+    assert_eq!(proxy_get(proxy, "/unrelated-route"), "A");
+    assert_eq!(proxy_get(proxy, "/api/old-route"), "A");
+    drop(senix);
+}
+
+#[test]
+fn mcp_config_reads_enforce_global_scope_read_only_permissions_and_revocation() {
+    let backend = spawn_backend("A", Duration::ZERO);
+    let proxy = free_address();
+    let admin = free_address();
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("senix.db");
+    let config = dir.path().join("gateway.json");
+    write_single_backend_config(&config, backend);
+    let owner_key = bootstrap_owner_key(&db);
+    let senix = spawn_senix(proxy, admin, &db, &config);
+    wait_until_ready(admin, proxy);
+
+    let (status, issued) = admin_response_with_bearer(
+        admin,
+        "POST",
+        "/api/v1/credentials",
+        None,
+        Some(json!({"label": "config-reader", "actions": ["change.read"], "all_resources": true})),
+        Some(&owner_key),
+    );
+    assert_eq!(status, 201);
+    let reader = issued["api_key"].as_str().unwrap();
+    let result = call_mcp_tool(admin, reader, "get_current_config", &json!({}));
+    assert_eq!(result["structuredContent"]["version"], 1);
+    let candidate = result["structuredContent"]["config"].clone();
+
+    let (_, catalog) = mcp_request(admin, Some(reader), 1, "tools/list", &json!({}));
+    let names = catalog["result"]["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|tool| tool["name"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert!(names.contains(&"get_current_config"));
+    assert!(!names.contains(&"plan_change"));
+    assert!(!names.contains(&"apply_approved_change"));
+    for (name, arguments) in [
+        ("plan_change", json!({"candidate": candidate})),
+        (
+            "apply_approved_change",
+            json!({"change_id": uuid::Uuid::new_v4()}),
+        ),
+    ] {
+        let denied = call_mcp_tool(admin, reader, name, &arguments);
+        assert_eq!(denied["isError"], true);
+        assert_eq!(denied["structuredContent"]["code"], "FORBIDDEN");
+    }
+
+    let (_, scoped_key) = issue_api_key(
+        admin,
+        &owner_key,
+        "instance-reader",
+        &["instance.read"],
+        &["instance-a"],
+    );
+    let denied = call_mcp_tool(admin, &scoped_key, "get_current_config", &json!({}));
+    assert_eq!(denied["isError"], true);
+    assert_eq!(denied["structuredContent"]["code"], "FORBIDDEN");
+    let (status, _) = admin_response_with_bearer(
+        admin,
+        "DELETE",
+        &format!(
+            "/api/v1/credentials/{}",
+            issued["credential_id"].as_str().unwrap()
+        ),
+        None,
+        None,
+        Some(&owner_key),
+    );
+    assert_eq!(status, 204);
+    let (status, _) = mcp_request(
+        admin,
+        Some(reader),
+        2,
+        "tools/call",
+        &json!({"name": "get_current_config", "arguments": {}}),
+    );
+    assert_eq!(status, 401);
+    drop(senix);
+}
+
+#[test]
+fn mcp_rejects_an_approved_config_plan_after_another_snapshot_is_published() {
+    let backend = spawn_backend("A", Duration::ZERO);
+    let proxy = free_address();
+    let admin = free_address();
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("senix.db");
+    let config = dir.path().join("gateway.json");
+    write_single_backend_config(&config, backend);
+    bootstrap_owner_key(&db);
+    bootstrap_owner_account(&db, "admin", "correct horse battery staple");
+    let senix = spawn_senix(proxy, admin, &db, &config);
+    wait_until_ready(admin, proxy);
+    let cookie = login_owner_cookie(admin, "correct horse battery staple");
+    let key = issue_global_api_key_with_cookie(
+        admin,
+        &cookie,
+        "config-agent",
+        &["change.read", "change.plan", "change.apply"],
+    );
+    let snapshot = call_mcp_tool(admin, &key, "get_current_config", &json!({}));
+    let mut candidate = snapshot["structuredContent"]["config"].clone();
+    candidate["routes"][0]["host"] = json!("first.test");
+    let first = call_mcp_tool(admin, &key, "plan_change", &json!({"candidate": candidate}));
+    candidate["routes"][0]["host"] = json!("stale.test");
+    let second = call_mcp_tool(admin, &key, "plan_change", &json!({"candidate": candidate}));
+    for plan in [&first, &second] {
+        assert_eq!(plan["structuredContent"]["base_version"], 1);
+        let id = plan["structuredContent"]["change_id"].as_str().unwrap();
+        let (status, _, _) = admin_response_with_headers(
+            admin,
+            "POST",
+            &format!("/api/v1/changes/{id}/approve"),
+            None,
+            &[("Cookie", &cookie), ("X-Senix-CSRF", "1")],
+        );
+        assert_eq!(status, 200);
+    }
+    let applied = call_mcp_tool(
+        admin,
+        &key,
+        "apply_approved_change",
+        &json!({"change_id": first["structuredContent"]["change_id"]}),
+    );
+    assert_eq!(applied["structuredContent"]["version"], 2);
+    let denied = call_mcp_tool(
+        admin,
+        &key,
+        "apply_approved_change",
+        &json!({"change_id": second["structuredContent"]["change_id"]}),
+    );
+    assert_eq!(denied["isError"], true);
+    assert_eq!(denied["structuredContent"]["code"], "STALE_PLAN");
+    let current = call_mcp_tool(admin, &key, "get_current_config", &json!({}));
+    assert_eq!(current["structuredContent"]["version"], 2);
+    assert_eq!(
+        current["structuredContent"]["config"]["routes"][0]["host"],
+        "first.test"
+    );
+    assert_eq!(proxy_get_host(proxy, "first.test", "/"), "A");
     drop(senix);
 }
 
@@ -853,6 +1117,7 @@ fn stateless_mcp_reuses_the_same_key_scope_and_traffic_controller() {
     assert!(tool_names.contains(&"drain_instance"));
     assert!(!tool_names.contains(&"rejoin_instance"));
     assert!(!tool_names.contains(&"diagnose_request"));
+    assert!(!tool_names.contains(&"get_current_config"));
     assert!(!tool_names.contains(&"create_api_key"));
     assert_modern_tool_catalog_is_private(admin, &mcp_key);
 
@@ -1012,6 +1277,16 @@ fn drain_identifies_a_grpc_stream_as_long_lived() {
     assert_eq!(operation["status"], "DRAINING");
     assert_eq!(operation["ordinary_in_flight"], 0);
     assert_eq!(operation["long_lived_in_flight"], 1);
+    let before_completion = raw_http(
+        admin,
+        &format!(
+            "GET /metrics HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer {owner_key}\r\nConnection: close\r\n\r\n"
+        ),
+    );
+    assert!(
+        before_completion
+            .contains("senix_proxy_request_duration_seconds_count{kind=\"long_lived\"} 0\n")
+    );
 
     assert!(stream.join().unwrap().ends_with("\r\n\r\nA"));
     wait_for_operation_state(
@@ -1019,6 +1294,20 @@ fn drain_identifies_a_grpc_stream_as_long_lived() {
         operation["operation_id"].as_str().unwrap(),
         "DRAINED",
         &owner_key,
+    );
+    let after_completion = raw_http(
+        admin,
+        &format!(
+            "GET /metrics HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer {owner_key}\r\nConnection: close\r\n\r\n"
+        ),
+    );
+    assert!(
+        after_completion
+            .contains("senix_proxy_request_duration_seconds_count{kind=\"long_lived\"} 1\n")
+    );
+    assert!(
+        after_completion
+            .contains("senix_proxy_request_duration_seconds_count{kind=\"ordinary\"} 0\n")
     );
     drop(senix);
 }
@@ -2221,8 +2510,22 @@ fn assert_change_apply_tools(admin: SocketAddr, api_key: &str) {
         .map(|tool| tool["name"].as_str().unwrap())
         .collect::<Vec<_>>();
     assert!(tool_names.contains(&"list_changes"));
+    assert!(tool_names.contains(&"get_current_config"));
     assert!(tool_names.contains(&"apply_approved_change"));
     assert!(!tool_names.contains(&"approve_change"));
+}
+
+fn call_mcp_tool(admin: SocketAddr, api_key: &str, name: &str, arguments: &Value) -> Value {
+    let (status, response) = mcp_request(
+        admin,
+        Some(api_key),
+        42,
+        "tools/call",
+        &json!({"name": name, "arguments": arguments}),
+    );
+    assert_eq!(status, 200);
+    assert!(response.get("error").is_none(), "{response}");
+    response["result"].clone()
 }
 
 fn assert_key_not_listed(admin: SocketAddr, owner_key: &str, api_key: &str) {

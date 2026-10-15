@@ -1,0 +1,11 @@
+# Merge into Metricbeat configuration. Supply your Elasticsearch output separately.
+# Documentation-based example; not validated against an Elastic cluster.
+metricbeat.modules:
+  - module: prometheus
+    period: 10s
+    metricsets: [collector]
+    hosts: ["senix:9080"]
+    metrics_path: /metrics
+    bearer_token_file: /run/secrets/senix_metrics_key
+    metrics_filters:
+      include: ["senix_.*"]

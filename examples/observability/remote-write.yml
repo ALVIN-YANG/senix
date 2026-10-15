@@ -1,0 +1,12 @@
+# Append one matching entry to an existing Prometheus config; do not scrape twice.
+# Supply the endpoint, tenant and credentials for your actual deployment.
+# Grafana Mimir/Cortex: https://<host>/api/v1/push
+# Thanos Receive:      https://<host>/api/v1/receive
+# VictoriaMetrics:     https://<host>/api/v1/write
+# Managed Prometheus: use the vendor's endpoint and auth (some require SigV4).
+remote_write:
+  - url: https://metrics.example.com/api/v1/push
+    authorization:
+      credentials_file: /run/secrets/remote_write_token
+    # headers:
+    #   X-Scope-OrgID: YOUR_TENANT

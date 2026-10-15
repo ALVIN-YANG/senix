@@ -17,6 +17,12 @@ const ACTIONS = [
   ["audit.read", "查看审计"]
 ];
 
+const KEY_PRESETS = [
+  { id: "read", label: "只读诊断", actions: ["instance.read", "diagnostics.read", "change.read"], description: "查看实例、运行诊断和读取当前配置，不能修改网关。" },
+  { id: "plan", label: "配置提案", actions: ["instance.read", "diagnostics.read", "change.read", "change.plan"], description: "读取当前配置并生成变更或回滚计划，不能批准或应用。" },
+  { id: "apply", label: "配置协作", actions: ["instance.read", "diagnostics.read", "change.read", "change.plan", "change.apply"], description: "生成计划，并应用 Owner 已批准的精确内容。不能批准计划或操作实例流量。" }
+];
+
 async function api(path, options = {}) {
   const method = options.method || "GET";
   const headers = { ...(options.headers || {}) };
@@ -521,9 +527,25 @@ function CredentialRow({ item, onRevoke }) {
 }
 
 function KeyForm({ instances, onCancel, onIssued }) {
+  const [presetId, setPresetId] = useState("custom");
+  const [selectedActions, setSelectedActions] = useState([]);
   const [allResources, setAllResources] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  function selectPreset(id) {
+    const preset = KEY_PRESETS.find((item) => item.id === id);
+    setPresetId(id);
+    setSelectedActions(preset ? [...preset.actions] : []);
+    setAllResources(Boolean(preset));
+    setError("");
+  }
+
+  function toggleAction(action, checked) {
+    setPresetId("custom");
+    setSelectedActions((current) => checked ? [...current, action] : current.filter((item) => item !== action));
+    setError("");
+  }
 
   async function submit(event) {
     event.preventDefault();
@@ -563,15 +585,23 @@ function KeyForm({ instances, onCancel, onIssued }) {
 
   return <div className="key-workbench">
     <form onSubmit={submit}>
+      <fieldset><legend>用途模板</legend>
+        <label>选择用途<select value={presetId} onChange={(event) => selectPreset(event.target.value)}>
+          <option value="custom">自定义权限</option>
+          {KEY_PRESETS.map((preset) => <option value={preset.id} key={preset.id}>{preset.label}</option>)}
+        </select></label>
+        <p>{KEY_PRESETS.find((preset) => preset.id === presetId)?.description || "手动选择允许动作和实例范围。调整模板中的权限后会切换为自定义。"}</p>
+        <p>诊断和配置动作需要全局范围。模板覆盖所有当前和未来实例，请核对下方权限后签发；Key 不会自动生成。</p>
+      </fieldset>
       <div className="form-grid">
         <label>名称<input name="label" placeholder="deploy-instance-a" required maxLength="80" autoFocus /></label>
         <label>有效期<select name="expires" defaultValue="168"><option value="24">24 小时</option><option value="168">7 天</option><option value="720">30 天</option><option value="0">不过期</option></select></label>
       </div>
       <fieldset><legend>允许动作</legend><div className="permission-grid">
-        {ACTIONS.map(([action, label]) => <label className="permission-option" key={action}><input type="checkbox" name="actions" value={action} /><span><b>{label}</b><small>{action}</small></span></label>)}
+        {ACTIONS.map(([action, label]) => <label className="permission-option" key={action}><input type="checkbox" name="actions" value={action} checked={selectedActions.includes(action)} onChange={(event) => toggleAction(action, event.target.checked)} /><span><b>{label}</b><small>{action}</small></span></label>)}
       </div></fieldset>
       <fieldset><legend>实例范围</legend>
-        <label className="scope-toggle"><input type="checkbox" checked={allResources} onChange={(event) => setAllResources(event.target.checked)} /><span>所有当前和未来实例</span></label>
+        <label className="scope-toggle"><input type="checkbox" checked={allResources} onChange={(event) => { setAllResources(event.target.checked); setPresetId("custom"); setError(""); }} /><span>所有当前和未来实例</span></label>
         <div className="instance-picker">{instances.length ? instances.map((item) => <label className="instance-option" key={item.id}><input type="checkbox" name="instance_ids" value={item.id} disabled={allResources} /><span>{item.id}</span></label>) : <span className="empty-state">暂无实例</span>}</div>
       </fieldset>
       <p className="form-error" role="alert">{error}</p>

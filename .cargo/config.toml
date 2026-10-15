@@ -1,0 +1,3 @@
+[resolver]
+# Dependency updates must retain the workspace's Rust 1.88 support.
+incompatible-rust-versions = "fallback"

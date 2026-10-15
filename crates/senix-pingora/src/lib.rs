@@ -1,8 +1,11 @@
 //! Pingora adapter for the Senix gateway runtime.
 
-use std::sync::{
-    Arc,
-    atomic::{AtomicU64, Ordering},
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
+    time::{Duration, Instant},
 };
 
 use async_trait::async_trait;
@@ -27,7 +30,13 @@ pub use tls::{
 pub struct RequestContext {
     lease: Option<RequestLease>,
     response_recorded: bool,
+    started_at: Option<Instant>,
+    long_lived: bool,
 }
+
+pub const REQUEST_DURATION_BUCKETS: [f64; 12] = [
+    0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 5.0,
+];
 
 /// Monotonic process-local proxy counters suitable for Prometheus collection.
 #[derive(Debug, Default)]
@@ -39,6 +48,8 @@ pub struct ProxyMetrics {
     responses_4xx: AtomicU64,
     responses_5xx: AtomicU64,
     errors: AtomicU64,
+    duration_buckets: [[AtomicU64; 13]; 2],
+    duration_sum_micros: [AtomicU64; 2],
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -50,6 +61,9 @@ pub struct ProxyMetricsSnapshot {
     pub responses_4xx: u64,
     pub responses_5xx: u64,
     pub errors: u64,
+    /// Non-cumulative bucket counts, ordinary requests first and long-lived streams second.
+    pub duration_buckets: [[u64; 13]; 2],
+    pub duration_sum_micros: [u64; 2],
 }
 
 impl ProxyMetrics {
@@ -73,6 +87,20 @@ impl ProxyMetrics {
         self.errors.fetch_add(1, Ordering::Relaxed);
     }
 
+    fn record_duration(&self, duration: Duration, long_lived: bool) {
+        let kind = usize::from(long_lived);
+        let seconds = duration.as_secs_f64();
+        let bucket = REQUEST_DURATION_BUCKETS
+            .iter()
+            .position(|bound| seconds <= *bound)
+            .unwrap_or(REQUEST_DURATION_BUCKETS.len());
+        self.duration_buckets[kind][bucket].fetch_add(1, Ordering::Relaxed);
+        self.duration_sum_micros[kind].fetch_add(
+            u64::try_from(duration.as_micros()).unwrap_or(u64::MAX),
+            Ordering::Relaxed,
+        );
+    }
+
     #[must_use]
     pub fn snapshot(&self) -> ProxyMetricsSnapshot {
         ProxyMetricsSnapshot {
@@ -83,6 +111,15 @@ impl ProxyMetrics {
             responses_4xx: self.responses_4xx.load(Ordering::Relaxed),
             responses_5xx: self.responses_5xx.load(Ordering::Relaxed),
             errors: self.errors.load(Ordering::Relaxed),
+            duration_buckets: self.duration_buckets.each_ref().map(|buckets| {
+                buckets
+                    .each_ref()
+                    .map(|bucket| bucket.load(Ordering::Relaxed))
+            }),
+            duration_sum_micros: self
+                .duration_sum_micros
+                .each_ref()
+                .map(|sum| sum.load(Ordering::Relaxed)),
         }
     }
 }
@@ -135,6 +172,7 @@ impl ProxyHttp for SenixProxy {
         context: &mut Self::CTX,
     ) -> PingoraResult<bool> {
         self.metrics.record_request();
+        context.started_at = Some(Instant::now());
         let request = session.req_header();
         let host = request_host(request);
         let Some(response) = self.http01_response(&request.method, host, request.uri.path()) else {
@@ -181,6 +219,7 @@ impl ProxyHttp for SenixProxy {
             })?;
         if long_lived {
             lease.mark_long_lived();
+            context.long_lived = true;
         }
         let mut peer = if let Some(tls) = lease.upstream_tls() {
             let mut peer = HttpPeer::new(lease.address(), true, tls.server_name.clone());
@@ -210,6 +249,7 @@ impl ProxyHttp for SenixProxy {
             && let Some(lease) = context.lease.as_mut()
         {
             lease.mark_long_lived();
+            context.long_lived = true;
         }
         if !context.response_recorded {
             self.metrics.record_response(response.status.as_u16());
@@ -220,12 +260,33 @@ impl ProxyHttp for SenixProxy {
 
     async fn logging(
         &self,
-        _session: &mut Session,
+        session: &mut Session,
         error: Option<&PingoraError>,
         context: &mut Self::CTX,
     ) {
         if error.is_some() {
             self.metrics.record_error();
+        }
+        let status = session
+            .response_written()
+            .map(|response| response.status.as_u16());
+        if !context.response_recorded
+            && let Some(status) = status
+        {
+            self.metrics.record_response(status);
+        }
+        if let Some(started_at) = context.started_at.take() {
+            let duration = started_at.elapsed();
+            self.metrics.record_duration(duration, context.long_lived);
+            tracing::debug!(
+                target: "senix_pingora::access",
+                status = status.unwrap_or(0),
+                duration_seconds = duration.as_secs_f64(),
+                long_lived = context.long_lived,
+                instance_id = context.lease.as_ref().map_or("", RequestLease::instance_id),
+                proxy_error = error.is_some(),
+                "proxy_request_completed"
+            );
         }
         context.lease.take();
     }

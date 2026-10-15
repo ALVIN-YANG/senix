@@ -1,0 +1,36 @@
+{
+  "window_seconds": 12.080603207927197,
+  "before": {
+    "backend": {
+      "usage_usec": 106153683,
+      "nr_throttled": 2,
+      "throttled_usec": 65170,
+      "VmHWM": 77544,
+      "VmRSS": 41048
+    },
+    "gateway": {
+      "usage_usec": 86122211,
+      "nr_throttled": 0,
+      "throttled_usec": 0,
+      "VmHWM": 34468,
+      "VmRSS": 34468
+    }
+  },
+  "after": {
+    "backend": {
+      "usage_usec": 110328129,
+      "nr_throttled": 2,
+      "throttled_usec": 65170,
+      "VmHWM": 77544,
+      "VmRSS": 41988
+    },
+    "gateway": {
+      "usage_usec": 93812956,
+      "nr_throttled": 1,
+      "throttled_usec": 30781,
+      "VmHWM": 35520,
+      "VmRSS": 35520
+    }
+  },
+  "note": "CPU window includes load-container startup/exit; RSS is an end sample; HWM is process-lifetime peak."
+}

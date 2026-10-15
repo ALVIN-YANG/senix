@@ -9,38 +9,22 @@
   <img src="https://img.shields.io/badge/license-Apache--2.0-67777b" alt="Apache-2.0 license">
 </p>
 
-Senix 是一个面向个人开发者和小团队的独立 Rust 网关。一个二进制同时承载 Pingora 数据面、SQLite 控制面、REST、无会话 MCP 和嵌入式管理后台，不依赖 Nginx 或外部数据库。它管理安全变更、实例流量和诊断证据；SSH、Docker、Kubernetes 和实际部署仍由用户或外部脚本控制。
+Senix 是面向个人开发者和小团队的 Rust 网关。AI 通过受限 MCP 读取状态、提出配置计划，Owner 核对后批准，AI 再应用并验证结果。一个二进制包含 Pingora 代理、SQLite 控制面和管理后台，不依赖 Nginx 或外部数据库；实际部署由用户或外部脚本执行。
 
 > [!IMPORTANT]
 > 当前是可运行的 `v0.3` 预览版。生产使用前请按自己的流量、故障模型和恢复要求完成验收；已实现能力与暂不支持范围都列在下方。
 
-## 已经能做什么
+## 可核对的证据
 
-| 场景 | 当前实现 |
+| 项目 | 运行证据 |
 | --- | --- |
-| 代理流量 | Pingora HTTP 代理、精确/单标签通配域名、最长路径匹配、平滑加权轮询、HTTP/TCP 主动健康检查 |
-| 滚动部署配合 | 持久化摘流、在途请求查询、超时状态、新代次回接、权重调整、明确禁用 |
-| 安全改配置 | 不可修改的 Change Plan、结构化差异、15 分钟 Owner 批准、原子 Snapshot 发布、回滚计划 |
-| 一个人管理 | Owner 控制台、受限 API Key、操作审计、实例维护控制舱、请求证据链 |
-| AI 协作 | 无会话 Streamable HTTP MCP；工具按 Key 权限裁剪，调用时再次授权 |
-| TLS 证书 | 下游静态 PEM/HTTP-01/SNI 热切换；上游 HTTPS、系统 CA 验证与 H1/H2 ALPN |
-| 可观测性 | 受保护的 Prometheus 指标、实例在途/长连接、结构化诊断和无秘密审计 |
+| 上手 | Demo 自动引导、启动两个后端并发起真实代理请求；首次运行、重跑、重启与数据保留已验证。见 [快速开始](#快速开始)。 |
+| AI | 当前 AI 助手实际通过 MCP 读取、规划、等待测试 Owner 批准、应用并验证新旧域名及无关路由。见 [验收记录](./docs/validation/2026-10-15-ai-configuration.md)。 |
+| 监控 | Prometheus、Grafana、VictoriaMetrics、OTel Collector、Alloy、Loki 的本机真实链路通过。见 [采集结果与截图](./docs/validation/2026-10-15-observability.md)。 |
+| 性能 | 36 次测量完成 309.98 万请求，经过 Senix 的 210.98 万次请求失败率为 0；保留完整数据与波动。见 [本机性能基线](#本机性能基线)。 |
+| 回归 | Rust 1.88 下 79 项测试通过，含 26 项真实进程 E2E；格式、严格 Clippy 和前端审计通过。依赖审计仍有 [4 条上游提示](./CONTRIBUTING.md)。 |
 
-## 怎么工作
-
-<p align="center">
-  <img src="./assets/readme/architecture.svg" width="100%" alt="Senix 架构：Owner、部署脚本和 AI 通过同一安全边界控制领域模块，控制面向 Pingora 数据面发布不可变快照">
-</p>
-
-核心逻辑按领域拆成独立 Module：
-
-- `ConfigEngine` 负责预检、差异、批准、发布与回滚计划。
-- `TrafficController` 负责摘流、回接、权重、禁用、幂等和持久化。
-- `GatewayRuntime` 负责不可变 Snapshot、请求选路和在途计数。
-- `DiagnosticEngine` 从同一运行快照产生结构化证据，不从日志猜状态。
-- `CertificateController` 加密保存账户凭据和证书私钥，Pingora 只读取已发布的证书快照。
-
-更完整的产品边界见 [需求文档](./docs/requirements.md)，关键设计决定见 [ADR](./docs/adr)。
+以上新增能力使用当前源码验收，尚未发布；下方默认安装和 Demo 使用已发布的 `v0.3.1`。
 
 ## 快速开始
 
@@ -53,6 +37,10 @@ cd senix
 ```
 
 脚本会生成 Owner 密码，并输出管理后台地址和一次真实代理结果。停止演示不会删除数据；执行输出中的重置命令才会清空演示卷。
+
+默认 Demo 固定使用已发布的 `0.3.1` 镜像。要体验当前源码新增的 MCP 配置读取、Key 权限模板、耗时指标和 JSON 日志，请按 [AI 配置变更指南](./docs/ai-configuration.md) 构建本地镜像，再完成“读取 → 规划 → Owner 批准 → 应用 → 真实请求验证”。首次构建耗时与网络、硬件有关。
+
+端口冲突时可覆盖 `SENIX_DEMO_PROXY_PORT` 和 `SENIX_DEMO_ADMIN_PORT`，例如 `SENIX_DEMO_PROXY_PORT=18080 SENIX_DEMO_ADMIN_PORT=19080 ./scripts/demo.sh`。
 
 只安装二进制时：
 
@@ -209,6 +197,61 @@ docker run --rm \
 
 </details>
 
+## 本机性能基线
+
+Apple M1 Pro 上的 ARM64 Docker VM（8 CPU / 7.81 GiB），每个容器限制 2 CPU / 1 GiB。固定 1 KiB 响应、Keep-Alive，以下选用 32 VU；预热 3 秒，每次测量 10 秒，重复 3 次。数字为三次中位数，RPS 括号为最小–最大值。
+
+| 路径 | RPS 中位数（范围） | p95 ms | Senix RSS 最大结束样本 |
+| --- | ---: | ---: | ---: |
+| 直连后端 HTTP | 15,260 (13,605–19,365) | 6.18 | — |
+| Senix HTTP | 8,063 (6,322–15,227) | 9.95 | 16.5 MiB |
+| Senix HTTPS / H2 | 11,605 (9,991–12,059) | 5.98 | 27.8 MiB |
+| Senix HTTP / 100 路由 | 6,238 (5,628–9,694) | 13.83 | 21.7 MiB |
+
+![32 并发下，直连与三种 Senix 路径的请求速率；横线表示三次运行范围](./assets/readme/benchmark-32vus.svg)
+
+完整矩阵包含直连、HTTP、HTTPS/H2、100 路由及 1/32/128 VU。36 次测量共完成 3,099,779 次请求，其中经过 Senix 2,109,803 次，HTTP 失败率均为 0。RSS 来自 `/proc/1/status`；CPU 与内存采样边界见报告。
+
+共享开发机存在其他后台负载，结果波动明显；短时测量不足以证明生产容量、长期稳定性或比其他网关更快。后续需要独立 Linux 主机、交错场景和长时间负载验证。
+
+[完整结果、环境与原始数据 →](./docs/validation/2026-10-15-performance.md) · [运行相同基准](./benchmarks/README.md)
+
+## 已经能做什么
+
+| 场景 | 当前实现 |
+| --- | --- |
+| 代理流量 | Pingora HTTP 代理、精确/单标签通配域名、最长路径匹配、平滑加权轮询、HTTP/TCP 主动健康检查 |
+| 滚动部署配合 | 持久化摘流、在途请求查询、超时状态、新代次回接、权重调整、明确禁用 |
+| 安全改配置 | 不可修改的 Change Plan、结构化差异、15 分钟 Owner 批准、原子 Snapshot 发布、回滚计划 |
+| 一个人管理 | Owner 控制台、受限 API Key、操作审计、实例维护控制舱、请求证据链 |
+| AI 协作 | 无会话 Streamable HTTP MCP；工具按 Key 权限裁剪，调用时再次授权 |
+| TLS 证书 | 下游静态 PEM/HTTP-01/SNI 热切换；上游 HTTPS、系统 CA 验证与 H1/H2 ALPN |
+| 可观测性 | 受保护的 Prometheus 指标、实例在途/长连接、结构化诊断和无秘密审计；源码新增耗时直方图、可选 JSON 日志和监控示例 |
+| 运行与恢复 | 进程探针、非 root 容器、退出宽限时间、SQLite 在线一致性备份、校验和不覆盖现场的恢复 |
+
+## 怎么工作
+
+Owner 控制台、REST 脚本和 MCP 客户端共享同一权限与审计边界。控制面把配置写入 SQLite，再发布不可变运行快照；Pingora 处理业务请求时只读取内存快照，不查询 SQLite。
+
+<details>
+<summary><strong>展开完整架构图（适合桌面查看）</strong></summary>
+
+<p align="center">
+  <img src="./assets/readme/architecture.svg" width="100%" alt="Senix 架构：Owner、部署脚本和 AI 通过同一安全边界控制领域模块，控制面向 Pingora 数据面发布不可变快照">
+</p>
+
+</details>
+
+核心逻辑按领域拆成独立 Module：
+
+- `ConfigEngine` 负责预检、差异、批准、发布与回滚计划。
+- `TrafficController` 负责摘流、回接、权重、禁用、幂等和持久化。
+- `GatewayRuntime` 负责不可变 Snapshot、请求选路和在途计数。
+- `DiagnosticEngine` 从同一运行快照产生结构化证据，不从日志猜状态。
+- `CertificateController` 加密保存账户凭据和证书私钥，Pingora 只读取已发布的证书快照。
+
+更完整的产品边界见 [需求文档](./docs/requirements.md)，关键设计决定见 [ADR](./docs/adr)。
+
 ## 管理后台
 
 后台静态资源嵌入 `senixd`，不需要部署第二个 Web 服务。Owner 登录后可以：
@@ -219,6 +262,8 @@ docker run --rm \
 - 模拟 Host 与路径的选路结果，复制原始诊断 JSON；
 - 创建最小权限 Key、吊销 Key，并查看无秘密审计记录。
 - 查看证书有效期，手动发起 HTTP-01 签发并热切换。
+
+当前源码增加了“只读诊断”“配置提案”“配置协作”三种 Key 模板，签发前仍可核对和修改动作、范围与有效期。诊断和配置动作需要全局范围，模板会明确选中所有当前和未来实例；它们不提供实例隔离。
 
 最后一个可用后端和不健康实例回接不会被静默绕过。只有操作者显式选择 `force` 才能继续，操作会被标记为高风险。
 
@@ -268,7 +313,7 @@ curl -X POST \
 
 Senix 自身收到 `SIGTERM` 后会停止接收新连接，默认给已有连接 30 秒完成，再给运行时 5 秒退出。可通过 `--shutdown-grace-seconds` 和 `--shutdown-timeout-seconds` 调整；systemd 的 `TimeoutStopSec` 应大于两者之和。超过期限的长连接仍可能被中断，单机进程升级不能迁移已经建立的连接。
 
-## Prometheus 指标
+## 接入主流监控
 
 `/metrics` 位于管理端口，匿名访问会被拒绝。为采集器创建一把只含全局 `metrics.read` 的 Key，然后配置 Bearer 认证：
 
@@ -277,8 +322,21 @@ curl -H "Authorization: Bearer $SENIX_METRICS_KEY" \
   http://127.0.0.1:9080/metrics
 ```
 
-当前导出请求总量、响应状态类别、代理错误、配置版本、实例状态与在途数，以及 TLS 证书的启用、过期和 30 天到期风险。标签不包含域名、Host、URL、Key 或请求体，避免高基数和秘密泄漏。`/healthz` 仍保持公开，只用于进程存活探测。
+指标覆盖请求量、响应类别、代理错误、快照版本、实例状态、在途数和证书到期风险。当前源码新增普通请求/长连接分开的耗时直方图，可计算 p50/p95/p99，并可显式开启脱敏 JSON 访问日志。标签不包含 Host、URL、Key 或请求体。
 
+| 使用中的系统 | 接入通路 | 本轮证据 |
+| --- | --- | --- |
+| Prometheus + Grafana | Bearer 抓取，8 个预置面板、3 条告警规则 | 真实采集、PromQL、Grafana 查询通过 |
+| VictoriaMetrics、OTel Collector | Prometheus scrape/receiver | 真实采集和重新导出通过 |
+| Grafana Alloy + Loki | remote_write 指标、JSON 文件日志 | 真实发送和日志查询通过 |
+| Mimir/Cortex、Thanos、Grafana Cloud | Prometheus/Alloy remote_write | 配置示例，未逐一部署 |
+| Datadog、Elastic/ELK、Zabbix | OpenMetrics/Prometheus、JSON 日志 | 官方配置对照，未逐一部署 |
+
+[启动本机监控或接入现有系统 →](./docs/observability.md) · [可运行配置](./examples/observability)
+
+![Grafana 面板局部：真实请求速率、5xx 比例、普通请求 p95 和在途数](./assets/readme/grafana-overview.png)
+
+Senix 当前没有原生 trace/span 导出；不能把指标接入解释为已完整支持 Tempo、Jaeger 或其他 APM。宿主机 CPU/内存和业务可用性检测使用现有 Agent、node_exporter/cAdvisor、blackbox exporter。
 容器镜像内置相同探针；非容器部署可执行 `senixd healthcheck --address 127.0.0.1:9080`。它只检查管理进程是否能响应，不代表后端实例或业务路由已经健康。
 
 ## 备份与恢复
@@ -319,11 +377,21 @@ senixd backup restore \
 
 MCP 没有批准工具，也不能修改已生成计划。
 
+<p align="center"><img src="./assets/readme/ai-workflow.svg" width="720" alt="AI 读取并规划，Owner 核对精确计划后批准，AI 应用并用真实请求验证；未批准、过期或基线变化则拒绝"></p>
+
+[AI 配置变更指南](./docs/ai-configuration.md) 包含工具参数、权限模板、并发版本核对和失败处理；[llms.txt](./llms.txt) 为 AI 提供精简文档入口。项目提供 AI 可调用的运维工具，当前不包含内置模型、模型路由或提示词管理。
+
+![真实 MCP 配置变更后，管理后台显示 Snapshot v2 和已应用计划](./assets/readme/admin-change-applied.png)
+
+这次验收中，AI 读取 v1、提出域名变更，测试 Owner 批准后 AI 应用为 v2；新域名返回 200，原域名返回 404，无关路由仍返回原后端。见 [完整验收记录](./docs/validation/2026-10-15-ai-configuration.md)。
+
 ## MCP 与权限
 
 Streamable HTTP MCP 位于 `http://127.0.0.1:9080/mcp`。每个请求都使用管理后台生成的 Bearer Key；MCP 不接受浏览器 Cookie，也不保存协议会话。
 
 当前工具覆盖实例查询与流量控制、请求诊断、配置与回滚规划、应用已批准计划、证书查询与 HTTP-01 签发、审计读取。证书工具只返回元数据，不返回 ACME 账户凭据或证书私钥。
+
+当前源码新增 `get_current_config`，使用全局 `change.read` 权限返回当前 Snapshot 的 `version` 和完整 `config`。AI 可据此保留其他路由并创建候选配置；计划的 `base_version` 应与读取版本一致，否则必须重新读取、合并修改并规划。完整接入和故障处理见 [AI 配置变更指南](./docs/ai-configuration.md)。这些新增能力尚未包含在 `v0.3.1` 发布包中。
 
 工具清单会按 Key 的动作和实例范围裁剪，实际调用仍会再次授权。MCP 不提供 Key 创建、计划批准、Shell、SSH、Docker 或 Kubernetes 工具。
 
@@ -362,7 +430,7 @@ Owner 登录按真实 TCP 来源限制失败次数，不信任 `X-Forwarded-For`
 - 被动健康信号、MCP stdio 桥、插件 Adapter 和系统服务安装尚未实现。
 - HTTP/3 不在当前 Pingora 数据面能力内。
 
-详细取舍和后续候选范围见 [需求文档](./docs/requirements.md)。
+详细取舍见 [需求文档](./docs/requirements.md)。AI 下一步最需要补的是配置 JSON Schema、读取版本进入规划契约、多客户端/模型任务评测；见 [AI 使用能力核查](./docs/ai-native-assessment.md)。这些内容仍是后续候选，没有当作现有功能宣传。
 
 ## 仓库结构
 

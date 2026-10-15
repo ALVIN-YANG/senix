@@ -1,0 +1,15 @@
+# Merge into the Datadog Agent's conf.d/openmetrics.d/conf.yaml.
+# Documentation-based example; not validated against a Datadog account.
+init_config: {}
+instances:
+  - openmetrics_endpoint: http://senix:9080/metrics
+    namespace: senix
+    metrics: ["senix_.*"]
+    auth_token:
+      reader:
+        type: file
+        path: /run/secrets/senix_metrics_key
+      writer:
+        type: header
+        name: Authorization
+        value: "Bearer <TOKEN>"

@@ -14,10 +14,10 @@ services:
         ipv4_address: 172.28.0.12
 
   senix:
-    image: ${SENIX_IMAGE:-ghcr.io/alvin-yang/senix:edge}
+    image: ${SENIX_IMAGE:-ghcr.io/alvin-yang/senix:0.3.1}
     ports:
-      - "8080:8080"
-      - "127.0.0.1:9080:9080"
+      - "${SENIX_DEMO_PROXY_PORT:-8080}:8080"
+      - "127.0.0.1:${SENIX_DEMO_ADMIN_PORT:-9080}:9080"
     volumes:
       - senix-data:/var/lib/senix
       - ./gateway.json:/etc/senix/gateway.json:ro

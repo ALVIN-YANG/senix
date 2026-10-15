@@ -133,7 +133,7 @@ impl SenixMcp {
                     &ResourceRef::Global,
                 );
             }
-            "list_changes" | "get_change" => {
+            "get_current_config" | "list_changes" | "get_change" => {
                 return self.modules.security.allows(
                     principal,
                     ManagementAction::ChangeRead,
@@ -491,6 +491,25 @@ impl SenixMcp {
                 &ResourceRef::Global,
             )?;
             Ok(self.modules.diagnostics.diagnose(&input.host, &input.path))
+        })();
+        domain_result(result)
+    }
+
+    #[tool(
+        description = "Read the current Snapshot version and complete config. Preserve unrelated fields when planning a change and compare the returned version with the plan's base_version. Requires global change.read."
+    )]
+    async fn get_current_config(&self, Extension(parts): Extension<Parts>) -> CallToolResult {
+        let result = (|| {
+            let principal = principal(&parts)?;
+            self.modules.security.authorize(
+                &principal,
+                ManagementAction::ChangeRead,
+                &ResourceRef::Global,
+            )?;
+            self.modules
+                .config
+                .current()?
+                .ok_or_else(|| Error::InvalidState("configuration is not initialized".to_owned()))
         })();
         domain_result(result)
     }

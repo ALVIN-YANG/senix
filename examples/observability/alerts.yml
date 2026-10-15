@@ -1,0 +1,18 @@
+groups:
+  - name: senix
+    rules:
+      - alert: SenixScrapeFailed
+        expr: up{job="senix"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations: {summary: "Senix metrics cannot be scraped; check process, network and key"}
+      - alert: SenixProxy5xxRatioHigh
+        expr: sum(rate(senix_proxy_responses_total{class="5xx"}[5m])) / clamp_min(sum(rate(senix_proxy_responses_total[5m])), 0.001) > 0.01 and sum(rate(senix_proxy_responses_total[5m])) > 1
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "Senix proxy 5xx ratio exceeds 1% with traffic above 1 response/s"}
+      - alert: SenixCertificateExpiring
+        expr: senix_certificates_expiring_within_30_days > 0
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "A Senix certificate expires within 30 days; renew explicitly"}

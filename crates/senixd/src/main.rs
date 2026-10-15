@@ -20,7 +20,7 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
     routing::{delete, get, patch, post},
 };
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use pingora_core::server::{Server, configuration::ServerConf};
 use senix_core::{
     AccessPolicy, AuditOutcome, ChangePlan, ConfigEngine, DiagnosticEngine, DrainOptions,
@@ -39,6 +39,9 @@ mod health;
 struct Args {
     #[command(subcommand)]
     command: Option<Command>,
+
+    #[arg(long, value_enum, default_value_t = LogFormat::Text)]
+    log_format: LogFormat,
 
     #[arg(long, default_value = "127.0.0.1:8080")]
     listen: SocketAddr,
@@ -87,6 +90,12 @@ struct Args {
 
     #[arg(long, default_value_t = 5)]
     shutdown_timeout_seconds: u64,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum LogFormat {
+    Text,
+    Json,
 }
 
 #[derive(Debug, Subcommand)]
@@ -484,13 +493,15 @@ struct CertificateServices {
 }
 
 fn main() -> Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "senix=info".into()),
-        )
-        .init();
     let args = Args::parse();
+    let subscriber = tracing_subscriber::fmt().with_env_filter(
+        tracing_subscriber::EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| "senix=info".into()),
+    );
+    match args.log_format {
+        LogFormat::Text => subscriber.init(),
+        LogFormat::Json => subscriber.json().init(),
+    }
 
     if let Some(command) = args.command {
         return run_command(command);
@@ -1373,6 +1384,7 @@ senix_config_snapshot_version {}\n",
         proxy.errors,
         config_version,
     );
+    append_request_duration_metrics(&mut body, &proxy);
     append_certificate_metrics(&mut body, &state);
     body.push_str(
         "# HELP senix_instance_in_flight Requests currently assigned to an upstream instance.\n\
@@ -1416,6 +1428,23 @@ senix_instance_in_flight{{instance_id=\"{instance_id}\",kind=\"long_lived\"}} {}
         .headers_mut()
         .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     Ok(response)
+}
+
+fn append_request_duration_metrics(body: &mut String, proxy: &senix_pingora::ProxyMetricsSnapshot) {
+    body.push_str("# HELP senix_proxy_request_duration_seconds Completed request lifetime from request filter through response body, by ordinary request or long-lived stream.\n# TYPE senix_proxy_request_duration_seconds histogram\n");
+    for (kind_index, kind) in ["ordinary", "long_lived"].into_iter().enumerate() {
+        let mut cumulative = 0_u64;
+        for (index, upper) in senix_pingora::REQUEST_DURATION_BUCKETS.iter().enumerate() {
+            cumulative += proxy.duration_buckets[kind_index][index];
+            writeln!(body, "senix_proxy_request_duration_seconds_bucket{{kind=\"{kind}\",le=\"{upper}\"}} {cumulative}")
+                .expect("writing metrics to a String cannot fail");
+        }
+        cumulative +=
+            proxy.duration_buckets[kind_index][senix_pingora::REQUEST_DURATION_BUCKETS.len()];
+        let seconds = Duration::from_micros(proxy.duration_sum_micros[kind_index]).as_secs_f64();
+        writeln!(body, "senix_proxy_request_duration_seconds_bucket{{kind=\"{kind}\",le=\"+Inf\"}} {cumulative}\nsenix_proxy_request_duration_seconds_count{{kind=\"{kind}\"}} {cumulative}\nsenix_proxy_request_duration_seconds_sum{{kind=\"{kind}\"}} {seconds}")
+            .expect("writing metrics to a String cannot fail");
+    }
 }
 
 fn append_certificate_metrics(body: &mut String, state: &AppState) {

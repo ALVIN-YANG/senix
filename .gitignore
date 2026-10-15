@@ -1,5 +1,6 @@
 /target/
 /web/node_modules/
+__pycache__/
 
 .idea/
 .vscode/
@@ -16,6 +17,7 @@ logs/
 *.db-shm
 *.db-wal
 *.log
+!docs/validation/benchmarks/**/k6.log
 
 .env
 .env.local

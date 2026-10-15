@@ -4,6 +4,21 @@ set -eu
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 demo_dir="${script_dir}/../examples/demo"
 compose_file="${demo_dir}/compose.yml"
+proxy_port=${SENIX_DEMO_PROXY_PORT:-8080}
+admin_port=${SENIX_DEMO_ADMIN_PORT:-9080}
+demo_host=${SENIX_DEMO_HOST:-demo.senix.local}
+
+for port in "$proxy_port" "$admin_port"; do
+  case "$port" in
+    ''|*[!0-9]*|??????*) echo "Demo ports must be integers from 1 to 65535" >&2; exit 2 ;;
+  esac
+  if [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+    echo "Demo ports must be integers from 1 to 65535" >&2
+    exit 2
+  fi
+done
+proxy_url="http://127.0.0.1:${proxy_port}"
+admin_url="http://127.0.0.1:${admin_port}"
 
 command -v docker >/dev/null 2>&1 || { echo "Docker is required" >&2; exit 1; }
 docker compose version >/dev/null 2>&1 || { echo "Docker Compose v2 is required" >&2; exit 1; }
@@ -13,9 +28,24 @@ compose() {
   docker compose --project-directory "$demo_dir" --file "$compose_file" "$@"
 }
 
-compose pull
+case "${SENIX_DEMO_PULL:-1}" in
+  1) compose pull ;;
+  0) ;;
+  *) echo "SENIX_DEMO_PULL must be 0 or 1" >&2; exit 2 ;;
+esac
 
-bootstrap_output=$(compose run --rm --no-deps senix credential bootstrap \
+# A one-off Compose container inherits the service's static IP. Reuse the running
+# container for local bootstrap commands so a repeated demo run cannot collide with it.
+running_container=$(compose ps --status running --quiet senix)
+senix_command() {
+  if [ -n "$running_container" ]; then
+    compose exec -T senix /usr/local/bin/senixd "$@"
+  else
+    compose run --rm --no-deps -T senix "$@"
+  fi
+}
+
+bootstrap_output=$(senix_command credential bootstrap \
   --db /var/lib/senix/senix.db \
   --label demo-owner 2>&1) || bootstrap_status=$?
 bootstrap_status=${bootstrap_status:-0}
@@ -28,12 +58,12 @@ if [ "$bootstrap_status" -eq 0 ]; then
   else
     owner_password=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)
   fi
-  printf '%s' "$owner_password" | compose run --rm --no-deps -T senix owner bootstrap \
+  printf '%s' "$owner_password" | senix_command owner bootstrap \
     --db /var/lib/senix/senix.db \
     --username admin \
     --password-stdin >/dev/null
   initialized=true
-elif printf '%s' "$bootstrap_output" | grep -q 'already initialized'; then
+elif printf '%s' "$bootstrap_output" | grep -Eq 'management credential bootstrap has already completed|already initialized'; then
   initialized=false
 else
   printf '%s\n' "$bootstrap_output" >&2
@@ -43,7 +73,7 @@ fi
 compose up --detach
 
 attempt=0
-until curl -fsS http://127.0.0.1:9080/healthz >/dev/null; do
+until curl -fsS "${admin_url}/healthz" >/dev/null; do
   attempt=$((attempt + 1))
   if [ "$attempt" -ge 30 ]; then
     compose logs senix >&2
@@ -54,11 +84,11 @@ until curl -fsS http://127.0.0.1:9080/healthz >/dev/null; do
 done
 
 attempt=0
-until response=$(curl -fsS -H 'Host: demo.senix.local' http://127.0.0.1:8080/); do
+until response=$(curl -fsS -H "Host: ${demo_host}" "${proxy_url}/"); do
   attempt=$((attempt + 1))
   if [ "$attempt" -ge 15 ]; then
     compose logs senix >&2
-    echo "Demo backends did not become ready" >&2
+    echo "Proxy check failed for Host ${demo_host}; set SENIX_DEMO_HOST if the saved route changed" >&2
     exit 1
   fi
   sleep 1
@@ -66,7 +96,8 @@ done
 
 echo
 echo "Senix demo is ready."
-echo "Admin: http://127.0.0.1:9080/admin/"
+echo "Admin: ${admin_url}/admin/"
+echo "Proxy: ${proxy_url}/ (Host: ${demo_host})"
 echo "Owner: admin"
 if [ "$initialized" = true ]; then
   echo "Password: $owner_password"
@@ -79,3 +110,4 @@ printf '%s\n' "$response" | sed -n '1,8p'
 echo
 echo "Stop: docker compose --project-directory examples/demo -f examples/demo/compose.yml down"
 echo "Reset all demo data: append --volumes to the stop command"
+echo "AI configuration guide: docs/ai-configuration.md (new tools require the current source build)"

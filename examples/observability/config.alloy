@@ -1,0 +1,48 @@
+// This local example forwards metrics to VictoriaMetrics and JSON files to Loki.
+// Replace endpoints and add TLS/auth for your real deployment.
+local.file "senix_key" {
+  filename  = "/run/secrets/senix_metrics_key"
+  is_secret = true
+}
+
+prometheus.scrape "senix" {
+  targets         = [{"__address__" = "senix:9080"}]
+  job_name        = "senix_alloy"
+  scrape_interval = "5s"
+  scrape_timeout  = "4s"
+  authorization {
+    type        = "Bearer"
+    credentials = local.file.senix_key.content
+  }
+  forward_to = [prometheus.remote_write.local.receiver]
+}
+
+prometheus.remote_write "local" {
+  endpoint {
+    url = "http://victoriametrics:8428/api/v1/write"
+  }
+}
+
+loki.source.file "senix" {
+  targets    = [{"__path__" = "/var/log/senix/*.jsonl", "job" = "senix"}]
+  forward_to = [loki.process.senix.receiver]
+  file_match {
+    enabled = true
+  }
+}
+
+loki.process "senix" {
+  stage.json {
+    expressions = {"level" = "level"}
+  }
+  stage.labels {
+    values = {"level" = ""}
+  }
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

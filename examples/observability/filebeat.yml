@@ -1,0 +1,10 @@
+# Collect a file receiving Senix JSON stdout. Configure rotation and output separately.
+# Documentation-based example; not validated against an Elastic cluster.
+filebeat.inputs:
+  - type: filestream
+    id: senix-json
+    paths: [/var/log/senix/*.jsonl]
+    parsers:
+      - ndjson:
+          target: senix
+          add_error_key: true

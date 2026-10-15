@@ -1,0 +1,64 @@
+{
+  "started_utc": "2026-10-15T07:06:06Z",
+  "git_head": "d99453c4ab8250be2e65a67f4b1dce0425745d07",
+  "dirty": true,
+  "source_sha256": "bf2123dc5524da5f303315cd7ba866040c39f22ba83c6c43365b9d521753f9c5",
+  "host": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "docker": {
+    "ServerVersion": "28.2.2",
+    "OperatingSystem": "OrbStack",
+    "Architecture": "aarch64",
+    "NCPU": 8,
+    "MemTotal": 8384356352,
+    "KernelVersion": "6.14.10-orbstack-00291-g1b252bd3edea"
+  },
+  "images": {
+    "senix:observability": {
+      "Id": "sha256:55b61e0c0b43020214b38f922e525eeb4dabddc1ff2f21140ad53e704634f259",
+      "RepoDigests": [],
+      "Architecture": "arm64",
+      "Os": "linux"
+    },
+    "grafana/k6:2.3.0": {
+      "Id": "sha256:4d79f9384ce43a49b40f135a2c57fd3562ebc704ecb0e81e3cc4a624bac12646",
+      "RepoDigests": [
+        "grafana/k6@sha256:9c2dee7f8ed74d317e4027c06a10f169b625638189de8d4555d0b3486a5aeb34"
+      ],
+      "Architecture": "arm64",
+      "Os": "linux"
+    },
+    "node:24-bookworm-slim": {
+      "Id": "sha256:b3b84798a1d94a7e155f059b3a2f125725578d0738e404fd6d976cf2dcd11912",
+      "RepoDigests": [
+        "node@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5"
+      ],
+      "Architecture": "arm64",
+      "Os": "linux"
+    }
+  },
+  "options": {
+    "image": "senix:observability",
+    "output": "benchmarks-2026-10-15-cgroup",
+    "vus": "1,32,128",
+    "repeats": 3,
+    "duration": "10s",
+    "warmup": "3s"
+  },
+  "limits_per_container": {
+    "cpus": 2,
+    "memory_bytes": 1073741824
+  },
+  "payload_bytes": 1024,
+  "backend_workers": 1,
+  "fixture_sha256": {
+    "run.py": "4262150122ef6c0c906c58038e543807d85ff7d327753caf57eead2a9bebfc75",
+    "load.js": "96f53bed104b5d5bf03edc2b1f883d21de103e12b50d676d5f762b8c75209d62",
+    "backend.mjs": "acbf887f9b49132a0f0034e446d784099144c973070a0f171fc73c3fa96f7cfb"
+  },
+  "resource_method": "cgroup v2 CPU counters and /proc/1/status RSS/HWM, before and after each run",
+  "access_logging": false,
+  "external_monitoring": false,
+  "request_mode": "closed loop, keep-alive, no pacing, downstream TLS verification disabled only for the self-signed fixture",
+  "finished_utc": "2026-10-15T07:15:44Z",
+  "publication_note": "Only the local absolute output path was replaced with its directory name."
+}
