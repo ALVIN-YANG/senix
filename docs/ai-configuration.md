@@ -4,7 +4,7 @@
 
 本流程让 AI 读取完整配置、提出变更，并在 Owner 批准后应用。AI 只访问 Senix MCP；部署应用仍由用户或外部脚本负责。
 
-> `get_current_config` 和权限模板是当前源码的新功能，尚未发布。默认 Docker Demo 固定在已发布的 `0.3.1`，只用于体验原有代理和管理能力。验证本页完整流程时，请先构建当前源码。
+> `get_current_config`、规划版本校验、配置 JSON Schema 和权限模板是当前源码的新功能，尚未发布。默认 Docker Demo 固定在已发布的 `0.3.1`，只用于体验原有代理和管理能力。验证本页完整流程时，请先构建当前源码。
 
 ## 1. 启动当前源码
 
@@ -65,12 +65,19 @@ Cursor 支持 HTTP `headers` 和环境变量插值；远程 HTTP 配置不支持
 ```text
 使用 Senix MCP 的 get_current_config 读取当前配置。
 只把 demo-route 的 host 从 demo.senix.local 改为 preview.senix.local，
-保留所有其他路由、后端和字段，并调用 plan_change。
+保留所有其他路由、后端和字段，调用 plan_change，
+expected_version 使用这次读取的 version，candidate 使用完整 config。
 向我展示 change_id、base_version、candidate_digest、完整候选配置和差异。
 先等待我在 Senix 管理后台批准，不要应用。
 ```
 
-`get_current_config` 返回 `{ "version": 1, "config": { ... } }`；实际版本以返回值为准。把 `config` 对象复制为候选配置，只修改目标字段，再传给 `plan_change` 的 `candidate`。不要把整个 Snapshot 当成候选配置。
+`get_current_config` 返回 `{ "version": 1, "config": { ... } }`；实际版本以返回值为准。把 `config` 对象复制为候选配置，只修改目标字段，再传给 `plan_change` 的 `candidate`，同时将读取的 `version` 传给必填参数 `expected_version`。不要把整个 Snapshot 当成候选配置。`tools/list` 提供路由、后端、TLS 和健康检查的配置 JSON Schema，字段定义来自实际配置类型。
+
+调用结构如下；省略部分需要换成读取并修改后的完整配置：
+
+```text
+plan_change({"expected_version": 1, "candidate": {"routes": [...]}})
+```
 
 计划创建后，原域名仍能代理：
 
@@ -78,7 +85,9 @@ Cursor 支持 HTTP `headers` 和环境变量插值；远程 HTTP 配置不支持
 curl -f -H 'Host: demo.senix.local' http://127.0.0.1:8080/
 ```
 
-计划生成的 `base_version` 必须等于刚读取的 `version`。如果不同，说明读取和规划之间有人发布了新配置：放弃这份计划，重新读取后生成候选配置，避免覆盖别人的变更。
+如果读取和规划之间有人发布新配置，服务端返回 `CONFIG_VERSION_MISMATCH`，在 `evidence` 中给出 `expected_version` 和 `current_version`，不会创建计划。必须重新读取完整配置并合并本次修改，再用新读取的版本规划；不能只把旧候选的版本号改成最新值。校验和计划持久化与配置发布共用同一把锁。
+
+**MCP 调用兼容性：** 旧调用方必须补传 `expected_version`；缺参、字段类型错误或配置包含未知字段时由 MCP SDK 返回 `isError: true` 和参数反序列化错误说明，尚未进入规划。结构正确但业务校验不通过的配置仍生成带 `issues` 的计划，不能批准。REST v1 仍接收原有的完整配置请求体，不新增版本前置条件；`plan_rollback` 保持原有契约。
 
 ## 5. Owner 批准，AI 应用
 
@@ -110,13 +119,14 @@ curl -f -H 'Host: preview.senix.local' http://127.0.0.1:8080/
 | `FORBIDDEN` | 核对动作和全局范围；不要直接改成全权限 Key |
 | `CHANGE_APPROVAL_REQUIRED` | 由 Owner 在后台核对并批准同一计划 |
 | `CHANGE_APPROVAL_EXPIRED` | Owner 重新核对并批准，不能复用过期批准 |
+| `CONFIG_VERSION_MISMATCH` | 重新读取并合并修改，用读取版本重新规划；本次未创建计划 |
 | `STALE_PLAN` | 重新读取当前配置、合并修改、创建新计划，再批准 |
 
 `get_current_config` 需要全局 `change.read`。只读 Key 看不到规划或应用工具，直接调用也会被拒绝；实例范围 Key 不能读取全局配置。吊销立即生效，客户端可能仍显示旧工具列表，但调用仍会重新鉴权。
 
 ## 自动化验收与人工体验
 
-仓库的真实进程 E2E 使用 MCP 读取、规划和应用，Owner 测试账号通过管理 API 批准，并向真实后端发送请求；同时覆盖未批准、过期基线、权限隔离和吊销。运行：
+仓库的真实进程 E2E 使用 MCP 读取、规划和应用，Owner 测试账号通过管理 API 批准，并向真实后端发送请求；同时覆盖读取到规划之间的发布冲突、重读后保留新增路由、缺少版本、配置 Schema、REST v1 兼容、未批准、过期基线、权限隔离和吊销。运行：
 
 ```bash
 cargo +1.88 test --locked -p senixd --test gateway_e2e

@@ -256,8 +256,10 @@ struct DiagnoseParams {
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct PlanChangeParams {
+    /// Version returned by `get_current_config` when building this candidate. Reread and merge on mismatch.
+    expected_version: u64,
     /// Complete candidate `GatewayConfig` JSON object.
-    candidate: serde_json::Value,
+    candidate: GatewayConfig,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -496,7 +498,7 @@ impl SenixMcp {
     }
 
     #[tool(
-        description = "Read the current Snapshot version and complete config. Preserve unrelated fields when planning a change and compare the returned version with the plan's base_version. Requires global change.read."
+        description = "Read the current Snapshot version and complete config. Preserve unrelated fields and pass this version as plan_change.expected_version. Requires global change.read."
     )]
     async fn get_current_config(&self, Extension(parts): Extension<Parts>) -> CallToolResult {
         let result = (|| {
@@ -515,7 +517,7 @@ impl SenixMcp {
     }
 
     #[tool(
-        description = "Persist a complete candidate as an immutable, version-bound Change Plan without applying it."
+        description = "Persist a complete candidate as an immutable Change Plan without applying it. Requires expected_version from get_current_config; on CONFIG_VERSION_MISMATCH, reread and merge before retrying."
     )]
     async fn plan_change(
         &self,
@@ -529,11 +531,11 @@ impl SenixMcp {
                 ManagementAction::ChangePlan,
                 &ResourceRef::Global,
             )?;
-            let candidate: GatewayConfig =
-                serde_json::from_value(input.candidate).map_err(|error| {
-                    Error::InvalidState(format!("candidate config is invalid: {error}"))
-                })?;
-            let plan = self.modules.config.plan(candidate, &principal)?;
+            let plan = self.modules.config.plan_at_version(
+                input.candidate,
+                input.expected_version,
+                &principal,
+            )?;
             self.modules.security.record_action(
                 &principal,
                 ManagementAction::ChangePlan.as_str(),

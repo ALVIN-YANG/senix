@@ -21,10 +21,10 @@ Senix 是面向个人开发者和小团队的 Rust 网关。AI 通过受限 MCP 
 | 项目 | 运行证据 |
 | --- | --- |
 | 上手 | Demo 自动引导、启动两个后端并发起真实代理请求；首次运行、重跑、重启与数据保留已验证。见 [快速开始](#快速开始)。 |
-| AI | 当前 AI 助手实际通过 MCP 读取、规划、等待测试 Owner 批准、应用并验证新旧域名及无关路由。见 [验收记录](./docs/validation/2026-10-15-ai-configuration.md)。 |
+| AI | 当前 AI 助手实际通过 MCP 读取、规划、等待测试 Owner 批准、应用并验证新旧域名及无关路由。见 [首次验收](./docs/validation/2026-10-15-ai-configuration.md)；新增 [版本冲突与重试验收](./docs/validation/2026-10-15-mcp-version-guard.md)。 |
 | 监控 | Prometheus、Grafana、VictoriaMetrics、OTel Collector、Alloy、Loki 的本机真实链路通过。见 [采集结果与截图](./docs/validation/2026-10-15-observability.md)。 |
 | 性能 | 36 次测量完成 309.98 万请求，经过 Senix 的 210.98 万次请求失败率为 0；保留完整数据与波动。见 [本机性能基线](#本机性能基线)。 |
-| 回归 | Rust 1.88 下 79 项测试通过，含 26 项真实进程 E2E；格式、严格 Clippy 和前端审计通过。依赖审计仍有 [4 条上游提示](./CONTRIBUTING.md)。 |
+| 回归 | Rust 1.88 下 81 项测试通过，含 27 项真实进程 E2E；格式、严格 Clippy 和前端审计通过。依赖审计仍有 [4 条上游提示](./CONTRIBUTING.md)。 |
 
 以上新增能力使用当前源码验收，尚未发布；下方默认安装和 Demo 使用已发布的 `v0.3.1`。
 
@@ -393,7 +393,7 @@ Streamable HTTP MCP 位于 `http://127.0.0.1:9080/mcp`。每个请求都使用�
 
 当前工具覆盖实例查询与流量控制、请求诊断、配置与回滚规划、应用已批准计划、证书查询与 HTTP-01 签发、审计读取。证书工具只返回元数据，不返回 ACME 账户凭据或证书私钥。
 
-当前源码新增 `get_current_config`，使用全局 `change.read` 权限返回当前 Snapshot 的 `version` 和完整 `config`。AI 可据此保留其他路由并创建候选配置；计划的 `base_version` 应与读取版本一致，否则必须重新读取、合并修改并规划。完整接入和故障处理见 [AI 配置变更指南](./docs/ai-configuration.md)。这些新增能力尚未包含在 `v0.3.1` 发布包中。
+当前源码新增 `get_current_config`，使用全局 `change.read` 权限返回当前 Snapshot 的 `version` 和完整 `config`。AI 可据此保留其他路由并创建候选配置；MCP `plan_change` 必须携带读取的 `expected_version`，版本变化会在创建计划前拒绝；候选字段由配置 JSON Schema 公开。旧 MCP 调用方需补版本参数，REST v1 保持兼容。完整接入和故障处理见 [AI 配置变更指南](./docs/ai-configuration.md)。这些新增能力尚未包含在 `v0.3.1` 发布包中。
 
 工具清单会按 Key 的动作和实例范围裁剪，实际调用仍会再次授权。MCP 不提供 Key 创建、计划批准、Shell、SSH、Docker 或 Kubernetes 工具。
 

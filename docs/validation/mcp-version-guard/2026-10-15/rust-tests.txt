@@ -1,0 +1,189 @@
+   Compiling senix-pingora v0.3.1 (/Users/ylq/Documents/my-proj/senix/crates/senix-pingora)
+   Compiling senix-acme v0.3.1 (/Users/ylq/Documents/my-proj/senix/crates/senix-acme)
+   Compiling senix-mcp v0.3.1 (/Users/ylq/Documents/my-proj/senix/crates/senix-mcp)
+   Compiling senix-core v0.3.1 (/Users/ylq/Documents/my-proj/senix/crates/senix-core)
+   Compiling senixd v0.3.1 (/Users/ylq/Documents/my-proj/senix/crates/senixd)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.53s
+     Running unittests src/lib.rs (target/debug/deps/prometheus-781c5559eac3c6ef)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (target/debug/deps/senix_acme-745bd88c8003ea0f)
+
+running 4 tests
+test tests::secrets_and_issued_keys_are_not_in_debug_output ... ok
+test tests::rejects_wildcard_and_single_label_names ... ok
+test tests::normalizes_and_deduplicates_http01_names ... ok
+test tests::completes_the_http01_order_and_limits_challenge_lifetime ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+
+     Running unittests src/lib.rs (target/debug/deps/senix_core-01dbbab84533c450)
+
+running 5 tests
+test certificate::tests::rejects_wildcards_and_path_shaped_tokens ... ok
+test certificate::tests::challenge_is_domain_bound_and_removed_with_its_guard ... ok
+test certificate::tests::stale_guard_cannot_remove_a_republished_challenge ... ok
+test certificate::tests::encrypted_secrets_require_the_same_master_key ... ok
+test certificate::tests::replacing_a_domain_set_preserves_history_and_only_loads_the_active_key ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/config_engine.rs (target/debug/deps/config_engine-e6dc56d62a3fb1fc)
+
+running 12 tests
+test configuration_rejects_unknown_backend_fields ... ok
+test invalid_health_check_never_reaches_the_runtime ... ok
+test invalid_config_never_reaches_the_runtime ... ok
+test an_existing_lease_keeps_the_old_backend_address_after_publish ... ok
+test one_instance_id_cannot_describe_different_backends ... ok
+test backend_pool_rejects_a_duplicate_instance_id ... ok
+test a_change_cannot_publish_until_the_owner_approves_its_exact_plan ... ok
+test planning_at_a_read_version_rejects_changed_snapshots_without_saving_a_plan ... ok
+test applying_and_rolling_back_switches_complete_route_snapshots ... ok
+test tls_upstream_without_a_server_name_never_reaches_the_runtime ... ok
+test route_and_instance_ids_must_be_stable_nonempty_identifiers ... ok
+test wildcard_host_must_be_the_complete_leftmost_label ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/diagnostics.rs (target/debug/deps/diagnostics-fa042621ac55627c)
+
+running 1 test
+test diagnosis_identifies_the_route_matching_failure ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/security.rs (target/debug/deps/security-7e658b8b922499fe)
+
+running 5 tests
+test metrics_permission_requires_global_scope ... ok
+test api_keys_may_apply_an_approved_change_but_can_never_approve_one ... ok
+test owner_bootstrap_is_one_time_and_credentials_never_list_raw_keys ... ok
+test api_key_enforces_action_instance_and_expiry ... ok
+test owner_account_revokes_bootstrap_key_and_sessions_are_statelessly_invalidated ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.07s
+
+     Running tests/storage.rs (target/debug/deps/storage-acc1a181cb569ee6)
+
+running 3 tests
+test read_only_store_never_upgrades_an_unversioned_file ... ok
+test writable_store_refuses_a_newer_schema_without_mutating_it ... ok
+test writable_store_sets_a_versioned_wal_schema ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/traffic_control.rs (target/debug/deps/traffic_control-029dd622cc553afd)
+
+running 15 tests
+test failed_persistence_cannot_rejoin_an_instance_in_memory ... ok
+test forced_rejoin_routes_without_falsifying_health ... ok
+test a_probe_result_for_an_old_target_cannot_change_the_reconfigured_instance ... ok
+test drain_reports_ordinary_and_long_lived_requests_separately ... ok
+test health_changes_selection_without_overwriting_traffic_state ... ok
+test persistence_rollback_does_not_overwrite_a_newer_health_result ... ok
+test drain_operation_is_idempotent_queryable_and_survives_restart ... ok
+test draining_stops_new_requests_and_survives_restart ... ok
+test replaying_a_drain_key_does_not_drain_a_new_generation ... ok
+test last_available_backend_requires_an_explicit_forced_drain ... ok
+test rejoin_waits_until_the_draining_generation_has_no_in_flight_requests ... ok
+test opening_an_existing_database_adds_the_health_override_column ... ok
+test replaying_a_rejoin_key_does_not_rejoin_after_a_later_drain ... ok
+test weights_shape_new_requests_and_disabling_removes_a_backend ... ok
+test drain_timeout_pauses_without_terminating_the_held_request ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running unittests src/lib.rs (target/debug/deps/senix_mcp-559df26a4b7d9192)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/senix_pingora-39921f1b6a783e0a)
+
+running 9 tests
+test tests::reads_bracketed_ipv6_host_without_port_syntax ... ok
+test tests::reads_host_header_from_http1_request ... ok
+test tests::classifies_sse_and_upgrade_responses ... ok
+test tests::classifies_websocket_and_grpc_requests ... ok
+test tests::reads_authority_from_http2_request_uri ... ok
+test tests::serves_only_the_active_domain_bound_http01_response ... ok
+test tls::tests::replacement_is_atomic_and_old_snapshot_remains_valid ... ok
+test tls::tests::rejects_a_mismatched_private_key_without_changing_generation ... ok
+test tls::tests::exact_wildcard_and_default_selection_are_deterministic ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+     Running unittests src/main.rs (target/debug/deps/senixd-f13bf4c0dccc8734)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/gateway_e2e.rs (target/debug/deps/gateway_e2e-1bcd130fc402be59)
+
+running 27 tests
+test demo_rejects_invalid_ports_before_starting_containers ... ok
+test exact_host_wins_over_a_single_label_wildcard ... ok
+test drain_api_requires_force_for_the_last_backend_and_returns_structured_evidence ... ok
+test bootstrap_owner_key_protects_every_management_route ... ok
+test backup_cli_verifies_the_master_key_and_restores_without_overwriting ... ok
+Senix is healthy at 127.0.0.1:57030
+test json_access_logs_are_parseable_without_request_secrets ... ok
+test healthcheck_command_checks_the_admin_process ... ok
+test mcp_config_reads_enforce_global_scope_read_only_permissions_and_revocation ... ok
+test active_http_health_checks_remove_and_restore_a_backend ... ok
+test most_specific_path_prefix_wins_regardless_of_config_order ... ok
+test drain_identifies_a_grpc_stream_as_long_lived ... ok
+test configured_shutdown_budget_bounds_sigterm_exit ... ok
+test pingora_restores_an_encrypted_managed_certificate_after_restart ... ok
+test pingora_terminates_tls_with_a_configured_certificate ... ok
+test proxy_reaches_an_explicit_https_upstream ... ok
+test pingora_drains_one_backend_and_restores_that_state_after_restart ... ok
+test installer_retries_an_interrupted_trusted_mirror_download ... ok
+test proxy_reaches_an_http2_only_https_upstream ... ok
+test secret_key_generation_never_overwrites_an_existing_file ... ok
+test restricted_key_is_scoped_revocable_and_audited_without_secret_leakage ... ok
+test stateless_mcp_reuses_the_same_key_scope_and_traffic_controller ... ok
+test an_ai_key_can_apply_only_the_exact_change_plan_approved_by_the_owner ... ok
+test mcp_rejects_an_approved_config_plan_after_another_snapshot_is_published ... ok
+test mcp_rejects_a_candidate_from_an_old_read_and_preserves_concurrent_routes_on_retry ... ok
+test prometheus_metrics_are_scoped_and_cover_the_real_proxy_path ... ok
+test owner_can_login_to_embedded_admin_and_manage_keys_with_csrf_protection ... ok
+test repeated_owner_login_failures_are_rate_limited_by_peer_address ... ok
+
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.91s
+
+   Doc-tests prometheus
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests senix_acme
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests senix_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests senix_mcp
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests senix_pingora
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

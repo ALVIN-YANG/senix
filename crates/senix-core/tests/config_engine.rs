@@ -39,6 +39,48 @@ fn principal(kind: CredentialKind, label: &str) -> Principal {
 }
 
 #[test]
+fn planning_at_a_read_version_rejects_changed_snapshots_without_saving_a_plan() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Arc::new(SqliteStateStore::open(dir.path().join("senix.db")).unwrap());
+    let runtime = Arc::new(GatewayRuntime::new());
+    let engine = ConfigEngine::new(runtime, store);
+    let owner = principal(CredentialKind::Owner, "admin");
+    let agent = principal(CredentialKind::ApiKey, "config-agent");
+
+    // Version zero represents an uninitialized configuration.
+    let initial = engine
+        .plan_at_version(valid_config("old.test"), 0, &agent)
+        .unwrap();
+    assert_eq!(initial.base_version, 0);
+    engine.approve(initial.change_id, &owner).unwrap();
+    engine.apply(initial.change_id, &agent).unwrap();
+    let read = engine.current().unwrap().unwrap();
+    let owner_plan = engine.plan(valid_config("owner.test"), &owner).unwrap();
+    engine.approve(owner_plan.change_id, &owner).unwrap();
+    engine.apply(owner_plan.change_id, &owner).unwrap();
+    let before = engine.list_changes().unwrap();
+
+    // Both old and future versions must fail without persisting an approvable plan.
+    for expected_version in [read.version, 3] {
+        let error = engine
+            .plan_at_version(read.config.clone(), expected_version, &agent)
+            .unwrap_err();
+        assert_eq!(error.code(), "CONFIG_VERSION_MISMATCH");
+        assert_eq!(
+            error.evidence(),
+            serde_json::json!({"expected_version": expected_version, "current_version": 2})
+        );
+        assert_eq!(engine.list_changes().unwrap(), before);
+    }
+    let current = engine.current().unwrap().unwrap();
+    let plan = engine
+        .plan_at_version(current.config, current.version, &agent)
+        .unwrap();
+    assert_eq!(plan.base_version, 2);
+    assert!(plan.diff.removed_routes.is_empty());
+}
+
+#[test]
 fn a_change_cannot_publish_until_the_owner_approves_its_exact_plan() {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("senix.db");

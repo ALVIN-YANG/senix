@@ -67,6 +67,14 @@ pub enum Error {
     #[error("configuration has validation issues")]
     InvalidConfig,
 
+    #[error(
+        "configuration version differs from the expected version; read the current configuration and merge the requested change before planning again"
+    )]
+    ConfigVersionMismatch {
+        expected_version: u64,
+        current_version: u64,
+    },
+
     #[error("configuration changed since this plan was created")]
     StalePlan,
 
@@ -118,6 +126,7 @@ impl Error {
             Self::DrainOperationNotFound(_) => "DRAIN_OPERATION_NOT_FOUND",
             Self::InvalidState(_) => "INVALID_STATE",
             Self::InvalidConfig => "INVALID_CONFIG",
+            Self::ConfigVersionMismatch { .. } => "CONFIG_VERSION_MISMATCH",
             Self::StalePlan => "STALE_PLAN",
             Self::ChangeNotFound(_) => "CHANGE_NOT_FOUND",
             Self::ChangeApprovalRequired(_) => "CHANGE_APPROVAL_REQUIRED",
@@ -156,6 +165,12 @@ impl Error {
                 serde_json::json!({"change_id": change_id})
             }
             Self::SnapshotNotFound(version) => serde_json::json!({"version": version}),
+            Self::ConfigVersionMismatch {
+                expected_version,
+                current_version,
+            } => {
+                serde_json::json!({"expected_version": expected_version, "current_version": current_version})
+            }
             _ => serde_json::json!({}),
         }
     }

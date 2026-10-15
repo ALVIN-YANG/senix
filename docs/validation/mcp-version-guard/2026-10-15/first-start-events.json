@@ -1,0 +1,122 @@
+[
+  {
+    "action": "create",
+    "name": "senix-version-guard-ac3c88b9ef-senix-run-cda0a918be87",
+    "exit_code": null,
+    "time": 1792054925
+  },
+  {
+    "action": "start",
+    "name": "senix-version-guard-ac3c88b9ef-senix-run-cda0a918be87",
+    "exit_code": null,
+    "time": 1792054928
+  },
+  {
+    "action": "die",
+    "name": "senix-version-guard-ac3c88b9ef-senix-run-cda0a918be87",
+    "exit_code": "0",
+    "time": 1792054930
+  },
+  {
+    "action": "destroy",
+    "name": "senix-version-guard-ac3c88b9ef-senix-run-cda0a918be87",
+    "exit_code": null,
+    "time": 1792054930
+  },
+  {
+    "action": "create",
+    "name": "senix-version-guard-ac3c88b9ef-senix-run-26dea06eb631",
+    "exit_code": null,
+    "time": 1792054930
+  },
+  {
+    "action": "start",
+    "name": "senix-version-guard-ac3c88b9ef-senix-run-26dea06eb631",
+    "exit_code": null,
+    "time": 1792054931
+  },
+  {
+    "action": "die",
+    "name": "senix-version-guard-ac3c88b9ef-senix-run-26dea06eb631",
+    "exit_code": "0",
+    "time": 1792054931
+  },
+  {
+    "action": "destroy",
+    "name": "senix-version-guard-ac3c88b9ef-senix-run-26dea06eb631",
+    "exit_code": null,
+    "time": 1792054931
+  },
+  {
+    "action": "create",
+    "name": "senix-version-guard-ac3c88b9ef-senix-1",
+    "exit_code": null,
+    "time": 1792054932
+  },
+  {
+    "action": "create",
+    "name": "senix-version-guard-ac3c88b9ef-backend-b-1",
+    "exit_code": null,
+    "time": 1792054932
+  },
+  {
+    "action": "create",
+    "name": "senix-version-guard-ac3c88b9ef-backend-a-1",
+    "exit_code": null,
+    "time": 1792054932
+  },
+  {
+    "action": "start",
+    "name": "senix-version-guard-ac3c88b9ef-backend-a-1",
+    "exit_code": null,
+    "time": 1792054934
+  },
+  {
+    "action": "start",
+    "name": "senix-version-guard-ac3c88b9ef-backend-b-1",
+    "exit_code": null,
+    "time": 1792054934
+  },
+  {
+    "action": "start",
+    "name": "senix-version-guard-ac3c88b9ef-senix-1",
+    "exit_code": null,
+    "time": 1792054934
+  },
+  {
+    "action": "die",
+    "name": "senix-version-guard-ac3c88b9ef-backend-a-1",
+    "exit_code": "2",
+    "time": 1792054965
+  },
+  {
+    "action": "destroy",
+    "name": "senix-version-guard-ac3c88b9ef-backend-a-1",
+    "exit_code": null,
+    "time": 1792054965
+  },
+  {
+    "action": "die",
+    "name": "senix-version-guard-ac3c88b9ef-backend-b-1",
+    "exit_code": "2",
+    "time": 1792054965
+  },
+  {
+    "action": "destroy",
+    "name": "senix-version-guard-ac3c88b9ef-backend-b-1",
+    "exit_code": null,
+    "time": 1792054965
+  },
+  {
+    "action": "die",
+    "name": "senix-version-guard-ac3c88b9ef-senix-1",
+    "exit_code": "137",
+    "time": 1792054975
+  },
+  {
+    "action": "destroy",
+    "name": "senix-version-guard-ac3c88b9ef-senix-1",
+    "exit_code": null,
+    "time": 1792054975
+  }
+]

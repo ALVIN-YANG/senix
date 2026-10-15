@@ -114,7 +114,7 @@ MCP 使用无会话 Streamable HTTP，挂载在管理端口 `/mcp`。每个请�
 - `list_certificates`、`issue_certificate`
 - `list_audit_events`
 
-未发布的源码增量增加 `get_current_config`：要求全局 `change.read`，返回当前 Snapshot 的版本和完整配置；权限模板与完整操作流程见 [AI 配置变更指南](./ai-configuration.md)。此增量不属于已发布的 `v0.3.1` 包。
+未发布的源码增量增加 `get_current_config`：要求全局 `change.read`，返回当前 Snapshot 的版本和完整配置；MCP `plan_change` 必填 `expected_version`，版本冲突时不创建计划，并提供从配置类型生成的 JSON Schema；旧 MCP 调用方须补版本参数，REST v1 和 `plan_rollback` 保持兼容。权限模板与完整操作流程见 [AI 配置变更指南](./ai-configuration.md)。此增量不属于已发布的 `v0.3.1` 包。
 
 工具目录按当前 Key 的动作和范围裁剪；每次调用仍重新授权。MCP 不提供 Key 创建、计划批准、Shell、SSH、Docker、Kubernetes、数据库或私钥工具。
 

@@ -153,7 +153,30 @@ impl ConfigEngine {
     ///
     /// Returns an error when the current snapshot cannot be read or the plan cannot be persisted.
     pub fn plan(&self, candidate: GatewayConfig, actor: &Principal) -> Result<ChangePlan> {
-        self.plan_with_kind(candidate, actor, ChangeKind::Configuration, None)
+        self.plan_with_kind(candidate, actor, ChangeKind::Configuration, None, None)
+    }
+
+    /// Creates a Change Plan only if the caller read the current Snapshot version.
+    ///
+    /// The version check and plan persistence share the publication lock with apply.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error without creating a plan when the expected version differs from the
+    /// current version, or when the current snapshot cannot be read or the plan persisted.
+    pub fn plan_at_version(
+        &self,
+        candidate: GatewayConfig,
+        expected_version: u64,
+        actor: &Principal,
+    ) -> Result<ChangePlan> {
+        self.plan_with_kind(
+            candidate,
+            actor,
+            ChangeKind::Configuration,
+            None,
+            Some(expected_version),
+        )
     }
 
     /// Creates a Change Plan whose candidate is a prior immutable Snapshot.
@@ -166,7 +189,13 @@ impl ConfigEngine {
             .store
             .config_at(target_version)?
             .ok_or(Error::SnapshotNotFound(target_version))?;
-        self.plan_with_kind(candidate, actor, ChangeKind::Rollback, Some(target_version))
+        self.plan_with_kind(
+            candidate,
+            actor,
+            ChangeKind::Rollback,
+            Some(target_version),
+            None,
+        )
     }
 
     fn plan_with_kind(
@@ -175,10 +204,19 @@ impl ConfigEngine {
         actor: &Principal,
         kind: ChangeKind,
         rollback_target_version: Option<u64>,
+        expected_version: Option<u64>,
     ) -> Result<ChangePlan> {
         let _guard = self.publish_lock.lock();
         let current = self.store.latest_config()?;
         let base_version = current.as_ref().map_or(0, |(version, _)| *version);
+        if let Some(expected_version) = expected_version {
+            if expected_version != base_version {
+                return Err(Error::ConfigVersionMismatch {
+                    expected_version,
+                    current_version: base_version,
+                });
+            }
+        }
         let diff = diff(current.as_ref().map(|(_, config)| config), &candidate);
         let issues = validate(&candidate);
         let plan = ChangePlan {

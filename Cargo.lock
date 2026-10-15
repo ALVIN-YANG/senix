@@ -2679,6 +2679,7 @@ dependencies = [
  "hmac",
  "parking_lot",
  "rusqlite",
+ "schemars",
  "serde",
  "serde_json",
  "sha2",

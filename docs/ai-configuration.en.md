@@ -4,7 +4,7 @@
 
 An AI client can read the complete configuration, propose a change and apply it after the human Owner approves the exact plan. The AI accesses Senix through MCP. Application deployment remains your responsibility.
 
-> `get_current_config` and the Key presets are unreleased source features. The default Docker demo uses published v0.3.1. Build the current source to complete this workflow. The admin UI is currently in Chinese; exact labels are included below.
+> `get_current_config`, the planning version guard, configuration JSON Schema and Key presets are unreleased source features. The default Docker demo uses published v0.3.1. Build the current source to complete this workflow. The admin UI is currently in Chinese; exact labels are included below.
 
 ## 1. Start the current source
 
@@ -65,13 +65,20 @@ Ask your AI client:
 ```text
 Use Senix MCP get_current_config to read the current configuration.
 Change only demo-route's host from demo.senix.local to preview.senix.local.
-Preserve every other route, backend and field, then call plan_change.
+Preserve every other route, backend and field. Call plan_change with
+expected_version set to this read's version and candidate set to the complete config.
 Show me change_id, base_version, candidate_digest, the complete candidate
 configuration and the diff. Wait for me to approve that exact plan in
 the Senix admin console. Do not apply it yet.
 ```
 
-`get_current_config` returns `{ "version": 1, "config": { ... } }`; use the actual returned version. Copy the **config object**, modify only the requested field and pass it as `plan_change`'s `candidate`. Do not pass the entire Snapshot as the candidate.
+`get_current_config` returns `{ "version": 1, "config": { ... } }`; use the actual returned version. Copy the **config object**, modify only the requested field and pass it as `plan_change`'s `candidate`, with the read's `version` in the required `expected_version` parameter. Do not pass the entire Snapshot as the candidate. `tools/list` exposes a JSON Schema for routes, backends, TLS and health checks, derived from the actual configuration types.
+
+Call structure; replace the placeholder with the complete edited configuration:
+
+```text
+plan_change({"expected_version": 1, "candidate": {"routes": [...]}})
+```
 
 Creating a plan does not change live routing. The original hostname should still work:
 
@@ -79,7 +86,9 @@ Creating a plan does not change live routing. The original hostname should still
 curl -f -H 'Host: demo.senix.local' http://127.0.0.1:8080/
 ```
 
-The plan's `base_version` must equal the version just read. If they differ, someone published configuration between read and plan. Abandon that plan, read again and merge your requested change into the latest configuration. Otherwise a complete candidate based on the old read could replace another person's changes. The server does not yet accept a read-version precondition when planning.
+If someone publishes configuration between read and plan, the server returns `CONFIG_VERSION_MISMATCH`, with `expected_version` and `current_version` in `evidence`, and creates no plan. Read the complete configuration again, merge your requested change and plan with that newly read version. Do not change only the version number on an old candidate. The check and plan persistence share the configuration publication lock.
+
+**MCP compatibility:** existing callers must add `expected_version`. Missing parameters, incorrect field types and unknown configuration fields return an MCP SDK tool error (`isError: true`) describing parameter deserialization, before domain planning. Structurally valid configurations with business validation errors still create plans with `issues` and cannot be approved. REST v1 keeps its existing complete-config request body and has no new version precondition. `plan_rollback` keeps its existing contract.
 
 ## 5. Approve as Owner, then apply through MCP
 
@@ -119,6 +128,7 @@ When restarting or rerunning the demo after this change, also set `SENIX_DEMO_HO
 | `FORBIDDEN` | Check actions and global scope. Do not replace the Key with unrestricted credentials. |
 | `CHANGE_APPROVAL_REQUIRED` | Ask the Owner to review and approve this same plan in the console. |
 | `CHANGE_APPROVAL_EXPIRED` | The Owner must review and approve again. An expired approval cannot be reused. |
+| `CONFIG_VERSION_MISMATCH` | Read again, merge the change and plan with that read version; no plan was created |
 | `STALE_PLAN` | Read the latest configuration, merge the requested change, create a new plan and obtain new approval. |
 
 `get_current_config` requires global `change.read`. A read-only Key cannot plan or apply; an Instance-scoped Key cannot read the global configuration. Revocation takes effect on the next request. A client may display a cached tool list, but every call still checks current authorization.

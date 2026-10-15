@@ -1,0 +1,36 @@
+Owner account initialized. Save these credentials before startup continues:
+Owner: admin
+Password: [REDACTED]
+
+Senix demo is ready.
+Admin: http://127.0.0.1:19080/admin/
+Proxy: http://127.0.0.1:18080/ (Host: demo.senix.local)
+Owner: admin
+Use the Owner password printed before startup.
+
+Proxy check:
+Hostname: backend-a
+IP: 127.0.0.1
+IP: ::1
+IP: 172.28.0.11
+RemoteAddr: 172.28.0.10:52550
+GET / HTTP/1.1
+Host: demo.senix.local
+User-Agent: curl/8.7.1
+
+Stop: docker compose --project-directory examples/demo -f examples/demo/compose.yml down
+Reset all demo data: append --volumes to the stop command
+AI configuration guide: docs/ai-configuration.md (new tools require the current source build)
+ Container senix-version-guard-1518d0c919-senix-1  Creating
+ Container senix-version-guard-1518d0c919-backend-a-1  Creating
+ Container senix-version-guard-1518d0c919-backend-b-1  Creating
+ Container senix-version-guard-1518d0c919-backend-a-1  Created
+ Container senix-version-guard-1518d0c919-senix-1  Created
+ Container senix-version-guard-1518d0c919-backend-b-1  Created
+ Container senix-version-guard-1518d0c919-senix-1  Starting
+ Container senix-version-guard-1518d0c919-backend-a-1  Starting
+ Container senix-version-guard-1518d0c919-backend-b-1  Starting
+ Container senix-version-guard-1518d0c919-senix-1  Started
+ Container senix-version-guard-1518d0c919-backend-a-1  Started
+ Container senix-version-guard-1518d0c919-backend-b-1  Started
+curl: (52) Empty reply from server

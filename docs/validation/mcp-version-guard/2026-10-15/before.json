@@ -1,0 +1,19 @@
+{
+  "source_baseline": "af40d95",
+  "ai_read_version": 1,
+  "owner_published_version": 2,
+  "owner_added_route_status": 200,
+  "stale_candidate_was_accepted_for_planning": true,
+  "accepted_plan_base_version": 2,
+  "candidate_removed_routes": [
+    "owner-added-route"
+  ],
+  "plan_was_not_approved_or_applied": true,
+  "live_configuration_still_matches_owner_v2": true,
+  "candidate_input_schema": {
+    "description": "Complete candidate `GatewayConfig` JSON object."
+  },
+  "required_tool_parameters": [
+    "candidate"
+  ]
+}

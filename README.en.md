@@ -7,17 +7,17 @@
 Senix helps individual developers and small teams operate a gateway with an AI client. The AI reads live state and proposes a configuration; the human Owner reviews the exact plan before it can be applied. One `senixd` binary contains the Pingora proxy, SQLite control plane and admin console. It needs no external database. Your scripts handle application deployment.
 
 > [!IMPORTANT]
-> Senix is a working **v0.3 preview**. Validate your traffic, failure and recovery requirements before production use. The default installer and Docker demo use the published **v0.3.1**. New configuration-reading tools, Key presets, duration metrics and JSON logs are available in the current source and have not been released yet.
+> Senix is a working **v0.3 preview**. Validate your traffic, failure and recovery requirements before production use. The default installer and Docker demo use the published **v0.3.1**. New configuration-reading tools, planning version guards, configuration JSON Schema, Key presets, duration metrics and JSON logs are available in the current source and have not been released yet.
 
 ## Evidence you can inspect
 
 | Question | Evidence |
 | --- | --- |
 | Can I start it? | The Docker demo starts two real backends, creates the Owner account and checks a real proxy request. [English onboarding checks](./docs/validation/2026-10-15-english-onboarding.md) cover clean starts, repeat starts, restart and saved configuration. |
-| Can an AI change configuration safely? | A real MCP workflow read v1, planned a hostname change, waited for test Owner approval and applied v2. Requests checked the new hostname, old hostname and an unaffected route. [Validation record, Chinese](./docs/validation/2026-10-15-ai-configuration.md). |
+| Can an AI change configuration safely? | A real MCP workflow read v1, planned a hostname change, waited for test Owner approval and applied v2. Requests checked the new hostname, old hostname and an unaffected route. [Initial validation](./docs/validation/2026-10-15-ai-configuration.md) and [version conflict/retry validation, Chinese](./docs/validation/2026-10-15-mcp-version-guard.md). |
 | Can I monitor it? | Local Prometheus, Grafana, VictoriaMetrics, OTel Collector, Alloy and Loki paths were exercised. [Validation record, Chinese](./docs/validation/2026-10-15-observability.md) and [raw results](./docs/validation/2026-10-15-observability.json). |
 | Is there a performance baseline? | 36 measurements completed 3,099,779 requests, including 2,109,803 through Senix, with zero HTTP failures. Conditions, variation and raw data are preserved [below](#local-performance-baseline). |
-| What passed regression checks? | Rust 1.88: 79 tests, including 26 real-process E2E tests; formatting, strict Clippy, frontend build and npm audit. Rust dependency audit still reports [four upstream warnings, Chinese](./CONTRIBUTING.md). |
+| What passed regression checks? | Rust 1.88: 81 tests, including 27 real-process E2E tests; formatting, strict Clippy, frontend build and npm audit. Rust dependency audit still reports [four upstream warnings, Chinese](./CONTRIBUTING.md). |
 
 ## Try the Docker demo
 
@@ -98,10 +98,12 @@ The console and MCP use the same authorization and audit rules as REST. The cont
 The [English walkthrough](./docs/ai-configuration.en.md) covers source startup, Key issuance, Cursor configuration, prompts, approval, verification and failures.
 
 1. Call `get_current_config` and keep its `version` and complete `config`.
-2. Change only the requested fields and call `plan_change` with the complete candidate.
-3. Compare the plan's `base_version` with the version read. If they differ, read again and merge the change into the new configuration.
+2. Change only the requested fields and call `plan_change` with the complete `candidate` and the read version as required `expected_version`. Its input Schema describes routes, backends, TLS and health checks.
+3. If configuration changed after the read, `CONFIG_VERSION_MISMATCH` rejects the request before creating a plan. Read again and merge into the new configuration before retrying; do not just update the version number.
 4. The Owner reviews and approves that exact plan in the console. Approval expires after 15 minutes.
 5. Call `get_change`, then `apply_approved_change` for the same `change_id`. Read the new Snapshot and check changed and unaffected routes with real requests.
+
+Existing MCP callers must add `expected_version`; REST v1 keeps its existing request format.
 
 MCP cannot approve plans, issue Keys or run Shell, SSH, Docker or Kubernetes commands. A Key with `change.apply` can only apply a plan the Owner has already approved. Rollback creates another plan and follows the same approval path.
 
@@ -209,7 +211,7 @@ ACME account credentials and private keys are encrypted in SQLite with XChaCha20
 - ACME supports explicit HTTP-01 issuance and renewal. No DNS-01, automatic renewal scheduler or managed-certificate upload.
 - No passive health signals, MCP stdio bridge, plugin adapters or system-service installer yet.
 - No HTTP/3/QUIC, generic TCP/UDP proxy, mTLS or gRPC-Web conversion. WebSocket, SSE and gRPC streams are tracked separately; existing connections cannot be migrated.
-- No built-in model, LLM API router or prompt management. Typed configuration schemas, a read-version precondition for planning and multi-model task evaluations remain [future work, Chinese](./docs/ai-native-assessment.md).
+- No built-in model, LLM API router or prompt management. Multi-model task evaluations and native tracing remain [future work, Chinese](./docs/ai-native-assessment.md).
 - The current Pingora dependency tree still reports upstream warnings for `daemonize`, `derivative`, `unsafe-libyaml` and `lru 0.16.4` (`RUSTSEC-2026-0253`, panic-safety memory risk). A successful audit exit does not mean these risks are resolved.
 
 ## Contribute

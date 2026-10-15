@@ -726,7 +726,7 @@ fn an_ai_key_can_apply_only_the_exact_change_plan_approved_by_the_owner() {
         admin,
         &apply_key,
         "plan_change",
-        &json!({"candidate": candidate}),
+        &json!({"expected_version": 1, "candidate": candidate}),
     );
     let planned = &result["structuredContent"];
     assert_eq!(planned["status"], "PLANNED");
@@ -840,7 +840,10 @@ fn mcp_config_reads_enforce_global_scope_read_only_permissions_and_revocation() 
     assert!(!names.contains(&"plan_change"));
     assert!(!names.contains(&"apply_approved_change"));
     for (name, arguments) in [
-        ("plan_change", json!({"candidate": candidate})),
+        (
+            "plan_change",
+            json!({"expected_version": 1, "candidate": candidate}),
+        ),
         (
             "apply_approved_change",
             json!({"change_id": uuid::Uuid::new_v4()}),
@@ -885,6 +888,111 @@ fn mcp_config_reads_enforce_global_scope_read_only_permissions_and_revocation() 
 }
 
 #[test]
+fn mcp_rejects_a_candidate_from_an_old_read_and_preserves_concurrent_routes_on_retry() {
+    let backend = spawn_backend("A", Duration::ZERO);
+    let proxy = free_address();
+    let admin = free_address();
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("senix.db");
+    let config = dir.path().join("gateway.json");
+    write_single_backend_config(&config, backend);
+    bootstrap_owner_key(&db);
+    bootstrap_owner_account(&db, "admin", "correct horse battery staple");
+    let senix = spawn_senix(proxy, admin, &db, &config);
+    wait_until_ready(admin, proxy);
+    let cookie = login_owner_cookie(admin, "correct horse battery staple");
+    let key = issue_global_api_key_with_cookie(
+        admin,
+        &cookie,
+        "config-agent",
+        &["change.read", "change.plan", "change.apply"],
+    );
+    let read = call_mcp_tool(admin, &key, "get_current_config", &json!({}));
+    let mut candidate = read["structuredContent"]["config"].clone();
+    candidate["routes"][0]["host"] = json!("ai.test");
+    assert_config_plan_contract(admin, &key, &candidate);
+
+    // REST v1 still accepts a raw GatewayConfig, with no new version envelope.
+    let mut owner_config = read["structuredContent"]["config"].clone();
+    let mut added_route = owner_config["routes"][0].clone();
+    added_route["id"] = json!("owner-added-route");
+    added_route["host"] = json!("owner.test");
+    owner_config["routes"]
+        .as_array_mut()
+        .unwrap()
+        .push(added_route.clone());
+    assert_eq!(
+        publish_rest_config_as_owner(admin, &cookie, owner_config.clone()),
+        2
+    );
+    assert_eq!(proxy_get_host(proxy, "owner.test", "/"), "A");
+
+    let before = call_mcp_tool(admin, &key, "list_changes", &json!({}));
+    let denied = call_mcp_tool(
+        admin,
+        &key,
+        "plan_change",
+        &json!({"expected_version": read["structuredContent"]["version"], "candidate": candidate}),
+    );
+    assert_eq!(denied["isError"], true);
+    assert_eq!(
+        denied["structuredContent"]["code"],
+        "CONFIG_VERSION_MISMATCH"
+    );
+    assert_eq!(
+        denied["structuredContent"]["evidence"],
+        json!({"expected_version": 1, "current_version": 2})
+    );
+    assert_eq!(
+        call_mcp_tool(admin, &key, "list_changes", &json!({})),
+        before
+    );
+    let current = call_mcp_tool(admin, &key, "get_current_config", &json!({}));
+    assert_eq!(current["structuredContent"]["config"], owner_config);
+    let mut merged = current["structuredContent"]["config"].clone();
+    merged["routes"][0]["host"] = json!("ai.test");
+    let plan = call_mcp_tool(
+        admin,
+        &key,
+        "plan_change",
+        &json!({"expected_version": current["structuredContent"]["version"], "candidate": merged}),
+    );
+    assert_eq!(plan["structuredContent"]["base_version"], 2);
+    assert_eq!(
+        plan["structuredContent"]["diff"]["removed_routes"],
+        json!([])
+    );
+    let id = &plan["structuredContent"]["change_id"];
+    let unapproved = call_mcp_tool(
+        admin,
+        &key,
+        "apply_approved_change",
+        &json!({"change_id": id}),
+    );
+    assert_eq!(
+        unapproved["structuredContent"]["code"],
+        "CHANGE_APPROVAL_REQUIRED"
+    );
+    approve_config_as_owner(admin, &cookie, id.as_str().unwrap());
+    let applied = call_mcp_tool(
+        admin,
+        &key,
+        "apply_approved_change",
+        &json!({"change_id": id}),
+    );
+    assert_eq!(applied["structuredContent"]["version"], 3);
+    let current = call_mcp_tool(admin, &key, "get_current_config", &json!({}));
+    assert_eq!(current["structuredContent"]["config"], merged);
+    assert_eq!(
+        current["structuredContent"]["config"]["routes"][1],
+        added_route
+    );
+    assert_eq!(proxy_get_host(proxy, "ai.test", "/"), "A");
+    assert_eq!(proxy_get_host(proxy, "owner.test", "/"), "A");
+    drop(senix);
+}
+
+#[test]
 fn mcp_rejects_an_approved_config_plan_after_another_snapshot_is_published() {
     let backend = spawn_backend("A", Duration::ZERO);
     let proxy = free_address();
@@ -907,9 +1015,19 @@ fn mcp_rejects_an_approved_config_plan_after_another_snapshot_is_published() {
     let snapshot = call_mcp_tool(admin, &key, "get_current_config", &json!({}));
     let mut candidate = snapshot["structuredContent"]["config"].clone();
     candidate["routes"][0]["host"] = json!("first.test");
-    let first = call_mcp_tool(admin, &key, "plan_change", &json!({"candidate": candidate}));
+    let first = call_mcp_tool(
+        admin,
+        &key,
+        "plan_change",
+        &json!({"expected_version": 1, "candidate": candidate}),
+    );
     candidate["routes"][0]["host"] = json!("stale.test");
-    let second = call_mcp_tool(admin, &key, "plan_change", &json!({"candidate": candidate}));
+    let second = call_mcp_tool(
+        admin,
+        &key,
+        "plan_change",
+        &json!({"expected_version": 1, "candidate": candidate}),
+    );
     for plan in [&first, &second] {
         assert_eq!(plan["structuredContent"]["base_version"], 1);
         let id = plan["structuredContent"]["change_id"].as_str().unwrap();
@@ -2513,6 +2631,107 @@ fn assert_change_apply_tools(admin: SocketAddr, api_key: &str) {
     assert!(tool_names.contains(&"get_current_config"));
     assert!(tool_names.contains(&"apply_approved_change"));
     assert!(!tool_names.contains(&"approve_change"));
+}
+
+fn approve_config_as_owner(admin: SocketAddr, cookie: &str, id: &str) {
+    let (status, plan, _) = admin_response_with_headers(
+        admin,
+        "POST",
+        &format!("/api/v1/changes/{id}/approve"),
+        None,
+        &[("Cookie", cookie), ("X-Senix-CSRF", "1")],
+    );
+    assert_eq!(status, 200);
+    assert_eq!(plan["status"], "APPROVED");
+}
+
+fn publish_rest_config_as_owner(admin: SocketAddr, cookie: &str, config: Value) -> u64 {
+    let headers = [("Cookie", cookie), ("X-Senix-CSRF", "1")];
+    let (status, plan, _) = admin_response_with_headers(
+        admin,
+        "POST",
+        "/api/v1/changes/plan",
+        Some(config),
+        &headers,
+    );
+    assert_eq!(status, 201);
+    let id = plan["change_id"].as_str().unwrap();
+    approve_config_as_owner(admin, cookie, id);
+    let (status, applied, _) = admin_response_with_headers(
+        admin,
+        "POST",
+        &format!("/api/v1/changes/{id}/apply"),
+        None,
+        &headers,
+    );
+    assert_eq!(status, 200);
+    applied["version"].as_u64().unwrap()
+}
+
+fn assert_config_plan_contract(admin: SocketAddr, api_key: &str, candidate: &Value) {
+    // rmcp reports argument deserialization as a tool error, before domain planning.
+    for arguments in [
+        json!({"candidate": candidate}),
+        json!({"expected_version": 1, "candidate": {"routes": "invalid"}}),
+    ] {
+        let rejected = call_mcp_tool(admin, api_key, "plan_change", &arguments);
+        assert_eq!(rejected["isError"], true);
+        assert!(
+            rejected["content"][0]["text"]
+                .as_str()
+                .unwrap()
+                .contains("failed to deserialize parameters")
+        );
+    }
+
+    let (_, catalog) = mcp_request(admin, Some(api_key), 40, "tools/list", &json!({}));
+    let tool = catalog["result"]["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|tool| tool["name"] == "plan_change")
+        .unwrap();
+    let schema = &tool["inputSchema"];
+    let required = schema["required"].as_array().unwrap();
+    assert!(required.contains(&json!("expected_version")));
+    assert!(required.contains(&json!("candidate")));
+    assert_eq!(schema["properties"]["expected_version"]["type"], "integer");
+    let resolve = |value: &Value| {
+        // Schemars may inline a schema or refer to a shared definition.
+        value.get("$ref").and_then(Value::as_str).map_or_else(
+            || value.clone(),
+            |reference| {
+                schema
+                    .pointer(reference.strip_prefix('#').unwrap())
+                    .unwrap()
+                    .clone()
+            },
+        )
+    };
+    let candidate = resolve(&schema["properties"]["candidate"]);
+    assert_eq!(candidate["type"], "object");
+    assert_eq!(candidate["additionalProperties"], false);
+    let route = resolve(&candidate["properties"]["routes"]["items"]);
+    for field in ["id", "host", "path_prefix", "backends"] {
+        assert!(
+            route["required"]
+                .as_array()
+                .unwrap()
+                .contains(&json!(field))
+        );
+    }
+    let backend = resolve(&route["properties"]["backends"]["items"]);
+    for field in ["id", "address", "generation", "weight"] {
+        assert!(
+            backend["required"]
+                .as_array()
+                .unwrap()
+                .contains(&json!(field))
+        );
+    }
+    assert_eq!(backend["properties"]["address"]["type"], "string");
+    assert!(backend["properties"].get("tls").is_some());
+    assert!(backend["properties"].get("health_check").is_some());
 }
 
 fn call_mcp_tool(admin: SocketAddr, api_key: &str, name: &str, arguments: &Value) -> Value {

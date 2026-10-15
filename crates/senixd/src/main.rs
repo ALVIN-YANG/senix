@@ -359,6 +359,7 @@ impl From<senix_core::Error> for ApiError {
             | senix_core::Error::OwnerCredentialNotInitialized
             | senix_core::Error::LastAvailableBackend { .. }
             | senix_core::Error::StalePlan
+            | senix_core::Error::ConfigVersionMismatch { .. }
             | senix_core::Error::ChangeApprovalRequired(_)
             | senix_core::Error::ChangeApprovalExpired(_) => StatusCode::CONFLICT,
             senix_core::Error::InvalidConfig | senix_core::Error::InvalidState(_) => {

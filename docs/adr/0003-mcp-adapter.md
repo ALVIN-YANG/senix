@@ -19,9 +19,11 @@ MCP 挂载在管理端口的 `/mcp`。Bearer Key 由与 REST 相同的 HTTP 中�
 
 首版工具不包含 Credential 管理、批准、任意配置写入、Shell、SSH、Docker 或 Kubernetes。`plan_change` 和 `plan_rollback` 持久化不可修改的 Change Plan；`apply_approved_change` 只能应用 Owner 已批准且仍在有效期内的精确计划，不能修改或自行批准计划。
 
-`get_current_config` 直接读取 `ConfigEngine` 的当前 Snapshot，沿用 REST 配置读取的全局 `change.read` 权限。返回版本和完整配置，使调用方可以保留未修改的路由；调用方必须核对读取版本与计划的 `base_version`，不能把 `instance.read` 当成读取全局配置的授权。
+`get_current_config` 直接读取 `ConfigEngine` 的当前 Snapshot，沿用 REST 配置读取的全局 `change.read` 权限。返回版本和完整配置，使调用方可以保留未修改的路由；MCP `plan_change` 必须传入读取的 `expected_version`，在 `ConfigEngine` 发布锁内校验，版本变化时返回 `CONFIG_VERSION_MISMATCH` 且不保存计划；调用方重读后合并修改。候选使用实际 `GatewayConfig` 类型派生 JSON Schema，不能把 `instance.read` 当成读取全局配置的授权。
 
 MCP 默认只允许 loopback Host。私网或反向代理域名必须通过启动参数显式加入 Host 允许列表；浏览器来源必须加入 Origin 允许列表。管理面 TLS 仍由后续内置能力或受信反向代理解决。
+
+2026-10-15 接口增量：旧 MCP 调用方须补版本参数，缺参及配置结构错误由 MCP SDK 返回工具错误（`isError: true`），不进入领域规划；业务校验仍使用计划 `issues`。REST v1 的原请求体和 `plan_rollback` 保持兼容。此增量尚未进入已发布的 v0.3.1。
 
 ## Consequences
 

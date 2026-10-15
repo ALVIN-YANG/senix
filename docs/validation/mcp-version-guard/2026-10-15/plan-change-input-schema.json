@@ -1,0 +1,187 @@
+{
+  "$defs": {
+    "BackendConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "generation": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "health_check": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HealthCheckConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "id": {
+          "type": "string"
+        },
+        "tls": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UpstreamTlsConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "weight": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "address",
+        "generation",
+        "weight"
+      ],
+      "type": "object"
+    },
+    "GatewayConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "routes": {
+          "items": {
+            "$ref": "#/$defs/RouteConfig"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "routes"
+      ],
+      "type": "object"
+    },
+    "HealthCheckConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "healthy_threshold": {
+          "default": 2,
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "interval_ms": {
+          "default": 5000,
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "path": {
+          "default": "/health",
+          "type": "string"
+        },
+        "protocol": {
+          "$ref": "#/$defs/HealthCheckProtocol",
+          "default": "http"
+        },
+        "timeout_ms": {
+          "default": 1000,
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "unhealthy_threshold": {
+          "default": 3,
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "HealthCheckProtocol": {
+      "enum": [
+        "tcp",
+        "http"
+      ],
+      "type": "string"
+    },
+    "RouteConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "backends": {
+          "items": {
+            "$ref": "#/$defs/BackendConfig"
+          },
+          "type": "array"
+        },
+        "host": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "path_prefix": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "host",
+        "path_prefix",
+        "backends"
+      ],
+      "type": "object"
+    },
+    "UpstreamAlpn": {
+      "enum": [
+        "http1",
+        "http2",
+        "http2_or_http1"
+      ],
+      "type": "string"
+    },
+    "UpstreamTlsConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "alpn": {
+          "$ref": "#/$defs/UpstreamAlpn",
+          "default": "http1"
+        },
+        "server_name": {
+          "type": "string"
+        },
+        "verify_certificate": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "server_name"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "candidate": {
+      "$ref": "#/$defs/GatewayConfig",
+      "description": "Complete candidate `GatewayConfig` JSON object."
+    },
+    "expected_version": {
+      "description": "Version returned by `get_current_config` when building this candidate. Reread and merge on mismatch.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "expected_version",
+    "candidate"
+  ],
+  "type": "object"
+}
