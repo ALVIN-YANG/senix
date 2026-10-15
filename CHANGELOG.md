@@ -6,6 +6,8 @@ Senix 使用[语义化版本](https://semver.org/lang/zh-CN/)。`0.x` 阶段仍�
 
 ### Added
 
+- MCP `plan_change.candidate` 改为实际配置类型派生的 JSON Schema，公开路由、后端、TLS 和健康检查字段。
+- 增加 GitHub Linux AMD64 runner 的 36 次基准、原始结果与校验和，中英文 README 展示该环境图表，同时保留 ARM64 本机基线。
 - 增加隔离 Docker Demo 验收脚本，检查首次启动、运行中重跑、Owner 批准配置变更及重启后的配置和账号保留，失败时保存脱敏日志与退出状态。
 - 增加英文 README 和完整 AI 配置操作指南，中英文页面互链，`llms.txt` 提供两种语言入口。
 - MCP `get_current_config` 通过全局 `change.read` 返回配置版本与完整配置，便于 AI 保留其他路由后生成变更计划。
@@ -17,8 +19,13 @@ Senix 使用[语义化版本](https://semver.org/lang/zh-CN/)。`0.x` 阶段仍�
 - 增加固定负载、多次重复、保存原始数据的 Docker/k6 基准及手动触发工作流；README 展示真实操作与性能证据。
 - 增加 `llms.txt` 文档入口与 AI 使用能力核查，明确现有保证和仍缺少的接口约束与评测能力。
 
+### Changed
+
+- **MCP 破坏性调整（未发布）**：`plan_change` 必填 `expected_version`，旧调用方须传入 `get_current_config` 返回的版本；版本不符返回 `CONFIG_VERSION_MISMATCH`，不创建计划，须重读并合并配置。缺参或配置结构错误由 SDK 返回工具错误。REST v1 的现有请求体及 `plan_rollback` 保持兼容。
+
 ### Fixed
 
+- MCP 配置规划在发布锁内核对读取版本，避免读取后发生发布时仍创建会覆盖并发修改的旧候选计划；加入重读、保留新增路由、批准和应用的完整回归。
 - Demo 的本机健康和代理探针增加连接及请求超时，避免 TCP 已连接但无 HTTP 响应时一直挂起；Owner 创建成功后立即输出首次密码，启动失败后仍可保留密码并重试。
 - 更新 `h2`、`rustls`、`chacha20` 和前端传递依赖 `source-map-js`，修复已知漏洞并移除已撤回的锁定版本；前端 CI 增加官方 npm 审计。
 - 默认 Demo 使用已发布的 `0.3.1` 镜像；本地构建可通过 `SENIX_DEMO_PULL=0` 使用，不强制拉取远程同名镜像。
