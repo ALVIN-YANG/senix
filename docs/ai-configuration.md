@@ -1,5 +1,7 @@
 # 通过 AI 安全修改网关配置
 
+**简体中文** | [English](./ai-configuration.en.md)
+
 本流程让 AI 读取完整配置、提出变更，并在 Owner 批准后应用。AI 只访问 Senix MCP；部署应用仍由用户或外部脚本负责。
 
 > `get_current_config` 和权限模板是当前源码的新功能，尚未发布。默认 Docker Demo 固定在已发布的 `0.3.1`，只用于体验原有代理和管理能力。验证本页完整流程时，请先构建当前源码。

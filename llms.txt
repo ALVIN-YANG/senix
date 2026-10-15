@@ -6,8 +6,8 @@ The current source has unreleased additions beyond v0.3.1. Never assume a publis
 
 ## Operate through MCP
 
-- [AI configuration workflow](docs/ai-configuration.md): startup, scoped keys, tool calls, exact-plan approval, verification and error handling.
-- [Capabilities and limits](README.md): proxy, TLS, drain/rejoin, diagnostics, backup and security boundaries.
+- [AI configuration workflow](docs/ai-configuration.en.md): startup, scoped keys, tool calls, exact-plan approval, verification and error handling. [简体中文](docs/ai-configuration.md).
+- [Capabilities and limits](README.en.md): proxy, TLS, drain/rejoin, diagnostics, backup and security boundaries. [简体中文](README.md).
 - [Monitoring](docs/observability.md): authenticated Prometheus metrics and optional JSON logs.
 
 Read get_current_config before changing configuration. Preserve unrelated routes. Call plan_change, compare base_version with the version read, and show the exact plan to the owner. Only the owner can approve it. apply_approved_change requires the approved change_id; it never grants approval. Verify the published version, changed route and unaffected routes with real requests. On STALE_PLAN, reread and replan; never force through a stale configuration. Revoked/expired/insufficient keys require human action, not a broader credential or another protocol.

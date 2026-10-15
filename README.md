@@ -1,3 +1,5 @@
+**简体中文** | [English](./README.en.md)
+
 <p align="center">
   <img src="./assets/readme/hero.svg" width="100%" alt="Senix 纯 Rust 网关：通过 Pingora 代理流量，并用受限入口控制实例摘流、回接和配置变更">
 </p>
@@ -300,7 +302,7 @@ curl -X POST \
 curl -H "Authorization: Bearer $SENIX_API_KEY" \
   http://127.0.0.1:9080/api/v1/operations/OPERATION_ID
 
-# 部署结束后，以新代次和 5% 权重回接
+# 部署结束后，以新代次和相对权重 5 回接
 curl -X POST \
   -H "Authorization: Bearer $SENIX_API_KEY" \
   -H 'Content-Type: application/json' \

@@ -6,6 +6,7 @@ Senix 使用[语义化版本](https://semver.org/lang/zh-CN/)。`0.x` 阶段仍�
 
 ### Added
 
+- 增加英文 README 和完整 AI 配置操作指南，中英文页面互链，`llms.txt` 提供两种语言入口。
 - MCP `get_current_config` 通过全局 `change.read` 返回配置版本与完整配置，便于 AI 保留其他路由后生成变更计划。
 - 后台增加只读诊断、配置提案和配置协作 Key 模板，明确显示全局范围和各自的操作边界。
 - 增加当前源码的 Docker 启动、Cursor 接入、Owner 批准及真实请求验证指南。
