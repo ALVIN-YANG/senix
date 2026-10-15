@@ -29,7 +29,7 @@ def eventually(action, description, timeout=90):
             if result:
                 print('PASS ' + description, flush=True)
                 return result
-        except (urllib.error.URLError, AssertionError, KeyError, ValueError) as error:
+        except (urllib.error.URLError, ConnectionError, AssertionError, KeyError, ValueError) as error:
             last_error = error
         time.sleep(2)
     raise AssertionError(f'{description}: timed out; {last_error}')
@@ -64,7 +64,14 @@ def main():
         time.sleep(0.1)
     eventually(lambda: query(args.prometheus, 'up{job="senix"} == 1'), 'Prometheus scrape is UP')
     eventually(lambda: query(args.prometheus, 'senix_proxy_request_duration_seconds_count{kind="ordinary"} > 0'), 'Prometheus histogram has real requests')
-    eventually(lambda: query(args.prometheus, 'histogram_quantile(0.95, sum by (le) (rate(senix_proxy_request_duration_seconds_bucket{kind="ordinary"}[1m]))) > 0'), 'PromQL p95 returns a positive measured value')
+
+    def measured_p95():
+        # A short burst can finish before the first scrape. Keep the counter moving
+        # across scrape intervals so rate() has a measured increase to evaluate.
+        get(args.proxy + '/', {'Host': args.host})
+        return query(args.prometheus, 'histogram_quantile(0.95, sum by (le) (rate(senix_proxy_request_duration_seconds_bucket{kind="ordinary"}[1m]))) > 0')
+
+    eventually(measured_p95, 'PromQL p95 returns a positive measured value')
     dashboard = eventually(lambda: json.loads(get(args.grafana + '/api/dashboards/uid/senix-overview')), 'Grafana provisioned dashboard')
     assert len(dashboard['dashboard']['panels']) == 8
     eventually(lambda: query(args.grafana + '/api/datasources/proxy/uid/senix-prometheus', 'senix_config_snapshot_version'), 'Grafana datasource queries real Senix series')
