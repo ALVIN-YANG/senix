@@ -48,3 +48,15 @@ python3 scripts/check-demo.py --startup-failure --runs 2
 To check a locally built source image, add `--image senix:local`; use `--proxy-port` and `--admin-port` to change the test ports. Each run uses empty data and generates its own Owner password. Logs and results remain in a new `target/demo-check-*` directory on both success and failure. CI also runs this recovery check against the published Compose image and preserves sanitized evidence after a failed check.
 
 The earlier unexplained first-start failure remains unconfirmed: its original diagnostic output was lost. This newly reproduced failure and its fix do not establish that the earlier event had the same cause. The checks use test Owner REST APIs, not a model client, and do not establish long-term reliability or production acceptance. Existing services were preserved; test resources were removed.
+
+## Follow-up: CI cache and evidence-directory collision
+
+The documentation commits `f43e1a2` and `4f401cc` passed formatting, strict Clippy, all Rust tests and npm audit, but their [first](https://github.com/ALVIN-YANG/senix/actions/runs/38711228330) and [second](https://github.com/ALVIN-YANG/senix/actions/runs/38711397728) CI runs failed before the Docker recovery scenario began. The verifier raised `FileExistsError` for `target/demo-ci`; Rust cache restore had retained the previous output directory. The upload step found no new evidence. These failed checks were not marked as accepted runs.
+
+CI now writes to `${RUNNER_TEMP}/senix-demo-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}` and uploads failures from the matching path. This keeps test evidence outside Rust's cached target tree and separates reruns. The verifier still refuses an existing output directory, so it cannot silently mix results.
+
+A local reproduction created the old output directory and confirmed the original command failed. With that directory still present, the new CI command completed the published-image occupied-port recovery, repeated startup, Owner-approved configuration change, exact restart recovery and cleanup. The old directory was preserved. Workflow YAML syntax and the checker/upload path agreement also passed.
+
+[Before](demo-ci-cache/2026-10-15/before.txt) · [new-command result](demo-ci-cache/2026-10-15/result.json) · [full scenario result](demo-ci-cache/2026-10-15/results.json) · [command output](demo-ci-cache/2026-10-15/after.txt) · [SHA-256](demo-ci-cache/2026-10-15/SHA256SUMS).
+
+This CI failure has a confirmed cause. It does not identify the cause of the separate occasional local Demo startup exit recorded in the [MCP version-guard validation](2026-10-15-mcp-version-guard.md).

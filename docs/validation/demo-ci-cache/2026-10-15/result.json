@@ -1,0 +1,7 @@
+{
+  "old_output_rejected_cached_directory": true,
+  "new_command_passed_with_cached_directory_present": true,
+  "cached_directory_preserved": true,
+  "uses_runner_temp": true,
+  "path_includes_run_id_and_attempt": true
+}

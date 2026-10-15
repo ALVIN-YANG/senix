@@ -1,0 +1,6 @@
+PASS run 1: bounded startup failure preserves the generated Owner password
+PASS run 1: retry after failed startup, real proxy and Owner login
+PASS run 1: repeat while running preserves the Owner and route
+PASS run 1: approved hostname change and repeat with the saved hostname
+PASS run 1: restart preserves v2, the exact config and the original Owner
+PASS 1 clean project(s); sanitized logs and results: /private[RUNNER_TEMP]/senix-demo-local-check-1

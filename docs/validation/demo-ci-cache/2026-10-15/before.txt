@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "[REPO]/scripts/check-demo.py", line 214, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "[REPO]/scripts/check-demo.py", line 194, in main
+    output.mkdir(mode=0o700, parents=True, exist_ok=False)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py", line 1011, in mkdir
+    os.mkdir(self, mode)
+    ~~~~~~~~^^^^^^^^^^^^
+FileExistsError: [Errno 17] File exists: '[REPO]/target/demo-ci'
