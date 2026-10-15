@@ -38,7 +38,9 @@ jobs:
           sh -n install.sh scripts/*.sh
           docker compose --file examples/demo/compose.yml config --quiet
           SENIX_METRICS_KEY_FILE=/dev/null docker compose --file examples/observability/compose.yml --profile collectors config --quiet
-          python3 -m py_compile benchmarks/run.py benchmarks/report.py scripts/check-observability.py scripts/check-demo.py
+          python3 -m py_compile benchmarks/run.py benchmarks/streaming.py benchmarks/report.py scripts/check-observability.py scripts/check-demo.py
+          node --check benchmarks/sse-backend.mjs
+          node --test benchmarks/sse-load.test.mjs
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked

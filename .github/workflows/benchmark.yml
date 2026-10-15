@@ -2,6 +2,12 @@ name: Reproducible benchmark
 
 on:
   workflow_dispatch:
+    inputs:
+      workload:
+        description: Workload to measure
+        type: choice
+        options: [short-http, paced-sse]
+        default: short-http
 
 permissions:
   contents: read
@@ -19,7 +25,11 @@ jobs:
           docker pull grafana/k6:2.3.0
           docker pull node:24-bookworm-slim
       - name: Measure real proxy paths
+        if: inputs.workload != 'paced-sse'
         run: python3 benchmarks/run.py --image senix:benchmark --output target/benchmarks
+      - name: Measure incremental SSE delivery
+        if: inputs.workload == 'paced-sse'
+        run: python3 benchmarks/streaming.py --image senix:benchmark --output target/benchmarks
       - name: Preserve measurements even after failure
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

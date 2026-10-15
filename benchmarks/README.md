@@ -65,3 +65,36 @@ python3 benchmarks/report.py --input target/benchmarks-local --output target/ben
 - [ARM64 本机 Docker VM](../docs/validation/2026-10-15-performance.md)：保留首次 36 次矩阵、波动与排查记录。
 
 两套环境不同，不作为性能优化前后对比，也不设置固定 RPS 的 CI 门槛。
+
+## SSE 长响应
+
+另有独立的受控 SSE 负载模型，使用 Node 24 自带的 HTTP、HTTP/2 和 UTF-8 解码器，没有增加 npm 依赖。它测量逐段交付和完整性，不推导最大吞吐或并发容量。
+
+```bash
+docker build -t senix:benchmark .
+docker pull node:24-bookworm-slim
+python3 benchmarks/streaming.py --image senix:benchmark --output target/streaming-benchmark
+```
+
+环境前提、每容器 2 CPU / 1 GiB 的限额、隔离网络和资源清理与上面的短请求模型相同。默认比较直连 HTTP/1.1、Senix HTTP/1.1、Senix TLS/HTTP2，均访问同一个单 worker 后端。上游始终为 HTTP/1.1。客户端按实际协议统计完成流数；TLS 仅对一次性自签名测试证书关闭验证。
+
+- 每条流包含 100 条有序事件；每条 `data:` 是 512 字节的 JSON，包含中文和序号。首条立即生成，之后每次写入间隔至少 50 ms。完整流约五秒，实际间隔还受后端调度和背压影响。这是合成的定速输出，不是真实模型推理。
+- 每场景使用 1、32、128 个 VU，预热窗口 3 秒；每次测量窗口 20 秒，重复 3 次，共 27 次测量。VU 是客户端闭环工作任务数：每个任务在流完成后才发下一条。窗口结束只停止新请求，已开始的流允许完成，因此实际测量通常更长。速率分母使用实际负载窗口。
+- HTTP/1.1 使用最多 VU 条 Keep-Alive 连接；TLS/HTTP2 使用单条共享连接复用流。`backend_peak_active` 单独记录后端实际同时处理的流数，不能把 VU、TCP 连接数和后端活动流数当作同一指标。
+- `http2_remote_max_concurrent_streams` 记录服务端对单条连接通告的流上限。超过该上限的 VU 会在客户端等候可用流槽位，首事件延迟包含这段等待；有排队时，不能把其与 HTTP/1.1 的结果当作相同活动流数下的协议成本对比，也不能由此推导网关总并发上限。
+- 首事件延迟从每次请求开始，到第一个完整事件通过解码和校验时结束；包含初始 DNS/TCP/TLS 等待，以及客户端调度和解析。事件间隔来自同一条流相邻完整事件的处理时刻，客户端批量收到多事件时可接近零。两者均包含后端行为，不是网关内部耗时；不能与上方排除建连的短请求延迟直接比较。
+- 每条事件检查 ID、顺序、UTF-8 内容和字节数，结束时检查数量与完整边界；再交叉核对后端完成/中断计数和响应体字节总量。任何错误或超时都会令命令失败。没有设置任意的延迟性能门槛。
+- 每次运行保留 `samples.json` 的整数微秒样本、`summary.json` 的分位数、日志、资源样本和后端计数。微秒数由单调时钟差四舍五入得到，分位数使用线性插值。总汇总是各次 p95 的中位数，不是合并样本后的总体 p95。
+- 资源含义仍是容器 CPU 窗口均值、结束时 RSS，以及进程生命周期 HWM。网关和后端跨预热与重复测量复用；直连期间的网关资源代表空闲。客户端、后端和网关共享宿主机，负载器与单 worker 后端都可能限制结果。
+
+冒烟检查可缩小参数；它只验证脚本，不作为性能结论：
+
+```bash
+python3 benchmarks/streaming.py --image senix:benchmark --vus 1,4 --repeats 1 \
+  --duration-seconds 1 --warmup-seconds 1 --events 20 --interval-ms 10 \
+  --output target/streaming-smoke
+```
+
+`node --test benchmarks/sse-load.test.mjs` 会通过真实 HTTP 响应验证正常、截断、乱序和损坏内容的检测，并纳入普通 CI。正式矩阵仍只在手动 benchmark 工作流中运行，选择 `workload=paced-sse`；默认的短请求矩阵保持不变。
+
+这项模型没有慢消费者、网络故障、摘流/配置发布、WebSocket/gRPC 压测或长期稳定性测量。正式结果应与原始样本、源码和镜像身份一同发布，不能由短时零错误推导生产容量或长期可靠性。
