@@ -29,6 +29,9 @@ use openssl::{
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
+#[path = "gateway_e2e/grpc.rs"]
+mod grpc;
+
 struct ChildGuard(Child);
 
 impl Drop for ChildGuard {

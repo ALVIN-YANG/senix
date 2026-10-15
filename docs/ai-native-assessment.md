@@ -13,7 +13,7 @@
 | 人工批准后执行 | AI 只有应用已批准计划的工具；过期基线拒绝，重复应用返回原版本 | [实际流程记录](validation/2026-10-15-ai-configuration.md) |
 | 处理失败 | 稳定错误码、证据、可读取操作状态 | 指南覆盖权限、批准、过期与并发重读 |
 | 小上下文接入 | [llms.txt](../llms.txt) 和单一工作流指南 | 文档索引；不宣称所有客户端自动读取它 |
-| AI 应用的长响应与实时连接 | 真实 SSE 逐段转发、WebSocket 双向消息与关闭；摘流后已有连接保留，新请求转移 | [协议与摘流回归](validation/2026-10-15-streaming.md)；流式容量与稳定性仍待独立压测 |
+| AI 应用的长响应与实时连接 | SSE 逐段转发、WebSocket 双向消息与关闭、TLS/HTTP2 gRPC 消息与成功/错误 trailers；摘流后已有流保留，新请求转移 | [SSE / WebSocket](validation/2026-10-15-streaming.md)、[gRPC 协议回归](validation/2026-10-15-grpc.md)；流式容量与稳定性仍待独立压测 |
 | 可观测与性能核查 | 标准指标、可选 JSON 日志、原始基准数据 | [监控指南](observability.md)、[基准脚本](../benchmarks/README.md) |
 
 ## 还应补的内容，按优先级排序

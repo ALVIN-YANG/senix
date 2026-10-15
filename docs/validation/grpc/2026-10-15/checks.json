@@ -1,0 +1,98 @@
+{
+  "recorded_at_utc": "2026-10-15T14:32:10.755087+00:00",
+  "baseline_commit": "3bffc5c5fe5cd5255abfcc66f4e83272329c4db8",
+  "source_sha256": {
+    "crates/senixd/tests/gateway_e2e.rs": "91a52f3d369b08d1f43536b0c07c7cc445c9d85906be5922ce7332b21d1d4d91",
+    "crates/senixd/tests/gateway_e2e/grpc.rs": "e3e5e1e71421c9b1d41e40b1307af00d9de8f5d38578773e057c9284ab08b248"
+  },
+  "environment": {
+    "os": "macOS 26.5.2 (25F84)",
+    "architecture": "arm64",
+    "rust": "rustc 1.88.0 (6b00bc388 2025-06-23)"
+  },
+  "verification": [
+    {
+      "command": "cargo +1.88 test -p senixd --test gateway_e2e grpc:: --locked -- --nocapture",
+      "exit_code": 0,
+      "passed": 2,
+      "log": "grpc.log"
+    },
+    {
+      "command": "cargo +1.88 test --workspace --locked",
+      "exit_code": 0,
+      "passed": 86,
+      "failed": 0,
+      "process_e2e_passed": 32,
+      "log": "rust-tests.log"
+    },
+    {
+      "command": "cargo +1.88 clippy --workspace --all-targets --locked -- -D warnings",
+      "exit_code": 0,
+      "log": "clippy.log"
+    },
+    {
+      "command": "cargo +1.88 fmt --all -- --check",
+      "exit_code": 0,
+      "log": "fmt.log"
+    },
+    {
+      "command": "node --test src/locale.test.js",
+      "working_directory": "web",
+      "exit_code": 0,
+      "passed": 3,
+      "log": "frontend-tests.log"
+    }
+  ],
+  "assertions_verified_by_passing_tests": {
+    "tests": [
+      "grpc::http2_grpc_preserves_bidirectional_messages_and_trailers_during_drain",
+      "grpc::http2_grpc_preserves_error_trailers_with_http_200_during_drain"
+    ],
+    "downstream_and_upstream_tls_alpn": "h2",
+    "content_type": "application/grpc+proto",
+    "request_method": "POST",
+    "request_path": "/proof.Echo/Chat",
+    "te": "trailers",
+    "request_and_response_custom_metadata_preserved": true,
+    "protobuf_schema": "message Echo { string text = 1; }",
+    "compression": false,
+    "request_and_response_messages_per_rpc": 2,
+    "utf8_messages_preserved": true,
+    "first_response_received_before_request_end_stream": true,
+    "request_and_response_data_writes_split_inside_grpc_prefix": true,
+    "http_status_for_both_cases": 200,
+    "grpc_status_cases": [
+      "0",
+      "7"
+    ],
+    "grpc_message": "done%20%E5%AE%8C%E6%88%90",
+    "proof-bin": "AAEC/w==",
+    "trailers_and_end_stream_preserved": true,
+    "drain_state_before_completion": "DRAINING",
+    "ordinary_in_flight_while_streaming": 0,
+    "long_lived_in_flight_while_streaming": 1,
+    "post_drain_requests_to_backend_b_per_case": 3,
+    "second_bidirectional_message_completed_after_drain": true,
+    "drain_state_after_completion": "DRAINED",
+    "in_flight_after_completion": 0,
+    "long_lived_duration_count_before_and_after_per_case": [
+      0,
+      1
+    ]
+  },
+  "log_sha256": {
+    "grpc.log": "0b778d2e013590ca3518a8568406953c47e6884edce8b48cac30a85c89f2ca34",
+    "rust-tests.log": "4b1f2ffdace2644745876177e8268955aca7f7d7651830bcf1732c2d59519142",
+    "clippy.log": "d3d4355d6901c55d844da15d47279f3e8a9f882d14981d0dde141faa3ec45e1c",
+    "fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "frontend-tests.log": "6b28eee5471c06015bb33af6be62a460ba324db0f25789866575f1734c28051a"
+  },
+  "limits": [
+    "Wire-protocol fixture using existing h2/OpenSSL; no generated gRPC SDK interoperability certification.",
+    "One RPC with two request/response messages per test; no streaming throughput, latency, concurrency or soak benchmark.",
+    "No compression, trailers-only errors, cancellation/deadlines, slow consumers, flow-control pressure, connection reuse or large messages.",
+    "Self-signed upstream test certificate has verification disabled; downstream trusts the fixture certificate and verifies example.test.",
+    "Published binaries and images were not retested by this change; proxy implementation and dependencies unchanged.",
+    "Metrics count HTTP outcomes and proxy errors, not RPC status codes."
+  ]
+}
