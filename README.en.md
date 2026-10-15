@@ -228,4 +228,19 @@ cargo test --workspace --locked
 
 Dependency changes also require `cargo audit --deny yanked` and `npm audit --registry=https://registry.npmjs.org --audit-level=moderate` from `web/`. The real-process tests cover HTTP/TLS proxying, traffic control, health checks, authentication, audit, MCP, approved changes and encrypted certificate recovery. Read the [contribution guide, Chinese](./CONTRIBUTING.md), [security policy](./SECURITY.md) and [changelog, Chinese](./CHANGELOG.md).
 
+To check the actual Docker demo, install Python 3, Docker Compose v2 and curl, with free ports 18080/19080 and an available `172.28.0.0/24` subnet:
+
+```bash
+docker compose --file examples/demo/compose.yml pull
+python3 scripts/check-demo.py --runs 3
+```
+
+The check uses the published Compose image by default. Each run creates an isolated project and empty data, checks real proxy responses and Owner login, repeats startup, approves and applies a hostname change, then checks the exact saved configuration and account after restart. It removes only its own containers, network and volume. Results and sanitized command logs remain in a new `target/demo-check-*` directory; failures return a nonzero exit status.
+
+Images must already be cached. To check source, build it first and pass `--image senix:local`. Override occupied ports with `--proxy-port` and `--admin-port`. This check uses test Owner REST APIs; it does not establish AI-client behavior, first-download reliability or long-term stability.
+
+Add `--startup-failure` to occupy the proxy port first. The check requires startup to fail within 75 seconds while preserving the generated Owner password, then releases the port and verifies recovery and the full flow. CI runs this recovery check and uploads sanitized evidence after failure. Demo probes now limit each request to 2 seconds, and the first password is printed immediately after Owner creation so it remains available if startup fails.
+
+[Failure reproduction, acceptance and sanitized evidence](./docs/validation/2026-10-15-demo-recovery.md)
+
 [Apache License 2.0](./LICENSE)

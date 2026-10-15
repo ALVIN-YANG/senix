@@ -19,3 +19,5 @@ cargo test --workspace --locked
 Pull Request 需要说明改动目的、验证命令和仍未覆盖的真实环境验收。安全问题不要发公开 Issue，请使用 GitHub Security Advisory 私下报告。
 
 修改代理热路径时，可用 [基准脚本](benchmarks/README.md) 建立前后基线，保留原始数据、机器条件与重复波动；不要从功能测试推导吞吐量。监控配置使用 [只读验收脚本](scripts/check-observability.py) 检查真实采集；示例的凭据文件只放在忽略的测试目录或外部 Secret 中。
+
+修改 Docker Demo、引导或交付脚本后，使用 [Demo 验收脚本](scripts/check-demo.py) 检查真实启动和重启保留：先拉取 Compose 镜像，再运行 `python3 scripts/check-demo.py`。检查源码镜像时先构建，再通过 `--image senix:local` 指定；不能把发布镜像的结果当作源码镜像已验收。命令和资源边界见 [README](README.md#验证)。

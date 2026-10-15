@@ -458,6 +458,21 @@ docker build --check .
 
 端到端测试使用真实 HTTP/TLS 后端和 `senixd` 子进程，覆盖代理、流量控制、健康检查、鉴权、审计、MCP、批准应用及加密证书跨进程恢复。
 
+Docker Demo 的实际启动与数据保留可独立验收，需要 Python 3、Docker Compose v2、curl，以及可用的 18080/19080 端口和 `172.28.0.0/24` 子网：
+
+```bash
+docker compose --file examples/demo/compose.yml pull
+python3 scripts/check-demo.py --runs 3
+```
+
+脚本默认检查 Compose 中的发布镜像，每次使用独立项目和空数据，依次验证首次代理、Owner 登录、运行中重跑、批准并应用域名变更、重启后精确配置与账号保留。它只清理自己创建的容器、网络和卷；结果和脱敏命令日志保存在新建的 `target/demo-check-*` 目录，失败返回非零状态。镜像必须已缓存；源码镜像先构建，再用 `--image senix:local` 指定。可通过 `--proxy-port`、`--admin-port` 避开端口冲突。
+
+这套检查通过测试 Owner 的 REST API 操作，不代表已验收某个 AI 客户端；它也不覆盖首次镜像下载、长期稳定性或所有启动故障。
+
+增加 `--startup-failure` 会先由测试占用代理端口，要求启动在 75 秒内失败且已输出生成的 Owner 密码，再释放端口并验证重试和后续完整流程。CI 会运行这个恢复检查；失败时上传脱敏证据。Demo 探针每次请求最多等待 2 秒，首次密码在 Owner 创建成功后立即输出，便于启动失败后保留账号并重试。
+
+[故障复现、修复验收和脱敏原始记录](./docs/validation/2026-10-15-demo-recovery.md)
+
 ## 参与开发
 
 提交前请阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)、[SECURITY.md](./SECURITY.md) 和 [CHANGELOG.md](./CHANGELOG.md)。

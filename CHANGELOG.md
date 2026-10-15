@@ -6,6 +6,7 @@ Senix 使用[语义化版本](https://semver.org/lang/zh-CN/)。`0.x` 阶段仍�
 
 ### Added
 
+- 增加隔离 Docker Demo 验收脚本，检查首次启动、运行中重跑、Owner 批准配置变更及重启后的配置和账号保留，失败时保存脱敏日志与退出状态。
 - 增加英文 README 和完整 AI 配置操作指南，中英文页面互链，`llms.txt` 提供两种语言入口。
 - MCP `get_current_config` 通过全局 `change.read` 返回配置版本与完整配置，便于 AI 保留其他路由后生成变更计划。
 - 后台增加只读诊断、配置提案和配置协作 Key 模板，明确显示全局范围和各自的操作边界。
@@ -18,6 +19,7 @@ Senix 使用[语义化版本](https://semver.org/lang/zh-CN/)。`0.x` 阶段仍�
 
 ### Fixed
 
+- Demo 的本机健康和代理探针增加连接及请求超时，避免 TCP 已连接但无 HTTP 响应时一直挂起；Owner 创建成功后立即输出首次密码，启动失败后仍可保留密码并重试。
 - 更新 `h2`、`rustls`、`chacha20` 和前端传递依赖 `source-map-js`，修复已知漏洞并移除已撤回的锁定版本；前端 CI 增加官方 npm 审计。
 - 默认 Demo 使用已发布的 `0.3.1` 镜像；本地构建可通过 `SENIX_DEMO_PULL=0` 使用，不强制拉取远程同名镜像。
 - Demo 支持覆盖代理和管理端口，并在启动容器前校验端口范围。

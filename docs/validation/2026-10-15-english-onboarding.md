@@ -19,6 +19,8 @@ Date: 2026-10-15. Source baseline: `36a9160`, with documentation changes only. L
 
 One initial isolated demo invocation returned exit status 1. The temporary validation helper removed its diagnostic output during cleanup, so its cause is unconfirmed. The helper was corrected to retain sanitized failure output before the two later clean-project checks passed. No product fix is claimed for that first failure.
 
+A [follow-up failure-recovery check](2026-10-15-demo-recovery.md) reproduced and fixed an unbounded local probe and delayed password output during failed startup. It does not establish that the earlier unexplained event had the same cause.
+
 The HTTP checks exercised MCP and test Owner APIs; they did not operate a model inside Cursor or establish that a new user can complete the workflow unaided. The admin UI remains Chinese, with exact labels explained in the English guide. Other deployment, monitoring and performance references are marked as Chinese where applicable.
 
 The tests created only local credentials and isolated demo resources. Their containers, networks, volumes and credential files were removed; pre-existing services were preserved. No Release, container image or model-client configuration was published or changed by these checks.

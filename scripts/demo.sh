@@ -63,6 +63,9 @@ if [ "$bootstrap_status" -eq 0 ]; then
     --username admin \
     --password-stdin >/dev/null
   initialized=true
+  echo "Owner account initialized. Save these credentials before startup continues:"
+  echo "Owner: admin"
+  echo "Password: $owner_password"
 elif printf '%s' "$bootstrap_output" | grep -Eq 'management credential bootstrap has already completed|already initialized'; then
   initialized=false
 else
@@ -73,7 +76,7 @@ fi
 compose up --detach
 
 attempt=0
-until curl -fsS "${admin_url}/healthz" >/dev/null; do
+until curl -fsS --connect-timeout 1 --max-time 2 "${admin_url}/healthz" >/dev/null; do
   attempt=$((attempt + 1))
   if [ "$attempt" -ge 30 ]; then
     compose logs senix >&2
@@ -84,7 +87,7 @@ until curl -fsS "${admin_url}/healthz" >/dev/null; do
 done
 
 attempt=0
-until response=$(curl -fsS -H "Host: ${demo_host}" "${proxy_url}/"); do
+until response=$(curl -fsS --connect-timeout 1 --max-time 2 -H "Host: ${demo_host}" "${proxy_url}/"); do
   attempt=$((attempt + 1))
   if [ "$attempt" -ge 15 ]; then
     compose logs senix >&2
@@ -100,7 +103,7 @@ echo "Admin: ${admin_url}/admin/"
 echo "Proxy: ${proxy_url}/ (Host: ${demo_host})"
 echo "Owner: admin"
 if [ "$initialized" = true ]; then
-  echo "Password: $owner_password"
+  echo "Use the Owner password printed before startup."
 else
   echo "Password: use the password created by the previous demo run"
 fi
