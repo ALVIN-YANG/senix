@@ -57,4 +57,11 @@ python3 benchmarks/report.py --input target/benchmarks-local --output target/ben
 
 在其他环境测量后绘图，用 `--environment-label` 填写准确的环境说明，例如 `--environment-label 'GitHub Linux runner'`。此选项只更改图注，不改变测量数据；环境与镜像身份仍以元数据为准。
 
-仓库另含仅 `workflow_dispatch` 触发的 [benchmark 工作流](../.github/workflows/benchmark.yml)，会构建镜像并保存原始结果，即使失败也尝试上传结果。本轮验证在本机执行，没有触发远端工作流，也没有用共享 CI runner 的波动数据设置硬性能门槛。
+仓库另含仅 `workflow_dispatch` 触发的 [benchmark 工作流](../.github/workflows/benchmark.yml)，会构建镜像并保存原始结果，即使失败也尝试上传结果。2026-10-15 已完成本机与一次远端矩阵验证，原始数据见下方记录；没有用共享 CI runner 的波动数据设置硬性能门槛。
+
+## 已归档基线
+
+- [GitHub Linux AMD64 runner](../docs/validation/2026-10-15-linux-performance.md)：干净提交 `af40d95`、36 次真实测量、464 万请求；[工作流](https://github.com/ALVIN-YANG/senix/actions/runs/38707502445) 与完整原始数据可核对。
+- [ARM64 本机 Docker VM](../docs/validation/2026-10-15-performance.md)：保留首次 36 次矩阵、波动与排查记录。
+
+两套环境不同，不作为性能优化前后对比，也不设置固定 RPS 的 CI 门槛。

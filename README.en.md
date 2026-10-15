@@ -16,7 +16,7 @@ Senix helps individual developers and small teams operate a gateway with an AI c
 | Can I start it? | The Docker demo starts two real backends, creates the Owner account and checks a real proxy request. [English onboarding checks](./docs/validation/2026-10-15-english-onboarding.md) cover clean starts, repeat starts, restart and saved configuration. |
 | Can an AI change configuration safely? | A real MCP workflow read v1, planned a hostname change, waited for test Owner approval and applied v2. Requests checked the new hostname, old hostname and an unaffected route. [Initial validation](./docs/validation/2026-10-15-ai-configuration.md) and [version conflict/retry validation, Chinese](./docs/validation/2026-10-15-mcp-version-guard.md). |
 | Can I monitor it? | Local Prometheus, Grafana, VictoriaMetrics, OTel Collector, Alloy and Loki paths were exercised. [Validation record, Chinese](./docs/validation/2026-10-15-observability.md) and [raw results](./docs/validation/2026-10-15-observability.json). |
-| Is there a performance baseline? | 36 measurements completed 3,099,779 requests, including 2,109,803 through Senix, with zero HTTP failures. Conditions, variation and raw data are preserved [below](#local-performance-baseline). |
+| Is there a performance baseline? | 36 Linux AMD64 measurements completed 4,642,339 requests, including 3,066,768 through Senix, with zero HTTP failures. The ARM64 local baseline is also preserved. See [performance evidence](#performance-baselines). |
 | What passed regression checks? | Rust 1.88: 81 tests, including 27 real-process E2E tests; formatting, strict Clippy, frontend build and npm audit. Rust dependency audit still reports [four upstream warnings, Chinese](./CONTRIBUTING.md). |
 
 ## Try the Docker demo
@@ -170,22 +170,22 @@ Metrics cover request counts, response classes, proxy errors, Snapshot version, 
 
 The examples load alert rules; notification delivery and sustained alert firing were not tested. There is no native trace/span export yet. OTel metrics collection does not establish full Tempo, Jaeger or APM support. Use your existing host/container agents for CPU and memory and an external probe for application availability. `senixd healthcheck` checks the management process, not backend or route health.
 
-## Local performance baseline
+## Performance baselines
 
-Apple M1 Pro, ARM64 Docker VM with 8 CPUs and 7.81 GiB RAM; each container limited to 2 CPUs and 1 GiB. Fixed 1 KiB responses, Keep-Alive, 32 virtual users (VUs), 3-second warmup, three 10-second measurements. Values are medians; the RPS range shows the minimum and maximum of the three runs.
+GitHub-hosted Linux AMD64 runner with 4 CPUs and 15.62 GiB RAM. Senix, k6 and the backend each have a 2-CPU / 1-GiB limit and share the runner. Fixed 1 KiB responses, Keep-Alive, 32 virtual users (VUs), 3-second warmup, three 10-second measurements. Values are medians; the RPS range shows the minimum and maximum.
 
 | Path | RPS median (range) | p95 ms | Senix maximum end-of-run RSS sample |
 | --- | ---: | ---: | ---: |
-| Direct backend HTTP | 15,260 (13,605–19,365) | 6.18 | — |
-| Senix HTTP | 8,063 (6,322–15,227) | 9.95 | 16.5 MiB |
-| Senix HTTPS / H2 | 11,605 (9,991–12,059) | 5.98 | 27.8 MiB |
-| Senix HTTP / 100 routes | 6,238 (5,628–9,694) | 13.83 | 21.7 MiB |
+| Direct backend HTTP | 23,755 (23,698–23,947) | 3.40 | — |
+| Senix HTTP | 16,385 (16,219–16,433) | 3.76 | 25.1 MiB |
+| Senix HTTPS / H2 | 12,517 (12,273–12,640) | 3.93 | 35.1 MiB |
+| Senix HTTP / 100 routes | 16,221 (16,133–16,449) | 3.83 | 24.6 MiB |
 
-![Request rate at 32 VUs; whiskers show the range of three runs](./assets/readme/benchmark-32vus.svg)
+![GitHub Linux runner request rates at 32 VUs; whiskers show three-run ranges](./assets/readme/benchmark-linux-32vus.svg)
 
-The full matrix covers direct HTTP, Senix HTTP, HTTPS/H2 and 100 routes at 1/32/128 VUs. All 3,099,779 measured requests passed status checks; 2,109,803 went through Senix. The HTTPS case observed 632,890 HTTP/2 responses. Latency includes sending, waiting and receiving, but excludes DNS/TCP/TLS connection setup. RSS is an end sample, not a per-run peak.
+The [actual workflow](https://github.com/ALVIN-YANG/senix/actions/runs/38707502445) measured clean commit `af40d95`, before the MCP planning version guard. The four-case matrix at 1/32/128 VUs completed 4,642,339 requests, including 3,066,768 through Senix, with zero HTTP failures and all status/size checks passing. The HTTPS case observed 834,076 HTTP/2 responses. Latency includes sending, waiting and receiving, but excludes DNS/TCP/TLS connection setup. RSS is an end sample, not a per-run peak.
 
-This shared development machine had other background load, and variation is large. Short measurements do not establish production capacity, long-term stability or superiority over other gateways. Access logging and external collectors were off. The benchmark did not cover large bodies, long streams, failure recovery or configuration changes under load.
+This shared runner provides a short baseline, not a production capacity or long-term stability guarantee. It does not establish superiority over other gateways. The [ARM64 local baseline](./docs/validation/2026-10-15-performance.md) remains available; differences between machines do not measure an optimization gain. Access logging and external collectors were off. Large bodies, long streams, failure recovery and configuration changes under load were not measured.
 
 To repeat the matrix, install Python 3, Docker with Linux containers and cgroup v2, openssl, and allow about 4 GiB of free memory. Stop other load first:
 
@@ -198,7 +198,7 @@ python3 benchmarks/run.py --image senix:observability --output target/benchmarks
 
 Use a new output directory each time. The harness records raw k6 summaries and logs, cgroup/procfs resources, image identities, source hashes and machine conditions. Each run uses randomly named test containers on a Docker bridge with no host ports and cleans them up on exit.
 
-[Full method and results, Chinese](./docs/validation/2026-10-15-performance.md) · [Raw runs](./docs/validation/benchmarks/2026-10-15/runs.json) · [Checksums](./docs/validation/benchmarks/2026-10-15/SHA256SUMS) · [Harness details, Chinese](./benchmarks/README.md)
+[Linux method and results, Chinese](./docs/validation/2026-10-15-linux-performance.md) · [Raw Linux runs](./docs/validation/benchmarks/2026-10-15-linux/runs.json) · [Checksums](./docs/validation/benchmarks/2026-10-15-linux/SHA256SUMS) · [Harness details, Chinese](./benchmarks/README.md)
 
 ## Security, backup and limits
 

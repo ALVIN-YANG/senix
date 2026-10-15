@@ -1,0 +1,64 @@
+{
+  "started_utc": "2026-10-15T08:46:27Z",
+  "git_head": "af40d95a7335889c51af4d3771b1a290c6474499",
+  "dirty": false,
+  "source_sha256": "bf2123dc5524da5f303315cd7ba866040c39f22ba83c6c43365b9d521753f9c5",
+  "host": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+  "docker": {
+    "ServerVersion": "28.0.4",
+    "OperatingSystem": "Ubuntu 24.04.5 LTS",
+    "Architecture": "x86_64",
+    "NCPU": 4,
+    "MemTotal": 16766414848,
+    "KernelVersion": "6.17.0-1022-azure"
+  },
+  "images": {
+    "senix:benchmark": {
+      "Id": "sha256:1b0ca81f6d0fbe1889ad8ef7dfbf52614994ba533ae9f42a4b33c1b51967025f",
+      "RepoDigests": [],
+      "Architecture": "amd64",
+      "Os": "linux"
+    },
+    "grafana/k6:2.3.0": {
+      "Id": "sha256:bfa9adb4f73593aaa9647cd339ecd5e6103827bce63267618a4ec51d5db56f72",
+      "RepoDigests": [
+        "grafana/k6@sha256:9c2dee7f8ed74d317e4027c06a10f169b625638189de8d4555d0b3486a5aeb34"
+      ],
+      "Architecture": "amd64",
+      "Os": "linux"
+    },
+    "node:24-bookworm-slim": {
+      "Id": "sha256:a797d6440ed0b09e51fb884f30e47ec14cbf58482c5e19db681a0cb8df45b089",
+      "RepoDigests": [
+        "node@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5"
+      ],
+      "Architecture": "amd64",
+      "Os": "linux"
+    }
+  },
+  "options": {
+    "image": "senix:benchmark",
+    "output": "benchmarks-linux-2026-10-15",
+    "vus": "1,32,128",
+    "repeats": 3,
+    "duration": "10s",
+    "warmup": "3s"
+  },
+  "limits_per_container": {
+    "cpus": 2,
+    "memory_bytes": 1073741824
+  },
+  "payload_bytes": 1024,
+  "backend_workers": 1,
+  "fixture_sha256": {
+    "run.py": "4262150122ef6c0c906c58038e543807d85ff7d327753caf57eead2a9bebfc75",
+    "load.js": "96f53bed104b5d5bf03edc2b1f883d21de103e12b50d676d5f762b8c75209d62",
+    "backend.mjs": "acbf887f9b49132a0f0034e446d784099144c973070a0f171fc73c3fa96f7cfb"
+  },
+  "resource_method": "cgroup v2 CPU counters and /proc/1/status RSS/HWM, before and after each run",
+  "access_logging": false,
+  "external_monitoring": false,
+  "request_mode": "closed loop, keep-alive, no pacing, downstream TLS verification disabled only for the self-signed fixture",
+  "finished_utc": "2026-10-15T08:53:26Z",
+  "publication_note": "Only the local absolute output path was replaced with its directory name."
+}

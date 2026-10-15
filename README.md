@@ -23,7 +23,7 @@ Senix 是面向个人开发者和小团队的 Rust 网关。AI 通过受限 MCP 
 | 上手 | Demo 自动引导、启动两个后端并发起真实代理请求；首次运行、重跑、重启与数据保留已验证。见 [快速开始](#快速开始)。 |
 | AI | 当前 AI 助手实际通过 MCP 读取、规划、等待测试 Owner 批准、应用并验证新旧域名及无关路由。见 [首次验收](./docs/validation/2026-10-15-ai-configuration.md)；新增 [版本冲突与重试验收](./docs/validation/2026-10-15-mcp-version-guard.md)。 |
 | 监控 | Prometheus、Grafana、VictoriaMetrics、OTel Collector、Alloy、Loki 的本机真实链路通过。见 [采集结果与截图](./docs/validation/2026-10-15-observability.md)。 |
-| 性能 | 36 次测量完成 309.98 万请求，经过 Senix 的 210.98 万次请求失败率为 0；保留完整数据与波动。见 [本机性能基线](#本机性能基线)。 |
+| 性能 | Linux AMD64 runner 的 36 次测量完成 464.23 万请求，其中 306.68 万次经过 Senix，失败率为 0；另保留 ARM64 本机基线。见 [性能基线](#性能基线)。 |
 | 回归 | Rust 1.88 下 81 项测试通过，含 27 项真实进程 E2E；格式、严格 Clippy 和前端审计通过。依赖审计仍有 [4 条上游提示](./CONTRIBUTING.md)。 |
 
 以上新增能力使用当前源码验收，尚未发布；下方默认安装和 Demo 使用已发布的 `v0.3.1`。
@@ -199,24 +199,24 @@ docker run --rm \
 
 </details>
 
-## 本机性能基线
+## 性能基线
 
-Apple M1 Pro 上的 ARM64 Docker VM（8 CPU / 7.81 GiB），每个容器限制 2 CPU / 1 GiB。固定 1 KiB 响应、Keep-Alive，以下选用 32 VU；预热 3 秒，每次测量 10 秒，重复 3 次。数字为三次中位数，RPS 括号为最小–最大值。
+GitHub 托管 Linux AMD64 runner（4 CPU / 15.62 GiB），Senix、k6、后端各限制 2 CPU / 1 GiB，共享 runner 资源。固定 1 KiB 响应、Keep-Alive，以下选用 32 VU；预热 3 秒，每次测量 10 秒，重复 3 次。数字为三次中位数，RPS 括号为最小–最大值。
 
 | 路径 | RPS 中位数（范围） | p95 ms | Senix RSS 最大结束样本 |
 | --- | ---: | ---: | ---: |
-| 直连后端 HTTP | 15,260 (13,605–19,365) | 6.18 | — |
-| Senix HTTP | 8,063 (6,322–15,227) | 9.95 | 16.5 MiB |
-| Senix HTTPS / H2 | 11,605 (9,991–12,059) | 5.98 | 27.8 MiB |
-| Senix HTTP / 100 路由 | 6,238 (5,628–9,694) | 13.83 | 21.7 MiB |
+| 直连后端 HTTP | 23,755 (23,698–23,947) | 3.40 | — |
+| Senix HTTP | 16,385 (16,219–16,433) | 3.76 | 25.1 MiB |
+| Senix HTTPS / H2 | 12,517 (12,273–12,640) | 3.93 | 35.1 MiB |
+| Senix HTTP / 100 路由 | 16,221 (16,133–16,449) | 3.83 | 24.6 MiB |
 
-![32 并发下，直连与三种 Senix 路径的请求速率；横线表示三次运行范围](./assets/readme/benchmark-32vus.svg)
+![GitHub Linux runner，32 并发下四种路径的请求速率；横线表示三次运行范围](./assets/readme/benchmark-linux-32vus.svg)
 
-完整矩阵包含直连、HTTP、HTTPS/H2、100 路由及 1/32/128 VU。36 次测量共完成 3,099,779 次请求，其中经过 Senix 2,109,803 次，HTTP 失败率均为 0。RSS 来自 `/proc/1/status`；CPU 与内存采样边界见报告。
+[实际工作流](https://github.com/ALVIN-YANG/senix/actions/runs/38707502445) 固定在 `af40d95`，早于 MCP 版本校验增量。完整矩阵为四场景 × 1/32/128 VU × 三次，共完成 4,642,339 次请求，其中 3,066,768 次经过 Senix，HTTP 失败率均为 0；HTTPS 的 834,076 次响应均为 HTTP/2。延迟不含 DNS/TCP/TLS 建连；RSS 来自 `/proc/1/status` 的结束采样，不是单次峰值。
 
-共享开发机存在其他后台负载，结果波动明显；短时测量不足以证明生产容量、长期稳定性或比其他网关更快。后续需要独立 Linux 主机、交错场景和长时间负载验证。
+这是共享 runner 的短时基线，尚不能证明生产容量、长期稳定性或比其他网关更快。[ARM64 本机基线](./docs/validation/2026-10-15-performance.md) 也完整保留；不同机器间的数值差异不能解释为优化收益。
 
-[完整结果、环境与原始数据 →](./docs/validation/2026-10-15-performance.md) · [运行相同基准](./benchmarks/README.md)
+[Linux 完整结果、环境与原始数据 →](./docs/validation/2026-10-15-linux-performance.md) · [运行相同基准](./benchmarks/README.md)
 
 ## 已经能做什么
 
@@ -432,7 +432,7 @@ Owner 登录按真实 TCP 来源限制失败次数，不信任 `X-Forwarded-For`
 - 被动健康信号、MCP stdio 桥、插件 Adapter 和系统服务安装尚未实现。
 - HTTP/3 不在当前 Pingora 数据面能力内。
 
-详细取舍见 [需求文档](./docs/requirements.md)。AI 下一步最需要补的是配置 JSON Schema、读取版本进入规划契约、多客户端/模型任务评测；见 [AI 使用能力核查](./docs/ai-native-assessment.md)。这些内容仍是后续候选，没有当作现有功能宣传。
+详细取舍见 [需求文档](./docs/requirements.md)。AI 下一步最需要补的是多客户端/模型任务评测和原生追踪；见 [AI 使用能力核查](./docs/ai-native-assessment.md)。这些内容仍是后续候选，没有当作现有功能宣传。
 
 ## 仓库结构
 
