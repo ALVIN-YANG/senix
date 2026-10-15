@@ -26,3 +26,5 @@ logs/
 *.key
 *.crt
 !test/fixtures/**/*.pem
+
+/output/playwright/

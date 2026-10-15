@@ -6,6 +6,8 @@ An AI client can read the complete configuration, propose a change and apply it 
 
 > This workflow uses v0.4.0, including `get_current_config`, version-aware plans, configuration JSON Schema and Key presets. Existing MCP callers must add `expected_version`; see the [upgrade notes](releases/v0.4.0.md). The admin UI is currently in Chinese; exact labels are included below.
 
+The published v0.4.0 console is Chinese. Current source also offers English and Simplified Chinese on the login page and console header, remembers a manual choice, and follows the browser language on first use. This UI update is not yet released; use the [source build](../README.en.md#try-the-docker-demo) to try it. The labels below still describe published v0.4.0; [source UI validation](validation/2026-10-15-admin-languages.md) records the equivalent English workflow.
+
 ## 1. Start v0.4.0
 
 You need Git, Docker with Linux containers, Docker Compose v2, curl and access to the image registry. From a v0.4.0 clone of this repository (see the README), run:

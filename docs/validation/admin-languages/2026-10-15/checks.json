@@ -1,0 +1,16 @@
+{
+  "source_parent": "e0854fe3d433d8cff689ff20658a0d84492e7cdf",
+  "frontend_assets_match_running_server": true,
+  "served_asset_sha256": {
+    "admin.html": "746a11b19aeaa353a76dc63d8834144abd70d552512005e7d4b3ccb1f8242889",
+    "admin.js": "d3abaff63abfa8e3f78f3330633c5dc91d459d315777c7b7ed063456737a59c1",
+    "admin.css": "c62db04067240676cc0f8b3314649fcbd85ce7af16ee9cde8ce860ecf3cb2532"
+  },
+  "rust_tests_passed": 82,
+  "rust_real_process_e2e": 28,
+  "frontend_tests_passed": 3,
+  "strict_clippy": "passed",
+  "npm_audit": "0 vulnerabilities",
+  "frontend_build": "passed",
+  "node": "v24.16.0"
+}

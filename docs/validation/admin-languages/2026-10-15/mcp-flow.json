@@ -1,0 +1,59 @@
+{
+  "change_id": "ba523da0-832e-493f-9e39-bb16f3d78986",
+  "candidate": {
+    "routes": [
+      {
+        "backends": [
+          {
+            "address": "127.0.0.1:58230",
+            "generation": 1,
+            "health_check": null,
+            "id": "backend-main",
+            "tls": null,
+            "weight": 100
+          }
+        ],
+        "host": "new.test",
+        "id": "main",
+        "path_prefix": "/"
+      },
+      {
+        "backends": [
+          {
+            "address": "127.0.0.1:58231",
+            "generation": 1,
+            "health_check": null,
+            "id": "backend-untouched",
+            "tls": null,
+            "weight": 100
+          }
+        ],
+        "host": "untouched.test",
+        "id": "untouched",
+        "path_prefix": "/"
+      }
+    ]
+  },
+  "ui_issued_key_actions": [
+    "instance.read",
+    "diagnostics.read",
+    "change.read",
+    "change.plan",
+    "change.apply"
+  ],
+  "global_scope": true,
+  "expiry_hours": 24,
+  "unapproved_apply_rejected": true,
+  "version": 1,
+  "owner_approved_in_english_ui": true,
+  "mcp_applied_version": 2,
+  "repeated_apply_idempotent": true,
+  "exact_candidate_preserved": true,
+  "proxy_statuses": {
+    "new.test": 200,
+    "untouched.test": 200,
+    "old.test": 404
+  },
+  "restart_preserves_exact_config_key_owner_and_proxy": true,
+  "binary_sha256": "6ee17b488c2ce06c83803339505e693bfa317508f5890a2b514bf0074b3dac8b"
+}

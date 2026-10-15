@@ -1,0 +1,986 @@
+{
+  "results": [
+    {
+      "formPreserved": true,
+      "grantsPreserved": true,
+      "requestsDuringSwitch": [
+        "GET /api/v1/instances",
+        "GET /api/v1/config",
+        "GET /api/v1/changes",
+        "GET /api/v1/credentials",
+        "GET /api/v1/certificates",
+        "GET /api/v1/audit-events",
+        "GET /api/v1/instances",
+        "GET /api/v1/config",
+        "GET /api/v1/changes",
+        "GET /api/v1/credentials",
+        "GET /api/v1/certificates",
+        "GET /api/v1/audit-events"
+      ]
+    },
+    {
+      "formPreserved": true,
+      "grantsPreserved": true,
+      "requestsDuringSwitch": []
+    },
+    {
+      "draftPreserved": true,
+      "existingErrorRetranslated": true,
+      "requestsDuringSwitch": []
+    },
+    {
+      "ownerReviewedDisplayedCandidate": true,
+      "ownerApprovedInEnglishUI": true
+    },
+    {
+      "snapshot2Visible": true
+    },
+    {
+      "results": [
+        {
+          "locale": "en",
+          "width": 1360,
+          "page": "Traffic status",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "en",
+          "width": 1360,
+          "page": "Configuration changes",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "en",
+          "width": 1360,
+          "page": "Request diagnostics",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "en",
+          "width": 1360,
+          "page": "Access Keys",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "en",
+          "width": 1360,
+          "page": "TLS certificates",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "en",
+          "width": 1360,
+          "page": "Audit events",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "en",
+          "width": 900,
+          "page": "Traffic status",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "en",
+          "width": 900,
+          "page": "Configuration changes",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "en",
+          "width": 900,
+          "page": "Request diagnostics",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "en",
+          "width": 900,
+          "page": "Access Keys",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "en",
+          "width": 900,
+          "page": "TLS certificates",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "en",
+          "width": 900,
+          "page": "Audit events",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "en",
+          "width": 620,
+          "page": "Traffic status",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "en",
+          "width": 620,
+          "page": "Configuration changes",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "en",
+          "width": 620,
+          "page": "Request diagnostics",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "en",
+          "width": 620,
+          "page": "Access Keys",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "en",
+          "width": 620,
+          "page": "TLS certificates",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "en",
+          "width": 620,
+          "page": "Audit events",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "en",
+          "width": 360,
+          "page": "Traffic status",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "en",
+          "width": 360,
+          "page": "Configuration changes",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "en",
+          "width": 360,
+          "page": "Request diagnostics",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "en",
+          "width": 360,
+          "page": "Access Keys",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "en",
+          "width": 360,
+          "page": "TLS certificates",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "en",
+          "width": 360,
+          "page": "Audit events",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "en",
+          "width": 320,
+          "page": "Traffic status",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "en",
+          "width": 320,
+          "page": "Configuration changes",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "en",
+          "width": 320,
+          "page": "Request diagnostics",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "en",
+          "width": 320,
+          "page": "Access Keys",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "en",
+          "width": 320,
+          "page": "TLS certificates",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "en",
+          "width": 320,
+          "page": "Audit events",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "zh-CN",
+          "width": 1360,
+          "page": "流量状态",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 1360,
+          "page": "配置变更",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 1360,
+          "page": "请求诊断",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 1360,
+          "page": "访问 Key",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 1360,
+          "page": "TLS 证书",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 1360,
+          "page": "审计记录",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 900,
+          "page": "流量状态",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "zh-CN",
+          "width": 900,
+          "page": "配置变更",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "zh-CN",
+          "width": 900,
+          "page": "请求诊断",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "zh-CN",
+          "width": 900,
+          "page": "访问 Key",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "zh-CN",
+          "width": 900,
+          "page": "TLS 证书",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "zh-CN",
+          "width": 900,
+          "page": "审计记录",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "zh-CN",
+          "width": 620,
+          "page": "流量状态",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "zh-CN",
+          "width": 620,
+          "page": "配置变更",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "zh-CN",
+          "width": 620,
+          "page": "请求诊断",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "zh-CN",
+          "width": 620,
+          "page": "访问 Key",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "zh-CN",
+          "width": 620,
+          "page": "TLS 证书",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "zh-CN",
+          "width": 620,
+          "page": "审计记录",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "zh-CN",
+          "width": 360,
+          "page": "流量状态",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 360,
+          "page": "配置变更",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 360,
+          "page": "请求诊断",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 360,
+          "page": "访问 Key",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 360,
+          "page": "TLS 证书",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 360,
+          "page": "审计记录",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 320,
+          "page": "流量状态",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "zh-CN",
+          "width": 320,
+          "page": "配置变更",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "zh-CN",
+          "width": 320,
+          "page": "请求诊断",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "zh-CN",
+          "width": 320,
+          "page": "访问 Key",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "zh-CN",
+          "width": 320,
+          "page": "TLS 证书",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "zh-CN",
+          "width": 320,
+          "page": "审计记录",
+          "viewport": 320,
+          "scroll": 320
+        }
+      ],
+      "overflowing": [],
+      "mediumNavigation": "- navigation \"Console navigation\":\n  - button\n  - button\n  - button\n  - button\n  - button\n  - button"
+    },
+    {
+      "certificateValidationAndDisabledAcmeLocalized": true,
+      "certificateInputPreserved": true,
+      "diagnosticOutcomeLocalized": true,
+      "savedChinesePreferenceOverridesEnglishBrowserAfterReload": true
+    },
+    {
+      "results": [
+        {
+          "locale": "en",
+          "width": 1360,
+          "accessibleNavigation": true,
+          "page": "Traffic status",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "en",
+          "width": 1360,
+          "accessibleNavigation": true,
+          "page": "Configuration changes",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "en",
+          "width": 1360,
+          "accessibleNavigation": true,
+          "page": "Request diagnostics",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "en",
+          "width": 1360,
+          "accessibleNavigation": true,
+          "page": "Access Keys",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "en",
+          "width": 1360,
+          "accessibleNavigation": true,
+          "page": "TLS certificates",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "en",
+          "width": 1360,
+          "accessibleNavigation": true,
+          "page": "Audit events",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "en",
+          "width": 900,
+          "accessibleNavigation": true,
+          "page": "Traffic status",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "en",
+          "width": 900,
+          "accessibleNavigation": true,
+          "page": "Configuration changes",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "en",
+          "width": 900,
+          "accessibleNavigation": true,
+          "page": "Request diagnostics",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "en",
+          "width": 900,
+          "accessibleNavigation": true,
+          "page": "Access Keys",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "en",
+          "width": 900,
+          "accessibleNavigation": true,
+          "page": "TLS certificates",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "en",
+          "width": 900,
+          "accessibleNavigation": true,
+          "page": "Audit events",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "en",
+          "width": 620,
+          "accessibleNavigation": true,
+          "page": "Traffic status",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "en",
+          "width": 620,
+          "accessibleNavigation": true,
+          "page": "Configuration changes",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "en",
+          "width": 620,
+          "accessibleNavigation": true,
+          "page": "Request diagnostics",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "en",
+          "width": 620,
+          "accessibleNavigation": true,
+          "page": "Access Keys",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "en",
+          "width": 620,
+          "accessibleNavigation": true,
+          "page": "TLS certificates",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "en",
+          "width": 620,
+          "accessibleNavigation": true,
+          "page": "Audit events",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "en",
+          "width": 360,
+          "accessibleNavigation": true,
+          "page": "Traffic status",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "en",
+          "width": 360,
+          "accessibleNavigation": true,
+          "page": "Configuration changes",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "en",
+          "width": 360,
+          "accessibleNavigation": true,
+          "page": "Request diagnostics",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "en",
+          "width": 360,
+          "accessibleNavigation": true,
+          "page": "Access Keys",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "en",
+          "width": 360,
+          "accessibleNavigation": true,
+          "page": "TLS certificates",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "en",
+          "width": 360,
+          "accessibleNavigation": true,
+          "page": "Audit events",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "en",
+          "width": 320,
+          "accessibleNavigation": true,
+          "page": "Traffic status",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "en",
+          "width": 320,
+          "accessibleNavigation": true,
+          "page": "Configuration changes",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "en",
+          "width": 320,
+          "accessibleNavigation": true,
+          "page": "Request diagnostics",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "en",
+          "width": 320,
+          "accessibleNavigation": true,
+          "page": "Access Keys",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "en",
+          "width": 320,
+          "accessibleNavigation": true,
+          "page": "TLS certificates",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "en",
+          "width": 320,
+          "accessibleNavigation": true,
+          "page": "Audit events",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "zh-CN",
+          "width": 1360,
+          "accessibleNavigation": true,
+          "page": "流量状态",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 1360,
+          "accessibleNavigation": true,
+          "page": "配置变更",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 1360,
+          "accessibleNavigation": true,
+          "page": "请求诊断",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 1360,
+          "accessibleNavigation": true,
+          "page": "访问 Key",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 1360,
+          "accessibleNavigation": true,
+          "page": "TLS 证书",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 1360,
+          "accessibleNavigation": true,
+          "page": "审计记录",
+          "viewport": 1360,
+          "scroll": 1360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 900,
+          "accessibleNavigation": true,
+          "page": "流量状态",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "zh-CN",
+          "width": 900,
+          "accessibleNavigation": true,
+          "page": "配置变更",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "zh-CN",
+          "width": 900,
+          "accessibleNavigation": true,
+          "page": "请求诊断",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "zh-CN",
+          "width": 900,
+          "accessibleNavigation": true,
+          "page": "访问 Key",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "zh-CN",
+          "width": 900,
+          "accessibleNavigation": true,
+          "page": "TLS 证书",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "zh-CN",
+          "width": 900,
+          "accessibleNavigation": true,
+          "page": "审计记录",
+          "viewport": 900,
+          "scroll": 900
+        },
+        {
+          "locale": "zh-CN",
+          "width": 620,
+          "accessibleNavigation": true,
+          "page": "流量状态",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "zh-CN",
+          "width": 620,
+          "accessibleNavigation": true,
+          "page": "配置变更",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "zh-CN",
+          "width": 620,
+          "accessibleNavigation": true,
+          "page": "请求诊断",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "zh-CN",
+          "width": 620,
+          "accessibleNavigation": true,
+          "page": "访问 Key",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "zh-CN",
+          "width": 620,
+          "accessibleNavigation": true,
+          "page": "TLS 证书",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "zh-CN",
+          "width": 620,
+          "accessibleNavigation": true,
+          "page": "审计记录",
+          "viewport": 620,
+          "scroll": 620
+        },
+        {
+          "locale": "zh-CN",
+          "width": 360,
+          "accessibleNavigation": true,
+          "page": "流量状态",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 360,
+          "accessibleNavigation": true,
+          "page": "配置变更",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 360,
+          "accessibleNavigation": true,
+          "page": "请求诊断",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 360,
+          "accessibleNavigation": true,
+          "page": "访问 Key",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 360,
+          "accessibleNavigation": true,
+          "page": "TLS 证书",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 360,
+          "accessibleNavigation": true,
+          "page": "审计记录",
+          "viewport": 360,
+          "scroll": 360
+        },
+        {
+          "locale": "zh-CN",
+          "width": 320,
+          "accessibleNavigation": true,
+          "page": "流量状态",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "zh-CN",
+          "width": 320,
+          "accessibleNavigation": true,
+          "page": "配置变更",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "zh-CN",
+          "width": 320,
+          "accessibleNavigation": true,
+          "page": "请求诊断",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "zh-CN",
+          "width": 320,
+          "accessibleNavigation": true,
+          "page": "访问 Key",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "zh-CN",
+          "width": 320,
+          "accessibleNavigation": true,
+          "page": "TLS 证书",
+          "viewport": 320,
+          "scroll": 320
+        },
+        {
+          "locale": "zh-CN",
+          "width": 320,
+          "accessibleNavigation": true,
+          "page": "审计记录",
+          "viewport": 320,
+          "scroll": 320
+        }
+      ],
+      "overflowing": [],
+      "mediumNavigation": "- navigation \"Console navigation\":\n  - button \"Traffic status\"\n  - button \"Configuration changes\"\n  - button \"Request diagnostics\"\n  - button \"Access Keys\"\n  - button \"TLS certificates\"\n  - button \"Audit events\""
+    },
+    {
+      "preferenceCases": [
+        {
+          "scenario": "chinese-browser",
+          "passed": true,
+          "documentLanguage": "zh-CN"
+        },
+        {
+          "scenario": "invalid-saved-language",
+          "passed": true,
+          "documentLanguage": "en"
+        },
+        {
+          "scenario": "blocked-storage",
+          "passed": true,
+          "documentLanguage": "en"
+        }
+      ]
+    },
+    {
+      "maintenanceDraftsPreserved": true,
+      "lastAvailableBackendRefusalLocalized": true,
+      "forceNotGranted": true,
+      "openFormsAt320px": {
+        "maintenance": true,
+        "keyForm": true,
+        "certificateForm": true
+      }
+    }
+  ]
+}

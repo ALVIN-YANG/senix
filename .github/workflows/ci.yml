@@ -27,7 +27,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --yes cmake clang perl pkg-config libssl-dev
       - name: Build embedded admin
         working-directory: web
-        run: npm ci --ignore-scripts && npm run build
+        run: npm ci --ignore-scripts && npm test && npm run build
       - name: Audit admin dependencies
         working-directory: web
         run: npm audit --registry=https://registry.npmjs.org --audit-level=moderate

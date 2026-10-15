@@ -6,6 +6,8 @@
 
 > 本流程使用 `v0.4.0`，包含 `get_current_config`、规划版本校验、配置 JSON Schema 和权限模板。旧 MCP 调用方须补 `expected_version`，见 [升级说明](releases/v0.4.0.md)。
 
+语言说明：`v0.4.0` 发布版后台为中文。主分支源码已增加中英文切换与语言记忆，尚未发布；下文继续以已发布版本为准。[源码后台验收](validation/2026-10-15-admin-languages.md) 包含英文界面的相同操作流程。
+
 ## 1. 启动 v0.4.0
 
 需要 Git、Docker、Docker Compose v2 和 curl，并能访问镜像仓库。以下命令在 `v0.4.0` 仓库根目录执行（克隆命令见 README），无需本地编译。

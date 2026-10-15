@@ -30,7 +30,7 @@ cd senix
 SENIX_IMAGE=ghcr.io/alvin-yang/senix:0.4.0 ./scripts/demo.sh
 ```
 
-The script prints the admin URL, Owner username, generated password and a real backend response. If Demo Owner creation was interrupted, fix the error and run the demo again to finish account setup. An existing account keeps its original password. Open `http://127.0.0.1:9080/admin/` and sign in with those credentials. The admin UI is currently in Chinese; the [English AI guide](./docs/ai-configuration.en.md) includes the exact UI labels.
+The script prints the admin URL, Owner username, generated password and a real backend response. If Demo Owner creation was interrupted, fix the error and run the demo again to finish account setup. An existing account keeps its original password. Open `http://127.0.0.1:9080/admin/` and sign in with those credentials. Published v0.4.0 has a Chinese admin UI; the [English AI guide](./docs/ai-configuration.en.md) includes its exact labels. The current source adds English and Simplified Chinese with a language selector and saved preference. This UI update is not in the v0.4.0 release; use the source build below to try it.
 
 Check the proxy yourself; the `Host` header selects the demo route, so no DNS change is needed:
 
@@ -110,9 +110,9 @@ MCP cannot approve plans, issue Keys or run Shell, SSH, Docker or Kubernetes com
 
 The endpoint is `http://127.0.0.1:9080/mcp`. Each request needs a Bearer API Key; browser Cookies are not accepted. Configuration reads and plans currently require global grants. The console's three Key presets are read-only diagnostics, proposal only and configuration collaboration; none grants approval or instance traffic operations. [llms.txt](./llms.txt) provides a compact index for agents.
 
-The admin screenshot below comes from the real MCP workflow and shows Snapshot v2. The UI labels are Chinese.
+The current-source English console below shows Snapshot v2 after a real MCP change and Owner approval. [Bilingual console validation](./docs/validation/2026-10-15-admin-languages.md) covers the full workflow, saved language choice and 60 page/language/viewport checks. This UI update is not yet released.
 
-![The admin console after a real MCP configuration change: Snapshot v2 and an applied plan](./assets/readme/admin-change-applied.png)
+![Current-source English console after an approved MCP change: Snapshot v2 and an applied plan](./assets/readme/admin-english-change-applied.png)
 
 ## Traffic control for your scripts
 

@@ -43,6 +43,8 @@ SENIX_IMAGE=ghcr.io/alvin-yang/senix:0.4.0 ./scripts/demo.sh
 
 以上命令直接使用 `0.4.0` 镜像，无需编译。按 [AI 配置变更指南](./docs/ai-configuration.md) 完成“读取 → 规划 → Owner 批准 → 应用 → 真实请求验证”。
 
+主分支新增中英文管理后台，登录页和页头可切换语言并记住选择；这项界面更新尚未进入 `v0.4.0` 发布包。可按 [英文 README 的源码构建命令](./README.en.md#try-the-docker-demo) 使用本地镜像体验。见 [真实流程与窄屏验收](./docs/validation/2026-10-15-admin-languages.md)。
+
 端口冲突时可覆盖 `SENIX_DEMO_PROXY_PORT` 和 `SENIX_DEMO_ADMIN_PORT`，例如 `SENIX_DEMO_PROXY_PORT=18080 SENIX_DEMO_ADMIN_PORT=19080 ./scripts/demo.sh`。
 
 只安装二进制时：

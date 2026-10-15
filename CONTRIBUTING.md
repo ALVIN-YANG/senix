@@ -10,6 +10,8 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
 ```
 
+修改后台界面或文案后，在 `web/` 运行 `npm ci --ignore-scripts`、`npm test` 和 `npm run build`，并提交更新的 `crates/senixd/assets`。语言文案集中在 `web/src/locale.js`；测试会检查控制台源文案的英文覆盖和占位符，运行时保留用户输入及服务端原始证据。界面验证还应检查切换语言不丢草稿、不触发后台请求，以及桌面和窄屏布局。
+
 修改依赖时还需运行 `cargo audit --deny yanked`，以及在 `web/` 中执行 `npm audit --registry=https://registry.npmjs.org --audit-level=moderate`。审计工具可用 `cargo +stable install cargo-audit --locked --version 0.22.2` 安装；项目本身仍以 Rust 1.88 验证。Cargo 按工作区的 Rust 1.88 要求选择兼容版本；锁文件与安全审计均通过后再提交。RustSec 的未维护或 unsound 提示仍需阅读，不能把退出状态为零解释为所有依赖都已无风险。
 
 当前 Pingora 0.8.1 仍传递引入 `daemonize`、`derivative`、`unsafe-libyaml` 的未维护提示，以及 `lru 0.16.4` 的 `RUSTSEC-2026-0253` 提示。后者涉及 key 的析构触发 panic 后的内存安全；不添加忽略规则，也不把旧版本伪装为已修复。升级到包含修复的正式上游版本时应重新审计。

@@ -51,6 +51,9 @@ button:disabled { cursor: wait; opacity: .58; transform: none !important; }
   background: var(--paper);
 }
 .login-panel { padding: clamp(48px, 8vw, 112px); display: flex; flex-direction: column; justify-content: center; }
+.login-topline { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.language-select { display: inline-flex; align-items: center; gap: 8px; color: var(--harbor); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.language-select select { width: auto; margin: 0; padding: 7px 10px; font-size: 12px; }
 .login-panel h1 { margin: 10px 0 6px; color: var(--harbor); font-size: clamp(52px, 7vw, 82px); letter-spacing: -.06em; line-height: .95; }
 .login-copy { color: var(--muted); line-height: 1.7; margin: 22px 0 28px; max-width: 390px; }
 .login-panel form { display: grid; gap: 17px; max-width: 390px; }
@@ -124,9 +127,10 @@ button:focus-visible { outline: 3px solid rgba(45,156,131,.35); outline-offset: 
 .sidebar-brand strong { display: block; font-size: 20px; letter-spacing: -.04em; }
 .sidebar-brand span { display: block; margin-top: 1px; color: rgba(255,255,255,.5); font: 10px/1.2 "SFMono-Regular", Consolas, monospace; text-transform: uppercase; letter-spacing: .08em; }
 .sidebar nav { display: grid; gap: 5px; }
-.nav-item { width: 100%; padding: 11px 12px; display: flex; justify-content: space-between; align-items: center; border: 0; border-radius: 7px; color: rgba(255,255,255,.68); background: transparent; text-align: left; }
+.nav-item { width: 100%; padding: 11px 12px; display: flex; gap: 8px; justify-content: space-between; align-items: center; border: 0; border-radius: 7px; color: rgba(255,255,255,.68); background: transparent; text-align: left; }
 .nav-item:hover, .nav-item.active { color: white; background: rgba(255,255,255,.09); }
-.nav-item kbd { color: rgba(255,255,255,.32); font-size: 10px; }
+.nav-item span { min-width: 0; }
+.nav-item kbd { flex-shrink: 0; color: rgba(255,255,255,.32); font-size: 10px; }
 .sidebar-foot { margin-top: auto; padding: 16px 8px 2px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 9px; border-top: 1px solid rgba(255,255,255,.12); }
 .sidebar-foot b, .sidebar-foot small { display: block; }
 .sidebar-foot b { max-width: 102px; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
@@ -383,16 +387,17 @@ dialog p { color: var(--muted); line-height: 1.6; }
 @media (max-width: 620px) {
   .login-panel { padding: 40px 24px; }
   .app-shell { display: block; }
-  .sidebar { position: static; width: 100%; height: auto; padding: 14px 18px; flex-direction: row; align-items: center; }
+  .sidebar { position: static; width: 100%; height: auto; padding: 14px 18px; flex-direction: row; flex-wrap: wrap; gap: 12px; align-items: center; }
   .sidebar-brand { padding: 0; }
-  .sidebar nav { min-width: 0; margin-left: auto; display: flex; justify-content: flex-end; gap: 2px; }
-  .sidebar nav .nav-item { flex: 0 0 auto; width: auto; height: 36px; padding: 7px 9px; font-size: 11px; }
+  .sidebar nav { min-width: 0; flex-basis: 100%; margin-left: 0; display: flex; justify-content: space-between; gap: 2px; }
+  .sidebar nav .nav-item { flex: 1 1 0; min-width: 0; width: auto; height: 36px; padding: 7px 4px; font-size: 11px; }
   .sidebar nav .nav-item span { display: block; font-size: 0; }
   .sidebar nav .nav-item span::after { content: attr(data-short); font-size: 11px; }
   .sidebar nav .nav-item::before { display: none; }
   .sidebar-foot { display: none; }
   main { padding: 0 18px 42px; }
-  .topbar { min-height: 104px; }
+  .topbar { min-height: 104px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 14px; padding: 18px 0; }
+  .top-actions { width: 100%; justify-content: space-between; }
   .topbar h1 { font-size: 28px; }
   .last-updated { display: none; }
   .summary-strip div { padding: 16px; }

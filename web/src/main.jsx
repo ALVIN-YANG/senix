@@ -1,5 +1,6 @@
 import { StrictMode, useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { LanguageProvider, LanguageSelect, useI18n } from "./i18n.jsx";
 
 const ACTIONS = [
   ["instance.read", "查看实例"],
@@ -37,7 +38,7 @@ async function api(path, options = {}) {
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
   if (!response.ok) {
-    const error = new Error(data?.message || `请求失败（${response.status}）`);
+    const error = new Error(data?.message || "");
     error.code = data?.code;
     error.evidence = data?.evidence;
     error.status = response.status;
@@ -46,14 +47,8 @@ async function api(path, options = {}) {
   return data;
 }
 
-function formatTime(value) {
-  if (!value) return "不过期";
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(new Date(value));
+function errorMessage(error) {
+  return error.message || { message: "请求失败（{status}）", values: { status: error.status ?? "?" } };
 }
 
 function stateTone(value) {
@@ -71,6 +66,7 @@ function BrandMark({ compact = false }) {
 }
 
 function Login({ onLogin }) {
+  const { t } = useI18n();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -98,42 +94,44 @@ function Login({ onLogin }) {
 
   return <div className="login-shell">
     <section className="login-panel" aria-labelledby="login-title">
-      <BrandMark />
+      <div className="login-topline"><BrandMark /><LanguageSelect /></div>
       <p className="eyebrow">Gateway control desk</p>
       <h1 id="login-title">Senix</h1>
-      <p className="login-copy">用所有者账号进入管理面。部署脚本和 MCP 继续使用独立的受限 Key。</p>
+      <p className="login-copy">{t("用所有者账号进入管理面。部署脚本和 MCP 继续使用独立的受限 Key。")}</p>
       <form onSubmit={submit}>
-        <label>用户名<input name="username" autoComplete="username" required maxLength="64" autoFocus /></label>
-        <label>密码<input name="password" type="password" autoComplete="current-password" required /></label>
-        <p className="form-error" role="alert">{error}</p>
-        <button className="primary-button wide" type="submit" disabled={busy}>{busy ? "正在验证…" : "进入控制台"}</button>
+        <label>{t("用户名")}<input name="username" autoComplete="username" required maxLength="64" autoFocus /></label>
+        <label>{t("密码")}<input name="password" type="password" autoComplete="current-password" required /></label>
+        <p className="form-error" role="alert">{t(error)}</p>
+        <button className="primary-button wide" type="submit" disabled={busy}>{busy ? t("正在验证…") : t("进入控制台")}</button>
       </form>
-      <p className="setup-hint">尚未初始化账号时，请在网关服务器本机运行 <code>senixd owner bootstrap</code>。</p>
+      <p className="setup-hint">{t("尚未初始化账号时，请在网关服务器本机运行 ")}<code>senixd owner bootstrap</code>{t("。")}</p>
     </section>
-    <aside className="login-rail" aria-label="Senix 管理边界">
-      <div className="rail-line"><span className="rail-light live" /><b>业务流量</b><small>Pingora 数据面持续运行</small></div>
-      <div className="rail-line"><span className="rail-light guarded" /><b>管理入口</b><small>Owner 会话与 Key 使用同一权限边界</small></div>
-      <div className="rail-line"><span className="rail-light recorded" /><b>控制动作</b><small>关键操作留下审计记录</small></div>
+    <aside className="login-rail" aria-label={t("Senix 管理边界")}>
+      <div className="rail-line"><span className="rail-light live" /><b>{t("业务流量")}</b><small>{t("Pingora 数据面持续运行")}</small></div>
+      <div className="rail-line"><span className="rail-light guarded" /><b>{t("管理入口")}</b><small>{t("Owner 会话与 Key 使用同一权限边界")}</small></div>
+      <div className="rail-line"><span className="rail-light recorded" /><b>{t("控制动作")}</b><small>{t("关键操作留下审计记录")}</small></div>
     </aside>
   </div>;
 }
 
 function Sidebar({ owner, page, onPage, onLogout }) {
+  const { t } = useI18n();
   return <aside className="sidebar">
     <div className="sidebar-brand"><BrandMark compact /><div><strong>Senix</strong><span>Control desk</span></div></div>
-    <nav aria-label="控制台导航">
-      {[["overview", "流量状态", "状态", "1"], ["changes", "配置变更", "变更", "2"], ["diagnostics", "请求诊断", "诊断", "3"], ["credentials", "访问 Key", "Key", "4"], ["certificates", "TLS 证书", "证书", "5"], ["audit", "审计记录", "审计", "6"]].map(([id, label, short, key]) =>
-        <button key={id} className={`nav-item${page === id ? " active" : ""}`} onClick={() => onPage(id)} type="button"><span data-short={short}>{label}</span><kbd>{key}</kbd></button>)}
+    <nav aria-label={t("控制台导航")}>
+      {[["overview", t("流量状态"), t("状态"), "1"], ["changes", t("配置变更"), t("变更"), "2"], ["diagnostics", t("请求诊断"), t("诊断"), "3"], ["credentials", t("访问 Key"), "Key", "4"], ["certificates", t("TLS 证书"), t("证书"), "5"], ["audit", t("审计记录"), t("审计"), "6"]].map(([id, label, short, key]) =>
+        <button key={id} className={`nav-item${page === id ? " active" : ""}`} aria-label={label} title={label} onClick={() => onPage(id)} type="button"><span data-short={short}>{label}</span><kbd>{key}</kbd></button>)}
     </nav>
     <div className="sidebar-foot">
       <span className="connection-dot" />
-      <div><b>{owner}</b><small>管理会话</small></div>
-      <button className="text-button" onClick={onLogout} type="button">退出</button>
+      <div><b>{owner}</b><small>{t("管理会话")}</small></div>
+      <button className="text-button" onClick={onLogout} type="button">{t("退出")}</button>
     </div>
   </aside>;
 }
 
 function MaintenancePanel({ instance, onReload, notify, onClose }) {
+  const { t, formatTime } = useI18n();
   const [weight, setWeight] = useState(String(instance.weight));
   const [timeoutSeconds, setTimeoutSeconds] = useState("60");
   const [forceDrain, setForceDrain] = useState(false);
@@ -166,7 +164,7 @@ function MaintenancePanel({ instance, onReload, notify, onClose }) {
           await onReload();
         }
       } catch (requestError) {
-        if (!cancelled) setError(requestError.message);
+        if (!cancelled) setError(errorMessage(requestError));
       }
     }, 800);
     return () => { cancelled = true; window.clearInterval(timer); };
@@ -174,12 +172,12 @@ function MaintenancePanel({ instance, onReload, notify, onClose }) {
 
   function explain(requestError) {
     if (requestError.code === "LAST_AVAILABLE_BACKEND") {
-      return `这是路由 ${requestError.evidence?.route_id || ""} 最后一个可用后端。确认业务可中断后，勾选 force 再摘流。`;
+      return { message: "这是路由 {route} 最后一个可用后端。确认业务可中断后，勾选 force 再摘流。", values: { route: requestError.evidence?.route_id || "" } };
     }
     if (requestError.code === "INVALID_STATE" && requestError.message.includes("not healthy")) {
       return "健康检查尚未通过。人工确认实例可用后，可以勾选强制回接。";
     }
-    return requestError.message;
+    return errorMessage(requestError);
   }
 
   async function run(name, path, method, body) {
@@ -237,7 +235,7 @@ function MaintenancePanel({ instance, onReload, notify, onClose }) {
     const nextGeneration = Number(generation);
     const nextWeight = Number(rejoinWeight);
     if (!Number.isSafeInteger(nextGeneration) || nextGeneration <= instance.generation) {
-      setError(`新代次必须大于 ${instance.generation}。`);
+      setError({ message: "新代次必须大于 {generation}。", values: { generation: instance.generation } });
       return;
     }
     if (!Number.isInteger(nextWeight) || nextWeight < 0 || nextWeight > 10000) {
@@ -262,74 +260,76 @@ function MaintenancePanel({ instance, onReload, notify, onClose }) {
   const canRejoin = ["DRAINED", "DISABLED"].includes(instance.traffic);
   return <div className="maintenance-panel">
     <div className="maintenance-heading">
-      <div><p className="eyebrow">Manual control</p><h3>实例维护 / {instance.id}</h3></div>
-      <button className="panel-close" onClick={onClose} type="button" aria-label="关闭实例维护">关闭</button>
+      <div><p className="eyebrow">Manual control</p><h3>{t("实例维护 / ")}{instance.id}</h3></div>
+      <button className="panel-close" onClick={onClose} type="button" aria-label={t("关闭实例维护")}>{t("关闭")}</button>
     </div>
     {operation && <div className={`drain-progress ${stateTone(operation.status)}`}>
-      <div><span>摘流进度</span><strong>{operation.status}</strong></div>
-      <div><span>普通在途</span><strong>{operation.ordinary_in_flight}</strong></div>
-      <div><span>长连接</span><strong>{operation.long_lived_in_flight}</strong></div>
-      <div><span>截止时间</span><strong>{formatTime(operation.deadline_at_ms)}</strong></div>
+      <div><span>{t("摘流进度")}</span><strong>{operation.status}</strong></div>
+      <div><span>{t("普通在途")}</span><strong>{operation.ordinary_in_flight}</strong></div>
+      <div><span>{t("长连接")}</span><strong>{operation.long_lived_in_flight}</strong></div>
+      <div><span>{t("截止时间")}</span><strong>{formatTime(operation.deadline_at_ms)}</strong></div>
     </div>}
-    {instance.traffic === "DRAINING" && !operation && <p className="maintenance-note">实例正在摘流。当前页面没有发起这次操作，因此不持有 operation_id；脚本仍可用原 operation_id 查询进度。</p>}
+    {instance.traffic === "DRAINING" && !operation && <p className="maintenance-note">{t("实例正在摘流。当前页面没有发起这次操作，因此不持有 operation_id；脚本仍可用原 operation_id 查询进度。")}</p>}
     <div className="maintenance-grid">
       {instance.traffic === "SERVING" && <form className="maintenance-unit" onSubmit={changeWeight}>
-        <div><span className="unit-number">01</span><h4>调整权重</h4><p>只影响后续新请求，不改变现有连接。</p></div>
-        <label>新权重<input type="number" min="0" max="10000" step="1" value={weight} onChange={(event) => setWeight(event.target.value)} /></label>
-        <button className="quiet-button" disabled={Boolean(busy) || Number(weight) === instance.weight} type="submit">保存权重</button>
+        <div><span className="unit-number">01</span><h4>{t("调整权重")}</h4><p>{t("只影响后续新请求，不改变现有连接。")}</p></div>
+        <label>{t("新权重")}<input type="number" min="0" max="10000" step="1" value={weight} onChange={(event) => setWeight(event.target.value)} /></label>
+        <button className="quiet-button" disabled={Boolean(busy) || Number(weight) === instance.weight} type="submit">{t("保存权重")}</button>
       </form>}
       {instance.traffic === "SERVING" && <form className="maintenance-unit drain-unit" onSubmit={beginDrain}>
-        <div><span className="unit-number">02</span><h4>开始摘流</h4><p>立即停止新请求，等待当前请求自然结束。</p></div>
-        <label>最长等待（秒）<input type="number" min="1" max="86400" step="1" value={timeoutSeconds} onChange={(event) => setTimeoutSeconds(event.target.value)} /></label>
-        <label className="maintenance-check"><input type="checkbox" checked={forceDrain} onChange={(event) => setForceDrain(event.target.checked)} /><span><b>force</b> 允许最后一个后端进入维护</span></label>
-        <button className="primary-button" disabled={Boolean(busy)} type="submit">{busy === "drain" ? "正在摘流…" : "开始摘流"}</button>
+        <div><span className="unit-number">02</span><h4>{t("开始摘流")}</h4><p>{t("立即停止新请求，等待当前请求自然结束。")}</p></div>
+        <label>{t("最长等待（秒）")}<input type="number" min="1" max="86400" step="1" value={timeoutSeconds} onChange={(event) => setTimeoutSeconds(event.target.value)} /></label>
+        <label className="maintenance-check"><input type="checkbox" checked={forceDrain} onChange={(event) => setForceDrain(event.target.checked)} /><span><b>force</b>{t(" 允许最后一个后端进入维护")}</span></label>
+        <button className="primary-button" disabled={Boolean(busy)} type="submit">{busy === "drain" ? t("正在摘流…") : t("开始摘流")}</button>
       </form>}
       {canRejoin && <form className="maintenance-unit rejoin-unit" onSubmit={rejoin}>
-        <div><span className="unit-number">01</span><h4>以新代次回接</h4><p>不会因健康恢复自动接流，必须在这里或通过脚本显式回接。</p></div>
-        <div className="maintenance-fields"><label>新代次<input type="number" min={instance.generation + 1} step="1" value={generation} onChange={(event) => setGeneration(event.target.value)} /></label><label>权重<input type="number" min="0" max="10000" step="1" value={rejoinWeight} onChange={(event) => setRejoinWeight(event.target.value)} /></label></div>
-        <label className="maintenance-check"><input type="checkbox" checked={forceRejoin} onChange={(event) => setForceRejoin(event.target.checked)} /><span>人工确认健康，强制回接</span></label>
-        <button className="primary-button" disabled={Boolean(busy)} type="submit">{busy === "rejoin" ? "正在回接…" : "以新代次回接"}</button>
+        <div><span className="unit-number">01</span><h4>{t("以新代次回接")}</h4><p>{t("不会因健康恢复自动接流，必须在这里或通过脚本显式回接。")}</p></div>
+        <div className="maintenance-fields"><label>{t("新代次")}<input type="number" min={instance.generation + 1} step="1" value={generation} onChange={(event) => setGeneration(event.target.value)} /></label><label>{t("权重")}<input type="number" min="0" max="10000" step="1" value={rejoinWeight} onChange={(event) => setRejoinWeight(event.target.value)} /></label></div>
+        <label className="maintenance-check"><input type="checkbox" checked={forceRejoin} onChange={(event) => setForceRejoin(event.target.checked)} /><span>{t("人工确认健康，强制回接")}</span></label>
+        <button className="primary-button" disabled={Boolean(busy)} type="submit">{busy === "rejoin" ? t("正在回接…") : t("以新代次回接")}</button>
       </form>}
       {instance.traffic !== "DISABLED" && <div className="maintenance-unit danger-unit">
-        <div><span className="unit-number">{instance.traffic === "SERVING" ? "03" : "02"}</span><h4>禁用实例</h4><p>持续阻止新请求，健康恢复也不会自动启用。</p></div>
-        {confirmDisable ? <div className="danger-confirm"><p>确定禁用 {instance.id}？</p><button className="quiet-button" onClick={() => setConfirmDisable(false)} type="button">取消</button><button className="danger-button" disabled={Boolean(busy)} onClick={disable} type="button">确认禁用</button></div>
-          : <button className="danger-button" disabled={Boolean(busy)} onClick={() => setConfirmDisable(true)} type="button">禁用实例</button>}
+        <div><span className="unit-number">{instance.traffic === "SERVING" ? "03" : "02"}</span><h4>{t("禁用实例")}</h4><p>{t("持续阻止新请求，健康恢复也不会自动启用。")}</p></div>
+        {confirmDisable ? <div className="danger-confirm"><p>{t("确定禁用 {id}？", { id: instance.id })}</p><button className="quiet-button" onClick={() => setConfirmDisable(false)} type="button">{t("取消")}</button><button className="danger-button" disabled={Boolean(busy)} onClick={disable} type="button">{t("确认禁用")}</button></div>
+          : <button className="danger-button" disabled={Boolean(busy)} onClick={() => setConfirmDisable(true)} type="button">{t("禁用实例")}</button>}
       </div>}
     </div>
-    <p className="maintenance-error" role="alert">{error}</p>
+    <p className="maintenance-error" role="alert">{t(error)}</p>
   </div>;
 }
 
 function Overview({ instances, onReload, notify }) {
+  const { t } = useI18n();
   const [openInstance, setOpenInstance] = useState("");
   const serving = instances.filter((item) => item.traffic === "SERVING").length;
   const attention = instances.filter((item) => item.traffic !== "SERVING" || item.health === "UNHEALTHY").length;
   return <section className="page">
     <div className="summary-strip">
-      <div><span>实例</span><strong>{instances.length}</strong></div>
-      <div><span>接流中</span><strong>{serving}</strong></div>
-      <div><span>需处理</span><strong>{attention}</strong></div>
+      <div><span>{t("实例")}</span><strong>{instances.length}</strong></div>
+      <div><span>{t("接流中")}</span><strong>{serving}</strong></div>
+      <div><span>{t("需处理")}</span><strong>{attention}</strong></div>
     </div>
-    <div className="section-heading"><div><h2>实例轨道</h2><p>流量状态和健康状态分别显示，避免把健康恢复误当成自动回接。</p></div></div>
+    <div className="section-heading"><div><h2>{t("实例轨道")}</h2><p>{t("流量状态和健康状态分别显示，避免把健康恢复误当成自动回接。")}</p></div></div>
     <div className="traffic-board" aria-live="polite">
       {instances.length ? instances.map((item) => <article className={`instance-bay${openInstance === item.id ? " open" : ""}`} key={item.id}>
         <div className="traffic-row">
-          <div className="traffic-rail" aria-label={`流量 ${item.traffic}，健康 ${item.health}`}>
+          <div className="traffic-rail" aria-label={t("流量 {traffic}，健康 {health}", { traffic: item.traffic, health: item.health })}>
             <i className={stateTone(item.traffic)} /><i className={stateTone(item.health)} />
           </div>
           <div className="traffic-name"><strong>{item.id}</strong><code>generation {item.generation}{item.health_override ? " · health override" : ""}</code></div>
-          <div className="metric metric-traffic"><span>流量</span><b className={`state-${stateTone(item.traffic)}`}>{item.traffic}</b></div>
-          <div className="metric metric-health"><span>健康</span><b className={`state-${stateTone(item.health)}`}>{item.health}</b></div>
-          <div className="metric metric-weight"><span>权重</span><b>{item.weight}</b></div>
-          <button className={`control-button${openInstance === item.id ? " active" : ""}`} aria-expanded={openInstance === item.id} onClick={() => setOpenInstance(openInstance === item.id ? "" : item.id)} type="button">维护</button>
+          <div className="metric metric-traffic"><span>{t("流量")}</span><b className={`state-${stateTone(item.traffic)}`}>{item.traffic}</b></div>
+          <div className="metric metric-health"><span>{t("健康")}</span><b className={`state-${stateTone(item.health)}`}>{item.health}</b></div>
+          <div className="metric metric-weight"><span>{t("权重")}</span><b>{item.weight}</b></div>
+          <button className={`control-button${openInstance === item.id ? " active" : ""}`} aria-expanded={openInstance === item.id} onClick={() => setOpenInstance(openInstance === item.id ? "" : item.id)} type="button">{t("维护")}</button>
         </div>
         {openInstance === item.id && <MaintenancePanel instance={item} onReload={onReload} notify={notify} onClose={() => setOpenInstance("")} />}
-      </article>) : <div className="empty-state">还没有实例。先通过配置快照加入后端实例。</div>}
+      </article>) : <div className="empty-state">{t("还没有实例。先通过配置快照加入后端实例。")}</div>}
     </div>
   </section>;
 }
 
 function Diagnostics({ current, notify }) {
+  const { t } = useI18n();
   const [host, setHost] = useState("");
   const [path, setPath] = useState("/");
   const [report, setReport] = useState(null);
@@ -360,7 +360,7 @@ function Diagnostics({ current, notify }) {
         body: { host: targetHost, path: targetPath }
       }));
     } catch (requestError) {
-      setError(requestError.message);
+      setError(errorMessage(requestError));
     } finally {
       setBusy(false);
     }
@@ -376,29 +376,29 @@ function Diagnostics({ current, notify }) {
   }
 
   const outcomeCopy = {
-    READY: "当前运行快照中有后端可以接收新请求。",
-    ROUTE_NOT_FOUND: "当前配置没有匹配这个 Host 与路径。",
-    NO_AVAILABLE_BACKEND: "路由已命中，但所有后端都被流量状态、健康状态或权重挡住。"
+    READY: t("当前运行快照中有后端可以接收新请求。"),
+    ROUTE_NOT_FOUND: t("当前配置没有匹配这个 Host 与路径。"),
+    NO_AVAILABLE_BACKEND: t("路由已命中，但所有后端都被流量状态、健康状态或权重挡住。")
   };
   const stageLabels = {
-    route_match: "路由匹配",
-    backend_state: "后端状态",
-    backend_selection: "后端选择"
+    route_match: t("路由匹配"),
+    backend_state: t("后端状态"),
+    backend_selection: t("后端选择")
   };
 
   return <section className="page diagnostics-page">
     <form className="diagnostic-console" onSubmit={diagnose}>
-      <div className="diagnostic-intro"><p className="eyebrow">Evidence, not guesses</p><h2>模拟一个请求</h2><p>使用当前正在接流的 Snapshot 检查路由命中和后端资格，不会向业务后端发送请求。</p></div>
+      <div className="diagnostic-intro"><p className="eyebrow">Evidence, not guesses</p><h2>{t("模拟一个请求")}</h2><p>{t("使用当前正在接流的 Snapshot 检查路由命中和后端资格，不会向业务后端发送请求。")}</p></div>
       <div className="diagnostic-inputs">
         <label>Host<input value={host} onChange={(event) => setHost(event.target.value)} placeholder="api.example.com" required /></label>
-        <label>路径<input value={path} onChange={(event) => setPath(event.target.value)} placeholder="/api/users" required /></label>
-        <button className="primary-button" disabled={busy} type="submit">{busy ? "正在检查…" : "请求诊断"}</button>
+        <label>{t("路径")}<input value={path} onChange={(event) => setPath(event.target.value)} placeholder="/api/users" required /></label>
+        <button className="primary-button" disabled={busy} type="submit">{busy ? t("正在检查…") : t("请求诊断")}</button>
       </div>
-      <p className="form-error" role="alert">{error}</p>
+      <p className="form-error" role="alert">{t(error)}</p>
     </form>
     {report ? <div className="diagnostic-report" aria-live="polite">
       <div className={`diagnostic-outcome ${stateTone(report.outcome)}`}>
-        <div><span>诊断结果</span><strong>{report.outcome}</strong></div>
+        <div><span>{t("诊断结果")}</span><strong>{report.outcome}</strong></div>
         <p>{outcomeCopy[report.outcome]}</p>
         <code>{report.host}{report.path}</code>
       </div>
@@ -409,47 +409,49 @@ function Diagnostics({ current, notify }) {
           <div><b>{stageLabels[step.stage] || step.stage}</b><small>{step.status}</small><code>{step.detail}</code></div>
         </article>)}
       </div>
-      <div className="raw-evidence"><details><summary>查看原始证据 JSON</summary><pre>{JSON.stringify(report, null, 2)}</pre></details><button className="quiet-button" onClick={copyReport} type="button">复制原始 JSON</button></div>
-    </div> : <div className="diagnostic-empty"><span>01</span><p>输入 Host 和路径后，证据链会按实际决策顺序出现在这里。</p></div>}
+      <div className="raw-evidence"><details><summary>{t("查看原始证据 JSON")}</summary><pre>{JSON.stringify(report, null, 2)}</pre></details><button className="quiet-button" onClick={copyReport} type="button">{t("复制原始 JSON")}</button></div>
+    </div> : <div className="diagnostic-empty"><span>01</span><p>{t("输入 Host 和路径后，证据链会按实际决策顺序出现在这里。")}</p></div>}
   </section>;
 }
 
 function ChangeCard({ change, onAction, busy }) {
+  const { t, formatTime } = useI18n();
   const stages = ["PLANNED", "APPROVED", "APPLIED"];
   const reached = stages.indexOf(change.status);
   const diffCount = change.diff.added_routes.length + change.diff.changed_routes.length + change.diff.removed_routes.length;
   const approvalExpired = change.status === "APPROVED" && (!change.approval_expires_at_ms || change.approval_expires_at_ms <= Date.now());
   return <article className="change-card">
-    <div className="approval-rail" aria-label={`变更状态 ${change.status}`}>
+    <div className="approval-rail" aria-label={t("变更状态 {status}", { status: change.status })}>
       {stages.map((stage, index) => <span className={index <= reached ? "reached" : ""} key={stage}><i />{stage}</span>)}
     </div>
     <div className="change-body">
       <div className="change-heading">
-        <div><strong>{change.kind === "ROLLBACK" ? `回滚至 Snapshot ${change.rollback_target_version}` : `Change ${change.change_id.slice(0, 8)}`}</strong><code>{change.candidate_digest.slice(0, 16)}…</code></div>
-        <div className="change-version">v{change.base_version} → {change.applied_version ? `v${change.applied_version}` : "待发布"}</div>
+        <div><strong>{change.kind === "ROLLBACK" ? t("回滚至 Snapshot {version}", { version: change.rollback_target_version }) : `Change ${change.change_id.slice(0, 8)}`}</strong><code>{change.candidate_digest.slice(0, 16)}…</code></div>
+        <div className="change-version">v{change.base_version} → {change.applied_version ? `v${change.applied_version}` : t("待发布")}</div>
       </div>
-      <p className="change-meta">{change.created_by.label} 创建于 {formatTime(change.created_at_ms)} · {diffCount} 个路由差异</p>
-      {change.status === "APPROVED" && <p className={`approval-expiry${approvalExpired ? " expired" : ""}`}>{approvalExpired ? "批准已过期，需由 Owner 重新批准" : `批准有效至 ${formatTime(change.approval_expires_at_ms)}`}</p>}
+      <p className="change-meta">{t("{actor} 创建于 {time} · {count} 个路由差异", { actor: change.created_by.label, time: formatTime(change.created_at_ms), count: diffCount })}</p>
+      {change.status === "APPROVED" && <p className={`approval-expiry${approvalExpired ? " expired" : ""}`}>{approvalExpired ? t("批准已过期，需由 Owner 重新批准") : t("批准有效至 {time}", { time: formatTime(change.approval_expires_at_ms) })}</p>}
       <div className="diff-pills">
         {change.diff.added_routes.map((id) => <span className="diff-added" key={`a-${id}`}>+ {id}</span>)}
         {change.diff.changed_routes.map((id) => <span className="diff-changed" key={`c-${id}`}>~ {id}</span>)}
         {change.diff.removed_routes.map((id) => <span className="diff-removed" key={`r-${id}`}>− {id}</span>)}
-        {!diffCount && <span>配置内容未变化</span>}
+        {!diffCount && <span>{t("配置内容未变化")}</span>}
       </div>
       {change.issues.length > 0 && <div className="issue-list" role="alert">{change.issues.map((issue) => <p key={`${issue.code}-${issue.message}`}><b>{issue.code}</b>{issue.message}</p>)}</div>}
-      <details><summary>查看完整候选配置</summary><pre>{JSON.stringify(change.candidate, null, 2)}</pre></details>
+      <details><summary>{t("查看完整候选配置")}</summary><pre>{JSON.stringify(change.candidate, null, 2)}</pre></details>
       <div className="change-actions">
-        {change.status === "PLANNED" && change.issues.length === 0 && <button className="primary-button" disabled={busy} onClick={() => onAction(change, "approve")} type="button">批准这份内容</button>}
-        {change.status === "PLANNED" && change.issues.length > 0 && <span className="blocked-label">修正校验问题后重新规划</span>}
-        {change.status === "APPROVED" && approvalExpired && <button className="primary-button" disabled={busy} onClick={() => onAction(change, "approve")} type="button">重新批准这份内容</button>}
-        {change.status === "APPROVED" && !approvalExpired && <button className="primary-button" disabled={busy} onClick={() => onAction(change, "apply")} type="button">应用已批准计划</button>}
-        {change.status === "APPLIED" && change.base_version > 0 && <button className="quiet-button" disabled={busy} onClick={() => onAction(change, "rollback")} type="button">以 v{change.base_version} 创建回滚计划</button>}
+        {change.status === "PLANNED" && change.issues.length === 0 && <button className="primary-button" disabled={busy} onClick={() => onAction(change, "approve")} type="button">{t("批准这份内容")}</button>}
+        {change.status === "PLANNED" && change.issues.length > 0 && <span className="blocked-label">{t("修正校验问题后重新规划")}</span>}
+        {change.status === "APPROVED" && approvalExpired && <button className="primary-button" disabled={busy} onClick={() => onAction(change, "approve")} type="button">{t("重新批准这份内容")}</button>}
+        {change.status === "APPROVED" && !approvalExpired && <button className="primary-button" disabled={busy} onClick={() => onAction(change, "apply")} type="button">{t("应用已批准计划")}</button>}
+        {change.status === "APPLIED" && change.base_version > 0 && <button className="quiet-button" disabled={busy} onClick={() => onAction(change, "rollback")} type="button">{t("以 v{version} 创建回滚计划", { version: change.base_version })}</button>}
       </div>
     </div>
   </article>;
 }
 
 function Changes({ current, changes, onReload, notify }) {
+  const { t } = useI18n();
   const [candidate, setCandidate] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
@@ -471,10 +473,10 @@ function Changes({ current, changes, onReload, notify }) {
     setError("");
     try {
       const change = await api("/api/v1/changes/plan", { method: "POST", body: parsed });
-      notify(change.issues.length ? `计划已保存，发现 ${change.issues.length} 个问题` : "变更计划已保存，等待批准");
+      notify(change.issues.length ? { message: "计划已保存，发现 {count} 个问题", values: { count: change.issues.length } } : "变更计划已保存，等待批准");
       await onReload();
     } catch (requestError) {
-      setError(requestError.message);
+      setError(errorMessage(requestError));
     } finally {
       setBusy("");
     }
@@ -485,48 +487,50 @@ function Changes({ current, changes, onReload, notify }) {
     try {
       if (name === "rollback") {
         await api(`/api/v1/snapshots/${change.base_version}/rollback-plan`, { method: "POST" });
-        notify(`已生成回滚到 v${change.base_version} 的计划，仍需批准`);
+        notify({ message: "已生成回滚到 v{version} 的计划，仍需批准", values: { version: change.base_version } });
       } else {
         await api(`/api/v1/changes/${change.change_id}/${name}`, { method: "POST" });
         notify(name === "approve" ? "计划已批准" : "已发布为新配置快照");
       }
       await onReload();
     } catch (requestError) {
-      notify(requestError.message);
+      notify(errorMessage(requestError));
     } finally {
       setBusy("");
     }
   }
 
   return <section className="page changes-page">
-    <div className="snapshot-banner"><div><span>当前 Snapshot</span><strong>v{current?.version ?? "—"}</strong></div><p>候选配置必须先生成不可修改的计划。批准只绑定计划中显示的摘要和完整内容。</p></div>
+    <div className="snapshot-banner"><div><span>{t("当前 Snapshot")}</span><strong>v{current?.version ?? "—"}</strong></div><p>{t("候选配置必须先生成不可修改的计划。批准只绑定计划中显示的摘要和完整内容。")}</p></div>
     <form className="config-editor" onSubmit={plan}>
-      <div className="section-heading split"><div><h2>规划配置</h2><p>编辑完整配置只会生成计划，不会直接影响正在处理的流量。</p></div><button className="primary-button" disabled={Boolean(busy)} type="submit">{busy === "plan" ? "正在校验…" : "生成变更计划"}</button></div>
-      <textarea aria-label="完整候选配置 JSON" spellCheck="false" value={candidate} onChange={(event) => setCandidate(event.target.value)} />
-      <p className="form-error" role="alert">{error}</p>
+      <div className="section-heading split"><div><h2>{t("规划配置")}</h2><p>{t("编辑完整配置只会生成计划，不会直接影响正在处理的流量。")}</p></div><button className="primary-button" disabled={Boolean(busy)} type="submit">{busy === "plan" ? t("正在校验…") : t("生成变更计划")}</button></div>
+      <textarea aria-label={t("完整候选配置 JSON")} spellCheck="false" value={candidate} onChange={(event) => setCandidate(event.target.value)} />
+      <p className="form-error" role="alert">{t(error)}</p>
     </form>
-    <div className="section-heading"><div><h2>批准队列</h2><p>AI 和脚本可以规划；只有 Owner 可以批准；带 change.apply 的 Key 只能应用已经批准的精确计划。</p></div></div>
-    <div className="change-list">{changes.length ? changes.map((change) => <ChangeCard change={change} busy={Boolean(busy)} onAction={action} key={change.change_id} />) : <div className="empty-state">还没有配置变更计划。</div>}</div>
+    <div className="section-heading"><div><h2>{t("批准队列")}</h2><p>{t("AI 和脚本可以规划；只有 Owner 可以批准；带 change.apply 的 Key 只能应用已经批准的精确计划。")}</p></div></div>
+    <div className="change-list">{changes.length ? changes.map((change) => <ChangeCard change={change} busy={Boolean(busy)} onAction={action} key={change.change_id} />) : <div className="empty-state">{t("还没有配置变更计划。")}</div>}</div>
   </section>;
 }
 
 function CredentialRow({ item, onRevoke }) {
+  const { t, formatTime } = useI18n();
   const revoked = Boolean(item.revoked_at_ms);
   const isBootstrap = item.kind === "OWNER";
-  const scope = isBootstrap ? "本机引导" : item.policy.all_resources ? "所有资源" : item.policy.instance_ids.join("、");
+  const scope = isBootstrap ? t("本机引导") : item.policy.all_resources ? t("所有资源") : item.policy.instance_ids.join(t("、"));
   return <article className={`credential-row${revoked ? " revoked" : ""}`}>
     <div className="credential-main"><strong>{item.label}</strong><code>{item.credential_id}</code></div>
     <div className="credential-actions">
       {isBootstrap
-        ? <span className="permission-pill">账号创建后失效</span>
+        ? <span className="permission-pill">{t("账号创建后失效")}</span>
         : item.policy.actions.map((action) => <span className="permission-pill" key={action}>{action}</span>)}
     </div>
-    <div><div className="credential-scope">{scope}</div><div className="credential-expiry">{revoked ? `已失效 ${formatTime(item.revoked_at_ms)}` : `有效至 ${formatTime(item.expires_at_ms)}`}</div></div>
-    {!isBootstrap && !revoked && <button className="danger-button" onClick={() => onRevoke(item)} type="button">吊销</button>}
+    <div><div className="credential-scope">{scope}</div><div className="credential-expiry">{revoked ? t("已失效 {time}", { time: formatTime(item.revoked_at_ms) }) : t("有效至 {time}", { time: formatTime(item.expires_at_ms) })}</div></div>
+    {!isBootstrap && !revoked && <button className="danger-button" onClick={() => onRevoke(item)} type="button">{t("吊销")}</button>}
   </article>;
 }
 
 function KeyForm({ instances, onCancel, onIssued }) {
+  const { t } = useI18n();
   const [presetId, setPresetId] = useState("custom");
   const [selectedActions, setSelectedActions] = useState([]);
   const [allResources, setAllResources] = useState(false);
@@ -577,7 +581,7 @@ function KeyForm({ instances, onCancel, onIssued }) {
       });
       onIssued(issued.api_key);
     } catch (requestError) {
-      setError(requestError.message);
+      setError(errorMessage(requestError));
     } finally {
       setBusy(false);
     }
@@ -585,49 +589,50 @@ function KeyForm({ instances, onCancel, onIssued }) {
 
   return <div className="key-workbench">
     <form onSubmit={submit}>
-      <fieldset><legend>用途模板</legend>
-        <label>选择用途<select value={presetId} onChange={(event) => selectPreset(event.target.value)}>
-          <option value="custom">自定义权限</option>
-          {KEY_PRESETS.map((preset) => <option value={preset.id} key={preset.id}>{preset.label}</option>)}
+      <fieldset><legend>{t("用途模板")}</legend>
+        <label>{t("选择用途")}<select value={presetId} onChange={(event) => selectPreset(event.target.value)}>
+          <option value="custom">{t("自定义权限")}</option>
+          {KEY_PRESETS.map((preset) => <option value={preset.id} key={preset.id}>{t(preset.label)}</option>)}
         </select></label>
-        <p>{KEY_PRESETS.find((preset) => preset.id === presetId)?.description || "手动选择允许动作和实例范围。调整模板中的权限后会切换为自定义。"}</p>
-        <p>诊断和配置动作需要全局范围。模板覆盖所有当前和未来实例，请核对下方权限后签发；Key 不会自动生成。</p>
+        <p>{t(KEY_PRESETS.find((preset) => preset.id === presetId)?.description || "手动选择允许动作和实例范围。调整模板中的权限后会切换为自定义。")}</p>
+        <p>{t("诊断和配置动作需要全局范围。模板覆盖所有当前和未来实例，请核对下方权限后签发；Key 不会自动生成。")}</p>
       </fieldset>
       <div className="form-grid">
-        <label>名称<input name="label" placeholder="deploy-instance-a" required maxLength="80" autoFocus /></label>
-        <label>有效期<select name="expires" defaultValue="168"><option value="24">24 小时</option><option value="168">7 天</option><option value="720">30 天</option><option value="0">不过期</option></select></label>
+        <label>{t("名称")}<input name="label" placeholder="deploy-instance-a" required maxLength="80" autoFocus /></label>
+        <label>{t("有效期")}<select name="expires" defaultValue="168"><option value="24">{t("24 小时")}</option><option value="168">{t("7 天")}</option><option value="720">{t("30 天")}</option><option value="0">{t("不过期")}</option></select></label>
       </div>
-      <fieldset><legend>允许动作</legend><div className="permission-grid">
-        {ACTIONS.map(([action, label]) => <label className="permission-option" key={action}><input type="checkbox" name="actions" value={action} checked={selectedActions.includes(action)} onChange={(event) => toggleAction(action, event.target.checked)} /><span><b>{label}</b><small>{action}</small></span></label>)}
+      <fieldset><legend>{t("允许动作")}</legend><div className="permission-grid">
+        {ACTIONS.map(([action, label]) => <label className="permission-option" key={action}><input type="checkbox" name="actions" value={action} checked={selectedActions.includes(action)} onChange={(event) => toggleAction(action, event.target.checked)} /><span><b>{t(label)}</b><small>{action}</small></span></label>)}
       </div></fieldset>
-      <fieldset><legend>实例范围</legend>
-        <label className="scope-toggle"><input type="checkbox" checked={allResources} onChange={(event) => { setAllResources(event.target.checked); setPresetId("custom"); setError(""); }} /><span>所有当前和未来实例</span></label>
-        <div className="instance-picker">{instances.length ? instances.map((item) => <label className="instance-option" key={item.id}><input type="checkbox" name="instance_ids" value={item.id} disabled={allResources} /><span>{item.id}</span></label>) : <span className="empty-state">暂无实例</span>}</div>
+      <fieldset><legend>{t("实例范围")}</legend>
+        <label className="scope-toggle"><input type="checkbox" checked={allResources} onChange={(event) => { setAllResources(event.target.checked); setPresetId("custom"); setError(""); }} /><span>{t("所有当前和未来实例")}</span></label>
+        <div className="instance-picker">{instances.length ? instances.map((item) => <label className="instance-option" key={item.id}><input type="checkbox" name="instance_ids" value={item.id} disabled={allResources} /><span>{item.id}</span></label>) : <span className="empty-state">{t("暂无实例")}</span>}</div>
       </fieldset>
-      <p className="form-error" role="alert">{error}</p>
-      <div className="form-actions"><button className="quiet-button" onClick={onCancel} type="button">取消</button><button className="primary-button" type="submit" disabled={busy}>{busy ? "正在生成…" : "生成 Key"}</button></div>
+      <p className="form-error" role="alert">{t(error)}</p>
+      <div className="form-actions"><button className="quiet-button" onClick={onCancel} type="button">{t("取消")}</button><button className="primary-button" type="submit" disabled={busy}>{busy ? t("正在生成…") : t("生成 Key")}</button></div>
     </form>
   </div>;
 }
 
 function Credentials({ credentials, instances, onReload, onSecret, notify }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
 
   async function revoke(item) {
-    if (!window.confirm(`立即吊销 “${item.label}”？使用这个 Key 的脚本和 AI 会马上失去访问权限。`)) return;
+    if (!window.confirm(t("立即吊销 “{label}”？使用这个 Key 的脚本和 AI 会马上失去访问权限。", { label: item.label }))) return;
     try {
       await api(`/api/v1/credentials/${encodeURIComponent(item.credential_id)}`, { method: "DELETE" });
       notify("Key 已吊销");
       onReload();
     } catch (error) {
-      notify(error.message);
+      notify(errorMessage(error));
     }
   }
 
   return <section className="page">
-    <div className="section-heading split"><div><h2>访问 Key</h2><p>给脚本和 AI 发最小权限。完整 Key 只出现一次。</p></div>{!open && <button className="primary-button" onClick={() => setOpen(true)} type="button">生成 Key</button>}</div>
+    <div className="section-heading split"><div><h2>{t("访问 Key")}</h2><p>{t("给脚本和 AI 发最小权限。完整 Key 只出现一次。")}</p></div>{!open && <button className="primary-button" onClick={() => setOpen(true)} type="button">{t("生成 Key")}</button>}</div>
     {open && <KeyForm instances={instances} onCancel={() => setOpen(false)} onIssued={(secret) => { setOpen(false); onSecret(secret); onReload(); }} />}
-    <div className="credential-list" aria-live="polite">{credentials.length ? credentials.map((item) => <CredentialRow item={item} onRevoke={revoke} key={item.credential_id} />) : <div className="empty-state">还没有 Credential。</div>}</div>
+    <div className="credential-list" aria-live="polite">{credentials.length ? credentials.map((item) => <CredentialRow item={item} onRevoke={revoke} key={item.credential_id} />) : <div className="empty-state">{t("还没有 Credential。")}</div>}</div>
   </section>;
 }
 
@@ -640,20 +645,22 @@ function certificateState(item) {
 }
 
 function CertificateRow({ item, busy, onRenew }) {
+  const { t, formatTime } = useI18n();
   const state = certificateState(item);
   const lifetime = Math.max(1, item.not_after_ms - item.not_before_ms);
   const elapsed = Math.min(100, Math.max(0, ((Date.now() - item.not_before_ms) / lifetime) * 100));
   return <article className={`certificate-row ${state.tone}`}>
     <div className="certificate-domains"><strong>{item.domains[0]}</strong>{item.domains.slice(1).map((domain) => <code key={domain}>{domain}</code>)}</div>
     <div className="certificate-horizon">
-      <div className="horizon-track" style={{ "--elapsed": `${elapsed}%` }} role="progressbar" aria-label="证书有效期进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(elapsed)}><i /></div>
-      <div><span>签发 {formatTime(item.not_before_ms)}</span><span>到期 {formatTime(item.not_after_ms)}</span></div>
+      <div className="horizon-track" style={{ "--elapsed": `${elapsed}%` }} role="progressbar" aria-label={t("证书有效期进度")} aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(elapsed)}><i /></div>
+      <div><span>{t("签发 ")}{formatTime(item.not_before_ms)}</span><span>{t("到期 ")}{formatTime(item.not_after_ms)}</span></div>
     </div>
-    <div className="certificate-controls"><span className={`certificate-state ${state.tone}`}>{state.label}</span>{item.active && <button className="quiet-button" disabled={busy} onClick={() => onRenew(item)} type="button">{busy ? "续期中…" : "续期"}</button>}</div>
+    <div className="certificate-controls"><span className={`certificate-state ${state.tone}`}>{t(state.label)}</span>{item.active && <button className="quiet-button" disabled={busy} onClick={() => onRenew(item)} type="button">{busy ? t("续期中…") : t("续期")}</button>}</div>
   </article>;
 }
 
 function Certificates({ certificates, enabled, onReload, notify }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -667,11 +674,11 @@ function Certificates({ certificates, enabled, onReload, notify }) {
     setError("");
     try {
       const result = await api("/api/v1/certificates/issue", { method: "POST", body: { domains, timeout_seconds: 90 } });
-      notify(`证书已签发并切换到 TLS generation ${result.tls_generation}`);
+      notify({ message: "证书已签发并切换到 TLS generation {generation}", values: { generation: result.tls_generation } });
       if (operation === "issue") setOpen(false);
       await onReload();
     } catch (requestError) {
-      setError(requestError.code === "ACME_DISABLED" ? "服务端尚未配置 ACME 目录、联系人和条款确认。" : requestError.message);
+      setError(requestError.code === "ACME_DISABLED" ? "服务端尚未配置 ACME 目录、联系人和条款确认。" : errorMessage(requestError));
     } finally {
       setBusy("");
     }
@@ -688,33 +695,35 @@ function Certificates({ certificates, enabled, onReload, notify }) {
     await issueDomains(item.domains, item.certificate_id);
   }
 
-  if (!enabled) return <section className="page"><div className="certificate-disabled"><p className="eyebrow">Encrypted storage required</p><h2>证书存储尚未启用</h2><p>先在服务端配置 <code>--secret-key-file</code>。主密钥只放在外部文件，数据库只保存密文。</p></div></section>;
+  if (!enabled) return <section className="page"><div className="certificate-disabled"><p className="eyebrow">Encrypted storage required</p><h2>{t("证书存储尚未启用")}</h2><p>{t("先在服务端配置 ")}<code>--secret-key-file</code>{t("。主密钥只放在外部文件，数据库只保存密文。")}</p></div></section>;
   return <section className="page certificates-page">
-    <div className="section-heading split"><div><h2>TLS 证书</h2><p>查看当前与历史版本。签发由用户或脚本触发，Senix 不会自行安排续期。</p></div>{!open && <button className="primary-button" onClick={() => setOpen(true)} type="button">签发证书</button>}</div>
+    <div className="section-heading split"><div><h2>{t("TLS 证书")}</h2><p>{t("查看当前与历史版本。签发由用户或脚本触发，Senix 不会自行安排续期。")}</p></div>{!open && <button className="primary-button" onClick={() => setOpen(true)} type="button">{t("签发证书")}</button>}</div>
     {open && <form className="certificate-issue" onSubmit={issue}>
-      <div><p className="eyebrow">HTTP-01</p><h3>签发并热切换</h3><p>域名必须先解析到这台网关的 HTTP 入口；每行一个域名，不支持通配符。</p></div>
-      <label>域名<textarea name="domains" placeholder={"api.example.com\nwww.example.com"} required autoFocus spellCheck="false" /></label>
-      <p className="form-error" role="alert">{error}</p>
-      <div className="form-actions"><button className="quiet-button" onClick={() => { setOpen(false); setError(""); }} type="button">取消</button><button className="primary-button" disabled={Boolean(busy)} type="submit">{busy === "issue" ? "正在验证并签发…" : "开始签发"}</button></div>
+      <div><p className="eyebrow">HTTP-01</p><h3>{t("签发并热切换")}</h3><p>{t("域名必须先解析到这台网关的 HTTP 入口；每行一个域名，不支持通配符。")}</p></div>
+      <label>{t("域名")}<textarea name="domains" placeholder={"api.example.com\nwww.example.com"} required autoFocus spellCheck="false" /></label>
+      <p className="form-error" role="alert">{t(error)}</p>
+      <div className="form-actions"><button className="quiet-button" onClick={() => { setOpen(false); setError(""); }} type="button">{t("取消")}</button><button className="primary-button" disabled={Boolean(busy)} type="submit">{busy === "issue" ? t("正在验证并签发…") : t("开始签发")}</button></div>
     </form>}
-    {!open && error && <p className="form-error" role="alert">{error}</p>}
-    <div className="certificate-list" aria-live="polite">{certificates.length ? certificates.map((item) => <CertificateRow item={item} busy={busy === item.certificate_id} onRenew={renew} key={item.certificate_id} />) : <div className="empty-state">还没有托管证书。配置 ACME 后可在这里手动签发。</div>}</div>
+    {!open && error && <p className="form-error" role="alert">{t(error)}</p>}
+    <div className="certificate-list" aria-live="polite">{certificates.length ? certificates.map((item) => <CertificateRow item={item} busy={busy === item.certificate_id} onRenew={renew} key={item.certificate_id} />) : <div className="empty-state">{t("还没有托管证书。配置 ACME 后可在这里手动签发。")}</div>}</div>
   </section>;
 }
 
 function Audit({ events }) {
+  const { t, formatTime } = useI18n();
   return <section className="page">
-    <div className="section-heading"><div><h2>审计记录</h2><p>这里记录操作者、动作、资源和结果，不保存 Key 或请求密文。</p></div></div>
+    <div className="section-heading"><div><h2>{t("审计记录")}</h2><p>{t("这里记录操作者、动作、资源和结果，不保存 Key 或请求密文。")}</p></div></div>
     <div className="audit-list" aria-live="polite">{events.length ? events.map((event) => <article className="audit-row" key={event.event_id}>
       <time className="audit-time">{formatTime(event.occurred_at_ms)}</time>
       <div className="audit-action"><strong>{event.action}</strong><small>{event.credential_label}</small></div>
       <div className="audit-resource">{event.resource_type}{event.resource_id ? ` / ${event.resource_id}` : ""}</div>
       <span className={`outcome ${event.outcome.toLowerCase()}`}>{event.outcome}</span>
-    </article>) : <div className="empty-state">还没有审计记录。</div>}</div>
+    </article>) : <div className="empty-state">{t("还没有审计记录。")}</div>}</div>
   </section>;
 }
 
 function SecretDialog({ secret, onClose }) {
+  const { t } = useI18n();
   const dialog = useRef(null);
   const [copyState, setCopyState] = useState("");
   useEffect(() => { if (secret) dialog.current?.showModal(); }, [secret]);
@@ -735,13 +744,14 @@ function SecretDialog({ secret, onClose }) {
   }
 
   return <dialog ref={dialog}>
-    <div className="dialog-signal" aria-hidden="true" /><p className="eyebrow">Only once</p><h2>现在保存这个 Key</h2>
-    <p>关闭后无法找回。遗失时请生成新 Key，再吊销旧 Key。</p><code className="secret-value">{secret}</code>
-    <p className="copy-state" aria-live="polite">{copyState}</p><div className="form-actions"><button className="quiet-button" onClick={copy} type="button">复制 Key</button><button className="primary-button" onClick={close} type="button">我已保存</button></div>
+    <div className="dialog-signal" aria-hidden="true" /><p className="eyebrow">Only once</p><h2>{t("现在保存这个 Key")}</h2>
+    <p>{t("关闭后无法找回。遗失时请生成新 Key，再吊销旧 Key。")}</p><code className="secret-value">{secret}</code>
+    <p className="copy-state" aria-live="polite">{t(copyState)}</p><div className="form-actions"><button className="quiet-button" onClick={copy} type="button">{t("复制 Key")}</button><button className="primary-button" onClick={close} type="button">{t("我已保存")}</button></div>
   </dialog>;
 }
 
 function ControlDesk({ owner, onExpired }) {
+  const { t, locale } = useI18n();
   const [page, setPage] = useState("overview");
   const [instances, setInstances] = useState([]);
   const [current, setCurrent] = useState(null);
@@ -780,7 +790,7 @@ function ControlDesk({ owner, onExpired }) {
       setUpdated(new Date());
     } catch (error) {
       if (error.status === 401) onExpired();
-      else notify(error.message);
+      else notify(errorMessage(error));
     }
   }, [notify, onExpired]);
 
@@ -800,18 +810,18 @@ function ControlDesk({ owner, onExpired }) {
   }
 
   const labels = {
-    overview: ["Live traffic", "流量状态"],
-    changes: ["Approval queue", "配置变更"],
-    diagnostics: ["Routing evidence", "请求诊断"],
-    credentials: ["Access boundary", "访问 Key"],
-    certificates: ["Certificate horizon", "TLS 证书"],
-    audit: ["Recorded actions", "审计记录"]
+    overview: ["Live traffic", t("流量状态")],
+    changes: ["Approval queue", t("配置变更")],
+    diagnostics: ["Routing evidence", t("请求诊断")],
+    credentials: ["Access boundary", t("访问 Key")],
+    certificates: ["Certificate horizon", t("TLS 证书")],
+    audit: ["Recorded actions", t("审计记录")]
   };
 
   return <div className="app-shell">
     <Sidebar owner={owner} page={page} onPage={setPage} onLogout={logout} />
     <main>
-      <header className="topbar"><div><p className="eyebrow">{labels[page][0]}</p><h1>{labels[page][1]}</h1></div><div className="top-actions"><span className="last-updated">{updated ? `更新于 ${updated.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}` : "尚未刷新"}</span><button className="quiet-button" onClick={loadAll} type="button">刷新</button></div></header>
+      <header className="topbar"><div><p className="eyebrow">{labels[page][0]}</p><h1>{labels[page][1]}</h1></div><div className="top-actions"><LanguageSelect /><span className="last-updated">{updated ? t("更新于 {time}", { time: updated.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) }) : t("尚未刷新")}</span><button className="quiet-button" onClick={loadAll} type="button">{t("刷新")}</button></div></header>
       {page === "overview" && <Overview instances={instances} onReload={loadAll} notify={notify} />}
       {page === "changes" && <Changes current={current} changes={changes} onReload={loadAll} notify={notify} />}
       {page === "diagnostics" && <Diagnostics current={current} notify={notify} />}
@@ -820,18 +830,20 @@ function ControlDesk({ owner, onExpired }) {
       {page === "audit" && <Audit events={audit} />}
     </main>
     <SecretDialog secret={secret} onClose={() => setSecret(null)} />
-    <div className={`toast${toast ? " visible" : ""}`} role="status" aria-live="polite">{toast}</div>
+    <div className={`toast${toast ? " visible" : ""}`} role="status" aria-live="polite">{t(toast)}</div>
   </div>;
 }
 
 function App() {
+  const { t } = useI18n();
   const [owner, setOwner] = useState(undefined);
+  const onExpired = useCallback(() => setOwner(null), []);
   useEffect(() => {
     api("/api/v1/auth/session").then((session) => setOwner(session.username)).catch(() => setOwner(null));
   }, []);
-  if (owner === undefined) return <div className="empty-state">正在连接 Senix…</div>;
+  if (owner === undefined) return <div className="empty-state">{t("正在连接 Senix…")}</div>;
   if (!owner) return <Login onLogin={setOwner} />;
-  return <ControlDesk owner={owner} onExpired={() => setOwner(null)} />;
+  return <ControlDesk owner={owner} onExpired={onExpired} />;
 }
 
-createRoot(document.getElementById("root")).render(<StrictMode><App /></StrictMode>);
+createRoot(document.getElementById("root")).render(<StrictMode><LanguageProvider><App /></LanguageProvider></StrictMode>);
