@@ -48,14 +48,16 @@ docker compose --project-directory examples/demo -f examples/demo/compose.yml do
 
 Stopping keeps the saved configuration and account. Run the script again and use the original password. Add `--volumes` to the stop command **only to delete the demo data and start over**. Keep any image and port overrides when restarting or stopping.
 
-The command above uses `ghcr.io/alvin-yang/senix:0.4.0` and needs no compilation. For local development, you can build the source instead:
+The command above uses `ghcr.io/alvin-yang/senix:0.4.0` and needs no compilation. To try unreleased features such as the bilingual console, stop an older demo with its printed stop command, then use a separate checkout of `main`:
 
 ```bash
+git clone --branch main --depth 1 https://github.com/ALVIN-YANG/senix.git senix-source
+cd senix-source
 docker build -t senix:local .
 SENIX_IMAGE=senix:local SENIX_DEMO_PULL=0 ./scripts/demo.sh
 ```
 
-Stop an older demo before starting the source image. The first build downloads and compiles dependencies; its duration depends on your machine and network. Existing databases restore their saved Snapshot and ignore the startup JSON.
+Run these commands from a writable working directory. The earlier v0.4.0 checkout stays on its release tag. The first build downloads and compiles dependencies; its duration depends on your machine and network. Existing databases restore their saved Snapshot and ignore the startup JSON.
 
 [Complete the AI workflow: read → plan → Owner approval → apply → real requests](./docs/ai-configuration.en.md)
 
