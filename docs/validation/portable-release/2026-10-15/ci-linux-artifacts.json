@@ -1,0 +1,48 @@
+[
+  {
+    "architecture": "arm64",
+    "elf_machine": 183,
+    "archive": "senix-edge-e552e603bb0581a3d6c061e532cc4a5e0a17c8c0-aarch64-unknown-linux-gnu.tar.gz",
+    "archive_sha256": "896a4ddb2ce08aacbf20c215c571a1bb5b2dcbb2ba1e81e5bac7ab5399476061",
+    "binary_sha256": "031f0035cda60282392c3df1bff6c83d290c6a81b16df6a9b7441cfc8b80ffd5",
+    "glibc_symbols": [
+      "GLIBC_2.17",
+      "GLIBC_2.18",
+      "GLIBC_2.25",
+      "GLIBC_2.27",
+      "GLIBC_2.28",
+      "GLIBC_2.29",
+      "GLIBC_2.32",
+      "GLIBC_2.33",
+      "GLIBC_2.34"
+    ]
+  },
+  {
+    "architecture": "x86_64",
+    "elf_machine": 62,
+    "archive": "senix-edge-e552e603bb0581a3d6c061e532cc4a5e0a17c8c0-x86_64-unknown-linux-gnu.tar.gz",
+    "archive_sha256": "1ba6c574c3f93f01e9f01dbad2252a3c05cf1c1aee011ed619ceac8d2f659ede",
+    "binary_sha256": "bb28e2e854c91702ad72da07ae49a1dd5bc9839a27f4049a90e3b0717be638c6",
+    "glibc_symbols": [
+      "GLIBC_2.2.5",
+      "GLIBC_2.3",
+      "GLIBC_2.3.2",
+      "GLIBC_2.3.4",
+      "GLIBC_2.4",
+      "GLIBC_2.7",
+      "GLIBC_2.9",
+      "GLIBC_2.10",
+      "GLIBC_2.14",
+      "GLIBC_2.16",
+      "GLIBC_2.17",
+      "GLIBC_2.18",
+      "GLIBC_2.25",
+      "GLIBC_2.27",
+      "GLIBC_2.28",
+      "GLIBC_2.29",
+      "GLIBC_2.32",
+      "GLIBC_2.33",
+      "GLIBC_2.34"
+    ]
+  }
+]

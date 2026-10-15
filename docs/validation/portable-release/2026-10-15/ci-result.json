@@ -1,0 +1,95 @@
+{
+  "run_id": 38717842951,
+  "source": "e552e603bb0581a3d6c061e532cc4a5e0a17c8c0",
+  "conclusion": "success",
+  "url": "https://github.com/ALVIN-YANG/senix/actions/runs/38717842951",
+  "jobs": [
+    {
+      "name": "Package aarch64-apple-darwin",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Build portable Linux binary",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Verify Linux glibc 2.34 runtime",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Package release archive",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "name": "Package aarch64-unknown-linux-gnu",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Build portable Linux binary",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify Linux glibc 2.34 runtime",
+          "conclusion": "success"
+        },
+        {
+          "name": "Package release archive",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "name": "Package x86_64-apple-darwin",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Build portable Linux binary",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Verify Linux glibc 2.34 runtime",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Package release archive",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "name": "Package x86_64-unknown-linux-gnu",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Build portable Linux binary",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify Linux glibc 2.34 runtime",
+          "conclusion": "success"
+        },
+        {
+          "name": "Package release archive",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "name": "Build container image (${{ matrix.platform }})",
+      "conclusion": "skipped",
+      "steps": []
+    },
+    {
+      "name": "Publish container image",
+      "conclusion": "skipped",
+      "steps": []
+    },
+    {
+      "name": "Publish GitHub Release",
+      "conclusion": "skipped",
+      "steps": []
+    }
+  ]
+}

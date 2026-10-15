@@ -33,7 +33,7 @@ Linux 归档现在复用现有 Dockerfile 的 Bookworm/Rust 1.88 构建阶段，
 
 Linux 完整流程位于无外网、无宿主机发布端口的独立容器；临时 HTTP 后端和测试 Owner 均由验收创建并清理。测试没有声称使用真实模型客户端。最低 glibc 检查证明基本加载，完整功能流程另在 Debian 12 与 macOS 上验收；不将一种检查替代另一种。
 
-修复后 x86_64 的原生最低环境运行，以及新四平台远端打包，需要在本提交后实际运行新工作流验证。当前记录不把变更前的四平台编译成功当成新打包流程已经通过。
+后续对干净提交 `e552e60` 运行了 [修复后的四平台工作流](https://github.com/ALVIN-YANG/senix/actions/runs/38717842951)，四个平台打包全部通过。Linux x86_64 与 ARM64 分别在对应架构 runner 上通过 glibc 2.34 的实际运行检查。再次下载、解包两份 Linux CI 归档，确认 ELF 架构正确，最高 GLIBC 符号需求均为 2.34；[CI 结果](portable-release/2026-10-15/ci-result.json) 和 [归档/二进制 SHA-256](portable-release/2026-10-15/ci-linux-artifacts.json) 已保留。镜像发布与 GitHub Release 发布均为 skipped。
 
 ## 原始证据
 
