@@ -4,6 +4,8 @@ Senix 使用两条开放通路：管理端口的 Prometheus 0.0.4 指标，以�
 
 请求耗时直方图和 JSON 日志从 `v0.4.0` 开始提供；旧 `v0.3.1` 包不包含这些能力。
 
+`v0.4.0` 已发布镜像的真实采集结果见 [发布验收](validation/2026-10-15-release-v0.4.0.md)。执行验收时请使用[主分支脚本](https://github.com/ALVIN-YANG/senix/blob/main/scripts/check-observability.py)；标签内旧脚本可能因短流量早于采样或采集器冷启动连接关闭而误报，主分支已修复。
+
 ## 本机启动 Prometheus + Grafana
 
 需要 Docker Compose v2；先按 [AI 配置指南](ai-configuration.md) 使用 `0.4.0` 镜像启动 Demo。需要本机有 bash。先在管理后台创建一把全局范围、仅含 `metrics.read` 的 Key。该 Key 只能读取指标，不能读取配置或执行变更。

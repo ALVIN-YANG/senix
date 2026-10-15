@@ -1,0 +1,67 @@
+{
+  "conclusion": "success",
+  "headSha": "ba0df2f7f824b03dd78020eeeb4340cfb562314b",
+  "jobs": [
+    {
+      "completedAt": "2026-10-15T10:52:51Z",
+      "conclusion": "success",
+      "databaseId": 116381992847,
+      "name": "RustSec audit",
+      "startedAt": "2026-10-15T10:49:53Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-10-15T10:49:55Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-10-15T10:49:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-15T10:49:56Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-10-15T10:49:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-15T10:52:47Z",
+          "conclusion": "success",
+          "name": "Run rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998",
+          "number": 3,
+          "startedAt": "2026-10-15T10:49:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-15T10:52:48Z",
+          "conclusion": "success",
+          "name": "Reject vulnerable or yanked dependencies",
+          "number": 4,
+          "startedAt": "2026-10-15T10:52:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-15T10:52:48Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 8,
+          "startedAt": "2026-10-15T10:52:48Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-15T10:52:48Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 9,
+          "startedAt": "2026-10-15T10:52:48Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/ALVIN-YANG/senix/actions/runs/38723020648/job/116381992847"
+    }
+  ],
+  "status": "completed",
+  "url": "https://github.com/ALVIN-YANG/senix/actions/runs/38723020648"
+}

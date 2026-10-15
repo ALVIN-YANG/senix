@@ -1,0 +1,48 @@
+{
+  "started_utc": "2026-10-15T12:11:36.468212+00:00",
+  "harness_sha256": "840752f58fbfca0b07df5a812c7973c51ac03aea8d724be635f3e96e2914d1c4",
+  "options": {
+    "image": null,
+    "runs": 1,
+    "proxy_port": 18080,
+    "admin_port": 19080,
+    "password_source": "demo-generated",
+    "startup_failure": true,
+    "bootstrap_failure": true
+  },
+  "note": "Cached Linux images; clean data per run. Uses test Owner REST APIs, not an AI client.",
+  "runs": [
+    {
+      "run": 1,
+      "project": "senix-check-1a424a7e6b43",
+      "status": "passed",
+      "checks": [
+        "invalid Owner password fails with the expected validation error",
+        "bounded startup failure preserves the generated Owner password",
+        "retry after failed bootstrap/startup, real proxy and Owner login",
+        "repeat while running preserves the Owner and route",
+        "approved hostname change and repeat with the saved hostname",
+        "restart preserves v2, the exact config and the original Owner"
+      ],
+      "phase": "stopped-restart",
+      "images": {
+        "traefik/whoami:v1.11": {
+          "Id": "sha256:ab541801c8cc5d2f396de20329f14b19c4150f3ddfee89499363b25f289e9f79",
+          "RepoDigests": [
+            "traefik/whoami@sha256:200689790a0a0ea48ca45992e0450bc26ccab5307375b41c84dfc4f2475937ab"
+          ],
+          "Architecture": "arm64"
+        },
+        "ghcr.io/alvin-yang/senix:0.4.0": {
+          "Id": "sha256:5e699316a3f5ffbc4e260522720faf2806a256d22413a7fa323984193fcd87ec",
+          "RepoDigests": [
+            "ghcr.io/alvin-yang/senix@sha256:a908d210a353df89a991721d6e3e10eb238ce93e19651a207cd8702a4533971f"
+          ],
+          "Architecture": "arm64"
+        }
+      },
+      "cleanup": "passed",
+      "elapsed_seconds": 60.776
+    }
+  ]
+}

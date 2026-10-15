@@ -1,0 +1,36 @@
+{
+  "release_tag": "v0.4.0",
+  "binary_version": "senixd 0.4.0",
+  "restart_preserves_exact_v3_owner_key_and_proxy": true,
+  "source_commit": "ba0df2f7f824b03dd78020eeeb4340cfb562314b",
+  "image": "sha256:5e699316a3f5ffbc4e260522720faf2806a256d22413a7fa323984193fcd87ec",
+  "ai_read_version": 1,
+  "owner_published_version": 2,
+  "owner_added_route_status": 200,
+  "stale_candidate_rejected": true,
+  "error": {
+    "code": "CONFIG_VERSION_MISMATCH",
+    "evidence": {
+      "current_version": 2,
+      "expected_version": 1
+    },
+    "message": "configuration version differs from the expected version; read the current configuration and merge the requested change before planning again"
+  },
+  "no_plan_created_on_mismatch": true,
+  "reread_merged_plan_base_version": 2,
+  "unapproved_apply_rejected": true,
+  "owner_approved_change_id": "651ba887-b22e-4cdc-9cfc-cc2901340569",
+  "mcp_applied_version": 3,
+  "repeated_apply_returned_original_version": true,
+  "owner_added_route_preserved": true,
+  "proxy_statuses": {
+    "ai-change.senix.local": 200,
+    "owner-added.senix.local": 200,
+    "demo.senix.local": 404
+  },
+  "missing_expected_version_rejected": true,
+  "required_tool_parameters": [
+    "expected_version",
+    "candidate"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "release_tag": "v0.4.0",
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "manifest_digest": "sha256:a908d210a353df89a991721d6e3e10eb238ce93e19651a207cd8702a4533971f",
+  "equal_digest_tags": [
+    "0.4.0",
+    "0.4",
+    "latest"
+  ],
+  "local_image": {
+    "id": "sha256:5e699316a3f5ffbc4e260522720faf2806a256d22413a7fa323984193fcd87ec",
+    "architecture": "arm64",
+    "digests": [
+      "ghcr.io/alvin-yang/senix@sha256:a908d210a353df89a991721d6e3e10eb238ce93e19651a207cd8702a4533971f"
+    ]
+  }
+}

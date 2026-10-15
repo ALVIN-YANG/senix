@@ -20,6 +20,7 @@ Senix 是面向个人开发者和小团队的 Rust 网关。AI 通过受限 MCP 
 
 | 项目 | 运行证据 |
 | --- | --- |
+| 发布 | `v0.4.0` 四平台归档重新下载并校验，公开镜像完成 MCP 配置与监控流程。见 [已发布产物验收](./docs/validation/2026-10-15-release-v0.4.0.md)。 |
 | 上手 | Demo 自动引导、启动两个后端并发起真实代理请求；首次运行、重跑、重启与数据保留已验证。见 [快速开始](#快速开始)。 |
 | AI | 当前 AI 助手实际通过 MCP 读取、规划、等待测试 Owner 批准、应用并验证新旧域名及无关路由。见 [首次验收](./docs/validation/2026-10-15-ai-configuration.md)；新增 [版本冲突与重试验收](./docs/validation/2026-10-15-mcp-version-guard.md)。 |
 | 监控 | Prometheus、Grafana、VictoriaMetrics、OTel Collector、Alloy、Loki 的本机真实链路通过。见 [采集结果与截图](./docs/validation/2026-10-15-observability.md)。 |

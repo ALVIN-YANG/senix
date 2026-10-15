@@ -1,0 +1,21 @@
+{
+  "release_tag": "v0.4.0",
+  "status": "passed",
+  "image": [
+    "ghcr.io/alvin-yang/senix@sha256:a908d210a353df89a991721d6e3e10eb238ce93e19651a207cd8702a4533971f"
+  ],
+  "checks": [
+    "PASS metrics authorization and least privilege",
+    "PASS Prometheus scrape is UP",
+    "PASS Prometheus histogram has real requests",
+    "PASS PromQL p95 returns a positive measured value",
+    "PASS Grafana provisioned dashboard",
+    "PASS Grafana datasource queries real Senix series",
+    "PASS three alert rules loaded",
+    "PASS OTel Collector scrapes and exports Senix histogram",
+    "PASS VictoriaMetrics direct scrape",
+    "PASS Alloy scrape and remote_write to VictoriaMetrics",
+    "PASS Alloy file collection and Loki query of actual access events"
+  ],
+  "revoked_metrics_key_up_zero": true
+}

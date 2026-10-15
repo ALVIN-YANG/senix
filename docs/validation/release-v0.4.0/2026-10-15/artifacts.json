@@ -1,0 +1,30 @@
+{
+  "release_tag": "v0.4.0",
+  "checksums_and_github_asset_digests_match": true,
+  "archives": [
+    {
+      "archive": "senix-v0.4.0-aarch64-apple-darwin.tar.gz",
+      "archive_sha256": "0d8bdf3528d8a7181d36c5c987171ba274275238a4d91226dd9fc965b092a81a",
+      "binary_sha256": "7d6170d44dacf6decc8e739ee59e4b1a24d8370872c9a9d24f3b8ea1db77e315",
+      "file": "target/release-v040/extracted/senix-v0.4.0-aarch64-apple-darwin/senix-v0.4.0-aarch64-apple-darwin/senixd: Mach-O 64-bit executable arm64"
+    },
+    {
+      "archive": "senix-v0.4.0-aarch64-unknown-linux-gnu.tar.gz",
+      "archive_sha256": "52262275cab5353db364efef5311ed3410a3d22dd92ba8c78655f79fe59c463d",
+      "binary_sha256": "a1d820a889b36fff9e8d240e425efcc70718533f67ffdff86901b3311459378d",
+      "file": "target/release-v040/extracted/senix-v0.4.0-aarch64-unknown-linux-gnu/senix-v0.4.0-aarch64-unknown-linux-gnu/senixd: ELF 64-bit LSB pie executable, ARM aarch64, version 1 (SYSV), dynamically linked, interpreter /lib/ld-linux-aarch64.so.1, BuildID[sha1]=2862f80121ba15cfd1ec395fc14509fdc4598e07, for GNU/Linux 3.7.0, not stripped"
+    },
+    {
+      "archive": "senix-v0.4.0-x86_64-apple-darwin.tar.gz",
+      "archive_sha256": "7ca15c8ee5581e93078f387ac90e8223530c97231442040be3baaa7582b6b964",
+      "binary_sha256": "56afe4c093e29fba4ce48bb708b5e09a2cb42d67522e34bf1455de17abfd6c93",
+      "file": "target/release-v040/extracted/senix-v0.4.0-x86_64-apple-darwin/senix-v0.4.0-x86_64-apple-darwin/senixd: Mach-O 64-bit executable x86_64"
+    },
+    {
+      "archive": "senix-v0.4.0-x86_64-unknown-linux-gnu.tar.gz",
+      "archive_sha256": "427c39b5be6f6566d755ca169dd62455f30a40ab73ddb9e9fcf74932c037c294",
+      "binary_sha256": "95ee275083ac17a6681d40a8e70c3ef0388a9b1dd0fe6e2608fbb41cc47a6bb5",
+      "file": "target/release-v040/extracted/senix-v0.4.0-x86_64-unknown-linux-gnu/senix-v0.4.0-x86_64-unknown-linux-gnu/senixd: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, BuildID[sha1]=53ae39d6a9942ab962c385acb8d393d9ce2accfa, for GNU/Linux 3.2.0, not stripped"
+    }
+  ]
+}

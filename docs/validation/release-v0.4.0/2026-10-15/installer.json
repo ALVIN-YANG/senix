@@ -1,0 +1,9 @@
+{
+  "release_tag": "v0.4.0",
+  "used_default_latest": true,
+  "installed_version": "senixd 0.4.0",
+  "installed_sha256": "7d6170d44dacf6decc8e739ee59e4b1a24d8370872c9a9d24f3b8ea1db77e315",
+  "source_script_matches_tag": true,
+  "archive_binary_matches_installed": true,
+  "system_installation_modified": false
+}

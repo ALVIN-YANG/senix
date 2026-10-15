@@ -1,0 +1,14 @@
+{
+  "before": {
+    "status": "failed",
+    "exception": "RemoteDisconnected",
+    "attempts": 1,
+    "source_sha256": "f8657f6bae805a9e73cc4ce8d5a3b270e5056d7f4ff0b60d38cd6282823f4226"
+  },
+  "after": {
+    "status": "passed",
+    "response": "ready",
+    "attempts": 2,
+    "source_sha256": "03c912bb52933230ef65c46d27a044a68a437cbf1459de23c5521b53bda9abe4"
+  }
+}

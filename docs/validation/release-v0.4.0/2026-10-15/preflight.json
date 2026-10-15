@@ -1,0 +1,28 @@
+{
+  "checked_at": "2026-10-15T10:50:33.178206+00:00",
+  "source_commit": "ba0df2f7f824b03dd78020eeeb4340cfb562314b",
+  "version": "0.4.0",
+  "checks": {
+    "rust_1_88_fmt": "passed",
+    "rust_1_88_clippy_all_targets_deny_warnings": "passed",
+    "rust_1_88_workspace_tests": {
+      "passed": 82,
+      "failed": 0,
+      "real_process_e2e": 28
+    },
+    "npm_ci_and_build": "passed; embedded assets unchanged",
+    "npm_audit_moderate": "0 vulnerabilities",
+    "cargo_audit_deny_yanked": {
+      "exit_code": 0,
+      "warnings": [
+        "RUSTSEC-2025-0069",
+        "RUSTSEC-2024-0388",
+        "RUSTSEC-2024-0449",
+        "RUSTSEC-2026-0253"
+      ]
+    },
+    "shell_syntax_compose_configs_python_compile": "passed",
+    "bilingual_readme_assets_and_local_links": "passed",
+    "version_consistency_workspace_lock_frontend": "passed"
+  }
+}

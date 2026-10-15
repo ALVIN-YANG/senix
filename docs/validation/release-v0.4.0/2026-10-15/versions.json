@@ -1,0 +1,18 @@
+{
+  "macos-x86_64-rosetta-version.txt": {
+    "environment": "macOS 26.5.2 ARM64 / Rosetta",
+    "version": "senixd 0.4.0"
+  },
+  "linux-x86_64-emulated-glibc234-version.txt": {
+    "environment": "macOS ARM64 Docker / linux amd64 emulation / Rocky Linux 9 glibc 2.34",
+    "version": "senixd 0.4.0"
+  },
+  "linux-arm64/glibc234-version.txt": {
+    "environment": "macOS ARM64 Docker / native linux arm64 / Rocky Linux 9 glibc 2.34",
+    "version": "senixd 0.4.0"
+  },
+  "additional_local_amd64_image_attempt": {
+    "status": "not_counted_as_passed",
+    "reason": "180-second timeout in optional local emulated GHCR image attempt; no completed version result. Native AMD64 published-image Demo is verified by CI 38732988698."
+  }
+}
