@@ -1,7 +1,7 @@
 use std::{
     fmt::Write as _,
     fs,
-    io::{Read, Write},
+    io::{BufRead, BufReader, Read, Write},
     net::{SocketAddr, TcpListener, TcpStream},
     path::Path,
     pin::Pin,
@@ -9,6 +9,7 @@ use std::{
     sync::{
         Arc,
         atomic::{AtomicBool, AtomicUsize, Ordering},
+        mpsc,
     },
     thread,
     time::{Duration, Instant},
@@ -1447,6 +1448,189 @@ fn pingora_drains_one_backend_and_restores_that_state_after_restart() {
 }
 
 #[test]
+fn sse_delivers_events_before_completion_and_survives_drain() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let backend_a = listener.local_addr().unwrap();
+    let (finish, can_finish) = mpsc::channel();
+    let backend = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        set_stream_timeouts(&stream);
+        assert!(read_headers(&mut stream).starts_with("GET /events HTTP/1.1\r\n"));
+        stream
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\nCache-Control: no-cache\r\nConnection: close\r\n\r\n")
+            .unwrap();
+        let first = "id: 1\ndata: hello 你好\n\n";
+        write!(stream, "{:x}\r\n{first}\r\n", first.len()).unwrap();
+        stream.flush().unwrap();
+        can_finish.recv_timeout(Duration::from_secs(10)).unwrap();
+        let second = "id: 2\ndata: after drain 摘流后\n\n";
+        write!(stream, "{:x}\r\n{second}\r\n0\r\n\r\n", second.len()).unwrap();
+    });
+    let backend_b = spawn_backend("B", Duration::ZERO);
+    let proxy = free_address();
+    let admin = free_address();
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("senix.db");
+    let config = dir.path().join("gateway.json");
+    write_config(&config, backend_a, backend_b);
+    let owner_key = bootstrap_owner_key(&db);
+    let senix = spawn_senix(proxy, admin, &db, &config);
+    wait_until_ready(admin, proxy);
+    wait_for_health_state(admin, "instance-b", "HEALTHY", &owner_key);
+
+    let mut stream = TcpStream::connect_timeout(&proxy, Duration::from_secs(2)).unwrap();
+    set_stream_timeouts(&stream);
+    // No SSE request hint: the response content type must classify this stream.
+    stream
+        .write_all(b"GET /events HTTP/1.1\r\nHost: example.test\r\nConnection: close\r\n\r\n")
+        .unwrap();
+    let mut stream = BufReader::new(stream);
+    let headers = read_streaming_headers(&mut stream).to_ascii_lowercase();
+    assert!(headers.starts_with("http/1.1 200 "), "{headers}");
+    assert!(headers.contains("content-type: text/event-stream\r\n"));
+    assert!(headers.contains("transfer-encoding: chunked\r\n"));
+    // The fixture cannot emit event 2 until event 1 has reached this client.
+    assert_eq!(read_sse_event(&mut stream), "id: 1\ndata: hello 你好\n\n");
+
+    let operation = admin_json_with_bearer(
+        admin,
+        "POST",
+        "/api/v1/instances/instance-a/drain",
+        Some("drain-real-sse"),
+        Some(json!({"timeout_ms": 10_000})),
+        &owner_key,
+    );
+    assert_eq!(operation["status"], "DRAINING");
+    assert_eq!(operation["ordinary_in_flight"], 0);
+    assert_eq!(operation["long_lived_in_flight"], 1);
+    assert_long_lived_duration_count(admin, &owner_key, 0);
+    for _ in 0..3 {
+        assert_eq!(proxy_get(proxy, "/after-sse-drain"), "B");
+    }
+
+    finish.send(()).unwrap();
+    assert_eq!(
+        read_sse_event(&mut stream),
+        "id: 2\ndata: after drain 摘流后\n\n"
+    );
+    assert!(read_test_http_chunk(&mut stream).is_empty());
+    backend.join().unwrap();
+    wait_for_operation_idle(
+        admin,
+        operation["operation_id"].as_str().unwrap(),
+        "DRAINED",
+        &owner_key,
+    );
+    assert_long_lived_duration_count(admin, &owner_key, 1);
+    drop(senix);
+}
+
+#[test]
+fn websocket_remains_bidirectional_after_drain_timeout() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let backend_a = listener.local_addr().unwrap();
+    let backend = thread::spawn(move || {
+        let (stream, _) = listener.accept().unwrap();
+        set_stream_timeouts(&stream);
+        let mut stream = BufReader::new(stream);
+        let headers = read_streaming_headers(&mut stream);
+        assert!(headers.contains("dGhlIHNhbXBsZSBub25jZQ==\r\n"));
+        let headers = headers.to_ascii_lowercase();
+        assert!(headers.starts_with("get /socket http/1.1\r\n"));
+        assert!(headers.contains("upgrade: websocket\r\n"));
+        assert!(headers.contains("connection: upgrade\r\n"));
+        assert!(headers.contains("sec-websocket-version: 13\r\n"));
+        // The key/accept pair is the RFC 6455 section 1.3 handshake example.
+        stream
+            .get_mut()
+            .write_all(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n\r\n")
+            .unwrap();
+        for expected in ["before drain 你好", "after timeout 仍在线"] {
+            let (opcode, payload) = read_test_websocket_frame(&mut stream, true);
+            assert_eq!(opcode, 1);
+            assert_eq!(payload, expected.as_bytes());
+            write_test_websocket_frame(stream.get_mut(), 1, &payload, false);
+        }
+        let (opcode, payload) = read_test_websocket_frame(&mut stream, true);
+        assert_eq!(opcode, 8);
+        assert_eq!(payload, 1000_u16.to_be_bytes());
+        write_test_websocket_frame(stream.get_mut(), 8, &payload, false);
+    });
+    let backend_b = spawn_backend("B", Duration::ZERO);
+    let proxy = free_address();
+    let admin = free_address();
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("senix.db");
+    let config = dir.path().join("gateway.json");
+    write_config(&config, backend_a, backend_b);
+    let owner_key = bootstrap_owner_key(&db);
+    let senix = spawn_senix(proxy, admin, &db, &config);
+    wait_until_ready(admin, proxy);
+    wait_for_health_state(admin, "instance-b", "HEALTHY", &owner_key);
+
+    let mut stream = TcpStream::connect_timeout(&proxy, Duration::from_secs(2)).unwrap();
+    set_stream_timeouts(&stream);
+    stream
+        .write_all(b"GET /socket HTTP/1.1\r\nHost: example.test\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n")
+        .unwrap();
+    let mut stream = BufReader::new(stream);
+    let headers = read_streaming_headers(&mut stream);
+    assert!(headers.starts_with("HTTP/1.1 101 "), "{headers}");
+    assert!(headers.contains("s3pPLMBiTxaQ9kYGzzhZRbK+xOo="));
+    assert!(
+        headers
+            .to_ascii_lowercase()
+            .contains("upgrade: websocket\r\n")
+    );
+    assert!(
+        headers
+            .to_ascii_lowercase()
+            .contains("connection: upgrade\r\n")
+    );
+    let first = "before drain 你好".as_bytes();
+    write_test_websocket_frame(stream.get_mut(), 1, first, true);
+    assert_eq!(
+        read_test_websocket_frame(&mut stream, false),
+        (1, first.to_vec())
+    );
+
+    let operation = admin_json_with_bearer(
+        admin,
+        "POST",
+        "/api/v1/instances/instance-a/drain",
+        Some("drain-real-websocket"),
+        Some(json!({"timeout_ms": 10})),
+        &owner_key,
+    );
+    let operation_id = operation["operation_id"].as_str().unwrap();
+    assert_eq!(operation["status"], "DRAINING");
+    assert_eq!(operation["ordinary_in_flight"], 0);
+    assert_eq!(operation["long_lived_in_flight"], 1);
+    wait_for_operation_state(admin, operation_id, "DRAIN_TIMEOUT", &owner_key);
+    assert_long_lived_duration_count(admin, &owner_key, 0);
+    for _ in 0..3 {
+        assert_eq!(proxy_get(proxy, "/after-websocket-drain"), "B");
+    }
+    let second = "after timeout 仍在线".as_bytes();
+    write_test_websocket_frame(stream.get_mut(), 1, second, true);
+    assert_eq!(
+        read_test_websocket_frame(&mut stream, false),
+        (1, second.to_vec())
+    );
+    write_test_websocket_frame(stream.get_mut(), 8, &1000_u16.to_be_bytes(), true);
+    assert_eq!(
+        read_test_websocket_frame(&mut stream, false),
+        (8, 1000_u16.to_be_bytes().to_vec())
+    );
+    drop(stream);
+    backend.join().unwrap();
+
+    wait_for_operation_idle(admin, operation_id, "DRAIN_TIMEOUT", &owner_key);
+    assert_long_lived_duration_count(admin, &owner_key, 1);
+    drop(senix);
+}
+
+#[test]
 fn drain_identifies_a_grpc_stream_as_long_lived() {
     let backend_a = spawn_backend("A", Duration::from_millis(600));
     let backend_b = spawn_backend("B", Duration::ZERO);
@@ -2522,6 +2706,31 @@ fn wait_for_operation_state(admin: SocketAddr, operation_id: &str, expected: &st
     }
 }
 
+fn wait_for_operation_idle(admin: SocketAddr, operation_id: &str, expected: &str, bearer: &str) {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        let operation = admin_json_with_bearer(
+            admin,
+            "GET",
+            &format!("/api/v1/operations/{operation_id}"),
+            None,
+            None,
+            bearer,
+        );
+        if operation["status"] == expected
+            && operation["ordinary_in_flight"] == 0
+            && operation["long_lived_in_flight"] == 0
+        {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "operation never became idle in {expected}; last state: {operation}"
+        );
+        thread::sleep(Duration::from_millis(25));
+    }
+}
+
 fn wait_for_health_state(admin: SocketAddr, id: &str, expected: &str, bearer: &str) {
     let deadline = Instant::now() + Duration::from_secs(3);
     loop {
@@ -2923,6 +3132,117 @@ fn raw_http(address: SocketAddr, request: &str) -> String {
     let mut response = String::new();
     stream.read_to_string(&mut response).unwrap();
     response
+}
+
+fn set_stream_timeouts(stream: &TcpStream) {
+    let timeout = Some(Duration::from_secs(5));
+    stream.set_read_timeout(timeout).unwrap();
+    stream.set_write_timeout(timeout).unwrap();
+}
+
+// Preserve bytes after the headers: they may contain the first event or frame.
+fn read_streaming_headers(stream: &mut impl BufRead) -> String {
+    let mut headers = String::new();
+    loop {
+        let mut line = String::new();
+        assert_ne!(
+            stream.read_line(&mut line).unwrap(),
+            0,
+            "missing HTTP headers"
+        );
+        headers.push_str(&line);
+        assert!(headers.len() <= 16_384, "HTTP headers exceed test limit");
+        if line == "\r\n" {
+            return headers;
+        }
+    }
+}
+
+fn read_test_http_chunk(stream: &mut impl BufRead) -> Vec<u8> {
+    let mut line = String::new();
+    stream.read_line(&mut line).unwrap();
+    let size = usize::from_str_radix(line.trim().split(';').next().unwrap(), 16).unwrap();
+    assert!(size <= 16_384, "HTTP chunk exceeds test limit");
+    let mut body = vec![0; size];
+    stream.read_exact(&mut body).unwrap();
+    let mut terminator = [0; 2];
+    stream.read_exact(&mut terminator).unwrap();
+    assert_eq!(terminator, *b"\r\n");
+    body
+}
+
+fn read_sse_event(stream: &mut impl BufRead) -> String {
+    let mut event = Vec::new();
+    while !event.ends_with(b"\n\n") {
+        let chunk = read_test_http_chunk(stream);
+        assert!(!chunk.is_empty(), "SSE ended before a complete event");
+        event.extend_from_slice(&chunk);
+        assert!(event.len() <= 16_384, "SSE event exceeds test limit");
+    }
+    String::from_utf8(event).unwrap()
+}
+
+// The fixtures only need short, unfragmented RFC 6455 text and close frames.
+fn write_test_websocket_frame(stream: &mut impl Write, opcode: u8, payload: &[u8], masked: bool) {
+    assert!(payload.len() <= 125);
+    let size = u8::try_from(payload.len()).unwrap();
+    stream
+        .write_all(&[0x80 | opcode, size | if masked { 0x80 } else { 0 }])
+        .unwrap();
+    if masked {
+        let mut mask = [0; 4];
+        openssl::rand::rand_bytes(&mut mask).unwrap();
+        stream.write_all(&mask).unwrap();
+        let encoded: Vec<_> = payload
+            .iter()
+            .enumerate()
+            .map(|(i, byte)| byte ^ mask[i % 4])
+            .collect();
+        stream.write_all(&encoded).unwrap();
+    } else {
+        stream.write_all(payload).unwrap();
+    }
+    stream.flush().unwrap();
+}
+
+fn read_test_websocket_frame(stream: &mut impl Read, masked: bool) -> (u8, Vec<u8>) {
+    let mut header = [0; 2];
+    stream.read_exact(&mut header).unwrap();
+    assert_eq!(header[0] & 0xf0, 0x80, "expected FIN without extensions");
+    assert_eq!(
+        header[1] & 0x80 != 0,
+        masked,
+        "unexpected WebSocket masking"
+    );
+    let size = usize::from(header[1] & 0x7f);
+    assert!(size <= 125, "fixture only supports short WebSocket frames");
+    let mut mask = [0; 4];
+    if masked {
+        stream.read_exact(&mut mask).unwrap();
+    }
+    let mut payload = vec![0; size];
+    stream.read_exact(&mut payload).unwrap();
+    if masked {
+        for (i, byte) in payload.iter_mut().enumerate() {
+            *byte ^= mask[i % 4];
+        }
+    }
+    (header[0] & 0x0f, payload)
+}
+
+fn assert_long_lived_duration_count(admin: SocketAddr, bearer: &str, expected: u64) {
+    let metrics = raw_http(
+        admin,
+        &format!(
+            "GET /metrics HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer {bearer}\r\nConnection: close\r\n\r\n"
+        ),
+    );
+    assert!(
+        metrics.contains(&format!(
+            "senix_proxy_request_duration_seconds_count{{kind=\"long_lived\"}} {expected}\n"
+        )),
+        "unexpected long-lived duration count"
+    );
 }
 
 fn write_test_http_response(stream: &mut impl Write, body: &[u8]) {

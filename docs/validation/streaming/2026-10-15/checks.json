@@ -1,0 +1,88 @@
+{
+  "recorded_at_utc": "2026-10-15T14:19:03.111606+00:00",
+  "baseline_commit": "f349db494fe965dcaac03e5e22a90505476e3b95",
+  "source_sha256": {
+    "crates/senixd/tests/gateway_e2e.rs": "bc9248b5633d96b24422ff9f18f93cd464e4749cac5dcb25f5841d85825a661d"
+  },
+  "environment": {
+    "os": "macOS 26.5.2 (25F84)",
+    "architecture": "arm64",
+    "rust": "rustc 1.88.0 (6b00bc388 2025-06-23)"
+  },
+  "verification": [
+    {
+      "command": "cargo +1.88 test --workspace --locked",
+      "exit_code": 0,
+      "passed": 84,
+      "failed": 0,
+      "process_e2e_passed": 30,
+      "log": "rust-tests.log"
+    },
+    {
+      "command": "cargo +1.88 clippy --workspace --all-targets --locked -- -D warnings",
+      "exit_code": 0,
+      "log": "clippy.log"
+    },
+    {
+      "command": "cargo +1.88 fmt --all -- --check",
+      "exit_code": 0,
+      "log": "fmt.log"
+    },
+    {
+      "command": "node --test src/locale.test.js",
+      "working_directory": "web",
+      "exit_code": 0,
+      "passed": 3,
+      "log": "frontend-tests.log"
+    }
+  ],
+  "assertions_verified_by_passing_tests": {
+    "sse": {
+      "test": "sse_delivers_events_before_completion_and_survives_drain",
+      "response_type": "text/event-stream",
+      "client_received_first_event_before_second_generated": true,
+      "utf8_events_preserved": true,
+      "post_drain_requests_to_backend_b": 3,
+      "drain_state_before_completion": "DRAINING",
+      "drain_state_after_completion": "DRAINED",
+      "ordinary_in_flight_while_streaming": 0,
+      "long_lived_in_flight_while_streaming": 1,
+      "in_flight_after_completion": 0,
+      "long_lived_duration_count_before_and_after": [
+        0,
+        1
+      ]
+    },
+    "websocket": {
+      "test": "websocket_remains_bidirectional_after_drain_timeout",
+      "http_status": 101,
+      "rfc6455_sample_key_accept_verified": true,
+      "connection_upgrade_headers_verified": true,
+      "client_frames_masked": true,
+      "server_frames_unmasked": true,
+      "bidirectional_utf8_messages_before_and_after_timeout": true,
+      "post_drain_requests_to_backend_b": 3,
+      "drain_state_after_deadline_and_after_close": "DRAIN_TIMEOUT",
+      "ordinary_in_flight_while_streaming": 0,
+      "long_lived_in_flight_while_streaming": 1,
+      "in_flight_after_completion": 0,
+      "close_status": 1000,
+      "long_lived_duration_count_before_and_after": [
+        0,
+        1
+      ]
+    }
+  },
+  "log_sha256": {
+    "rust-tests.log": "97b011ccdc371d916b9fc77fd65b1939fb1d5c2ce59e349c4c32a42db176d3a7",
+    "clippy.log": "9cc015f940bbdbb58985f71d74d2595537c91b4337cce731b8c6ea3b20fdb11c",
+    "fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "frontend-tests.log": "e1e99bfd9f343707cbedf49a4c8b3f278498d97469512082a19300db3f9fd476"
+  },
+  "limits": [
+    "One stream per test; functional assertions only.",
+    "No throughput, latency, concurrency capacity, slow-consumer or soak benchmark.",
+    "No browser EventSource reconnection, WebSocket compression/fragmentation, TLS long-stream or process-shutdown test.",
+    "Existing gRPC classification test is not a complete gRPC/HTTP2 message/trailer test."
+  ]
+}

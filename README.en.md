@@ -17,8 +17,9 @@ Senix helps individual developers and small teams operate a gateway with an AI c
 | Can I start it? | The Docker demo starts two real backends, creates the Owner account and checks a real proxy request. [English onboarding checks](./docs/validation/2026-10-15-english-onboarding.md) cover clean starts, repeat starts, restart and saved configuration. |
 | Can an AI change configuration safely? | A real MCP workflow read v1, planned a hostname change, waited for test Owner approval and applied v2. Requests checked the new hostname, old hostname and an unaffected route. [Initial validation](./docs/validation/2026-10-15-ai-configuration.md) and [version conflict/retry validation, Chinese](./docs/validation/2026-10-15-mcp-version-guard.md). |
 | Can I monitor it? | Local Prometheus, Grafana, VictoriaMetrics, OTel Collector, Alloy and Loki paths were exercised. [Validation record, Chinese](./docs/validation/2026-10-15-observability.md) and [raw results](./docs/validation/2026-10-15-observability.json). |
+| Do live streams survive draining? | Current-source tests check incremental SSE delivery and bidirectional WebSocket messages, including after a drain timeout. New requests reach the other backend while the existing connection finishes. [Protocol and drain validation, Chinese](./docs/validation/2026-10-15-streaming.md). |
 | Is there a performance baseline? | 36 Linux AMD64 measurements completed 4,642,339 requests, including 3,066,768 through Senix, with zero HTTP failures. The ARM64 local baseline is also preserved. See [performance evidence](#performance-baselines). |
-| What passed regression checks? | Rust 1.88: 82 tests, including 28 real-process E2E tests; formatting, strict Clippy, frontend build and npm audit. Rust dependency audit still reports [four upstream warnings, Chinese](./CONTRIBUTING.md). |
+| What passed regression checks? | Current source on Rust 1.88: 84 tests, including 30 real-process E2E tests; formatting, strict Clippy, frontend build and npm audit. Rust dependency audit still reports [four upstream warnings, Chinese](./CONTRIBUTING.md). |
 
 ## Try the Docker demo
 

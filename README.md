@@ -24,8 +24,9 @@ Senix 是面向个人开发者和小团队的 Rust 网关。AI 通过受限 MCP 
 | 上手 | Demo 自动引导、启动两个后端并发起真实代理请求；首次运行、重跑、重启与数据保留已验证。见 [快速开始](#快速开始)。 |
 | AI | 当前 AI 助手实际通过 MCP 读取、规划、等待测试 Owner 批准、应用并验证新旧域名及无关路由。见 [首次验收](./docs/validation/2026-10-15-ai-configuration.md)；新增 [版本冲突与重试验收](./docs/validation/2026-10-15-mcp-version-guard.md)。 |
 | 监控 | Prometheus、Grafana、VictoriaMetrics、OTel Collector、Alloy、Loki 的本机真实链路通过。见 [采集结果与截图](./docs/validation/2026-10-15-observability.md)。 |
+| 长响应与实时连接 | 当前源码通过真实 SSE 分段转发、WebSocket 双向收发与关闭测试；摘流后新请求转到备用后端，已有连接继续完成。见 [协议与摘流验收](./docs/validation/2026-10-15-streaming.md)。 |
 | 性能 | Linux AMD64 runner 的 36 次测量完成 464.23 万请求，其中 306.68 万次经过 Senix，失败率为 0；另保留 ARM64 本机基线。见 [性能基线](#性能基线)。 |
-| 回归 | Rust 1.88 下 82 项测试通过，含 28 项真实进程 E2E；格式、严格 Clippy 和前端审计通过。依赖审计仍有 [4 条上游提示](./CONTRIBUTING.md)。 |
+| 回归 | 当前源码在 Rust 1.88 下 84 项测试通过，含 30 项真实进程 E2E；格式、严格 Clippy 和前端审计通过。依赖审计仍有 [4 条上游提示](./CONTRIBUTING.md)。 |
 
 `v0.4.0` 包含以上 AI 配置与监控能力。旧 MCP 调用方须补 `expected_version`；详见 [升级说明](./docs/releases/v0.4.0.md)。性能结果保留其原始提交和测量环境，不代表此版本的生产容量。
 
