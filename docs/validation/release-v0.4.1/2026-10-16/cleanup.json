@@ -1,0 +1,7 @@
+{
+  "containers": [],
+  "networks": [],
+  "volumes": [],
+  "status": "passed",
+  "test_credentials_and_databases": "removed with temporary directories or disposable volumes"
+}

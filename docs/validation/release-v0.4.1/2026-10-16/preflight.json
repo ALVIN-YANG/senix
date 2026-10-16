@@ -1,0 +1,13 @@
+{
+  "rust_tests_passed": 86,
+  "real_process_e2e": 32,
+  "frontend_tests": 3,
+  "sse_load_tests": 4,
+  "report_cli_tests": 3,
+  "fmt": "passed",
+  "strict_clippy": "passed",
+  "cargo_audit_deny_yanked": "passed_with_four_upstream_warnings",
+  "frontend_build": "passed_assets_unchanged",
+  "npm_audit": "passed",
+  "dependencies": "unchanged_except_five_workspace_package_versions"
+}

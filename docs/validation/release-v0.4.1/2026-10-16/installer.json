@@ -1,0 +1,9 @@
+{
+  "installer_source": "https://raw.githubusercontent.com/ALVIN-YANG/senix/v0.4.1/install.sh",
+  "version_selection": "default latest, no explicit version",
+  "reported_version": "senixd 0.4.1",
+  "binary_sha256": "b65fc8d30ddbc8f3ac59a77e5b11414e41f128958b297008a0588db6d687fd2c",
+  "matches_published_archive_binary": true,
+  "isolated_install_directory": true,
+  "system_installation_changed": false
+}

@@ -1,0 +1,19 @@
+{
+  "anonymous_registry_access": true,
+  "index_digest": "sha256:e8778c1cd65150db9711d867500e370cf30c6dcea3fc0d102e8515bb9fef4a06",
+  "tags": {
+    "0.4.1": "sha256:e8778c1cd65150db9711d867500e370cf30c6dcea3fc0d102e8515bb9fef4a06",
+    "0.4": "sha256:e8778c1cd65150db9711d867500e370cf30c6dcea3fc0d102e8515bb9fef4a06",
+    "latest": "sha256:e8778c1cd65150db9711d867500e370cf30c6dcea3fc0d102e8515bb9fef4a06"
+  },
+  "platforms": {
+    "linux/arm64": {
+      "manifest_digest": "sha256:e731ca80f4f3a87d496ee6f6362398a010c2acdb4880d6b396875f06c81c3d6b",
+      "config_digest": "sha256:721be7aa7fc23cfd23c7dc30fec6652871738c8ead1b012636a2531e68863465"
+    },
+    "linux/amd64": {
+      "manifest_digest": "sha256:80a751a4bb43874906b5e588a92ee30b9998ea7e4c16a7cb827372e73630b10a",
+      "config_digest": "sha256:f3b238ea99ffca0561096c515a24eba2da5a75723794a266ddf1aaa7af4093ff"
+    }
+  }
+}

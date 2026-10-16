@@ -1,0 +1,42 @@
+{
+  "release_tag": "v0.4.1",
+  "platform": "linux/amd64",
+  "embedded_assets_sha256": {
+    "admin.html": "746a11b19aeaa353a76dc63d8834144abd70d552512005e7d4b3ccb1f8242889",
+    "admin.js": "d3abaff63abfa8e3f78f3330633c5dc91d459d315777c7b7ed063456737a59c1",
+    "admin.css": "c62db04067240676cc0f8b3314649fcbd85ce7af16ee9cde8ce860ecf3cb2532"
+  },
+  "binary_version": "senixd 0.4.1",
+  "restart_preserves_exact_v3_owner_key_and_proxy": true,
+  "source_commit": "1b493e863c63883ae0be0d96d8dee0fea4109a84",
+  "image": "sha256:f3b238ea99ffca0561096c515a24eba2da5a75723794a266ddf1aaa7af4093ff",
+  "ai_read_version": 1,
+  "owner_published_version": 2,
+  "owner_added_route_status": 200,
+  "stale_candidate_rejected": true,
+  "error": {
+    "code": "CONFIG_VERSION_MISMATCH",
+    "evidence": {
+      "current_version": 2,
+      "expected_version": 1
+    },
+    "message": "configuration version differs from the expected version; read the current configuration and merge the requested change before planning again"
+  },
+  "no_plan_created_on_mismatch": true,
+  "reread_merged_plan_base_version": 2,
+  "unapproved_apply_rejected": true,
+  "owner_approved_change_id": "2c4ccee4-fbf2-4a17-8777-be4c5eeaad13",
+  "mcp_applied_version": 3,
+  "repeated_apply_returned_original_version": true,
+  "owner_added_route_preserved": true,
+  "proxy_statuses": {
+    "ai-change.senix.local": 200,
+    "owner-added.senix.local": 200,
+    "demo.senix.local": 404
+  },
+  "missing_expected_version_rejected": true,
+  "required_tool_parameters": [
+    "expected_version",
+    "candidate"
+  ]
+}

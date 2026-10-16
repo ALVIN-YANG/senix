@@ -1,0 +1,40 @@
+{
+  "release": "v0.4.1",
+  "anonymous_https_downloads": true,
+  "github_asset_digests_match": true,
+  "checksums_match": true,
+  "archives": [
+    {
+      "target": "aarch64-apple-darwin",
+      "archive": "senix-v0.4.1-aarch64-apple-darwin.tar.gz",
+      "archive_sha256": "eb63148a78f26a4387c65a86766262fe571c37f0b3bd3f07bd16859686b716fb",
+      "binary_sha256": "b65fc8d30ddbc8f3ac59a77e5b11414e41f128958b297008a0588db6d687fd2c",
+      "file": "Mach-O 64-bit executable arm64",
+      "guide_is_version_pinned": true
+    },
+    {
+      "target": "x86_64-apple-darwin",
+      "archive": "senix-v0.4.1-x86_64-apple-darwin.tar.gz",
+      "archive_sha256": "3726c2f71350c6c78df099a9a3a9bb36319d83a6fdea4addaa9f7133f2e2b7bd",
+      "binary_sha256": "25c8eb565704cf19d9c3a7b21b98baa92f884c5738c4e390a28ea74f82f09d58",
+      "file": "Mach-O 64-bit executable x86_64",
+      "guide_is_version_pinned": true
+    },
+    {
+      "target": "aarch64-unknown-linux-gnu",
+      "archive": "senix-v0.4.1-aarch64-unknown-linux-gnu.tar.gz",
+      "archive_sha256": "1978b4e57f4eee2659474c6982258e086bee0f259ac243be9bf33ecf21e688c1",
+      "binary_sha256": "f24b7da29e03932dfc5d09178a06d1426638e6146da945bffd9c2394cb3fd8a8",
+      "file": "ELF 64-bit LSB pie executable, ARM aarch64, version 1 (SYSV), dynamically linked, interpreter /lib/ld-linux-aarch64.so.1, BuildID[sha1]=27fcdc4a9959fed15f1c640e0440565ee811bb12, for GNU/Linux 3.7.0, not stripped",
+      "guide_is_version_pinned": true
+    },
+    {
+      "target": "x86_64-unknown-linux-gnu",
+      "archive": "senix-v0.4.1-x86_64-unknown-linux-gnu.tar.gz",
+      "archive_sha256": "8b28fd3093b73352e289a1ac7888e28149232bec6ce1aeaa5de4dbca2b456cf7",
+      "binary_sha256": "08d30236b6e08005389ab0f2b124e3c78090ad1809242e9517256d9335853f60",
+      "file": "ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, BuildID[sha1]=d6378ceb3fcd747834a57da18503cd49535b1e65, for GNU/Linux 3.2.0, not stripped",
+      "guide_is_version_pinned": true
+    }
+  ]
+}

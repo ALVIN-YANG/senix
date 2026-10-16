@@ -1,0 +1,20 @@
+[
+  {
+    "platform": "linux/arm64",
+    "environment": "native ARM64 VM",
+    "image": "ghcr.io/alvin-yang/senix@sha256:e731ca80f4f3a87d496ee6f6362398a010c2acdb4880d6b396875f06c81c3d6b",
+    "image_id": "sha256:721be7aa7fc23cfd23c7dc30fec6652871738c8ead1b012636a2531e68863465",
+    "version": "senixd 0.4.1",
+    "anonymous_pull": true,
+    "mcp_and_restart": "passed"
+  },
+  {
+    "platform": "linux/amd64",
+    "environment": "AMD64 emulation on ARM64 VM",
+    "image": "ghcr.io/alvin-yang/senix@sha256:80a751a4bb43874906b5e588a92ee30b9998ea7e4c16a7cb827372e73630b10a",
+    "image_id": "sha256:f3b238ea99ffca0561096c515a24eba2da5a75723794a266ddf1aaa7af4093ff",
+    "version": "senixd 0.4.1",
+    "anonymous_pull": true,
+    "mcp_and_restart": "passed"
+  }
+]

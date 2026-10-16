@@ -1,0 +1,102 @@
+[
+  {
+    "target": "aarch64-apple-darwin",
+    "environment": "macOS ARM64 native",
+    "exit_code": 0,
+    "result": {
+      "binary_sha256": "b65fc8d30ddbc8f3ac59a77e5b11414e41f128958b297008a0588db6d687fd2c",
+      "checks": [
+        "packaged CLI and exact embedded HTML/JS/CSS",
+        "Owner bootstrap, login and scoped Key",
+        "MCP typed version precondition",
+        "read-plan-owner approval-apply",
+        "unapproved apply rejected",
+        "repeat apply idempotent",
+        "changed, unchanged and old host requests",
+        "restart preserves v2, exact config, Owner and Key"
+      ],
+      "version": "senixd 0.4.1",
+      "embedded_assets_sha256": {
+        "admin.html": "746a11b19aeaa353a76dc63d8834144abd70d552512005e7d4b3ccb1f8242889",
+        "admin.js": "d3abaff63abfa8e3f78f3330633c5dc91d459d315777c7b7ed063456737a59c1",
+        "admin.css": "c62db04067240676cc0f8b3314649fcbd85ce7af16ee9cde8ce860ecf3cb2532"
+      },
+      "status": "passed"
+    }
+  },
+  {
+    "target": "x86_64-apple-darwin",
+    "environment": "macOS x86_64 under Rosetta on ARM64",
+    "exit_code": 0,
+    "result": {
+      "binary_sha256": "25c8eb565704cf19d9c3a7b21b98baa92f884c5738c4e390a28ea74f82f09d58",
+      "checks": [
+        "packaged CLI and exact embedded HTML/JS/CSS",
+        "Owner bootstrap, login and scoped Key",
+        "MCP typed version precondition",
+        "read-plan-owner approval-apply",
+        "unapproved apply rejected",
+        "repeat apply idempotent",
+        "changed, unchanged and old host requests",
+        "restart preserves v2, exact config, Owner and Key"
+      ],
+      "version": "senixd 0.4.1",
+      "embedded_assets_sha256": {
+        "admin.html": "746a11b19aeaa353a76dc63d8834144abd70d552512005e7d4b3ccb1f8242889",
+        "admin.js": "d3abaff63abfa8e3f78f3330633c5dc91d459d315777c7b7ed063456737a59c1",
+        "admin.css": "c62db04067240676cc0f8b3314649fcbd85ce7af16ee9cde8ce860ecf3cb2532"
+      },
+      "status": "passed"
+    }
+  },
+  {
+    "target": "aarch64-unknown-linux-gnu",
+    "environment": "linux/arm64 native VM",
+    "exit_code": 0,
+    "result": {
+      "binary_sha256": "f24b7da29e03932dfc5d09178a06d1426638e6146da945bffd9c2394cb3fd8a8",
+      "checks": [
+        "packaged CLI and exact embedded HTML/JS/CSS",
+        "Owner bootstrap, login and scoped Key",
+        "MCP typed version precondition",
+        "read-plan-owner approval-apply",
+        "unapproved apply rejected",
+        "repeat apply idempotent",
+        "changed, unchanged and old host requests",
+        "restart preserves v2, exact config, Owner and Key"
+      ],
+      "version": "senixd 0.4.1",
+      "embedded_assets_sha256": {
+        "admin.html": "746a11b19aeaa353a76dc63d8834144abd70d552512005e7d4b3ccb1f8242889",
+        "admin.js": "d3abaff63abfa8e3f78f3330633c5dc91d459d315777c7b7ed063456737a59c1",
+        "admin.css": "c62db04067240676cc0f8b3314649fcbd85ce7af16ee9cde8ce860ecf3cb2532"
+      },
+      "status": "passed"
+    }
+  },
+  {
+    "target": "x86_64-unknown-linux-gnu",
+    "environment": "linux/amd64 emulated on ARM64 VM",
+    "exit_code": 0,
+    "result": {
+      "binary_sha256": "08d30236b6e08005389ab0f2b124e3c78090ad1809242e9517256d9335853f60",
+      "checks": [
+        "packaged CLI and exact embedded HTML/JS/CSS",
+        "Owner bootstrap, login and scoped Key",
+        "MCP typed version precondition",
+        "read-plan-owner approval-apply",
+        "unapproved apply rejected",
+        "repeat apply idempotent",
+        "changed, unchanged and old host requests",
+        "restart preserves v2, exact config, Owner and Key"
+      ],
+      "version": "senixd 0.4.1",
+      "embedded_assets_sha256": {
+        "admin.html": "746a11b19aeaa353a76dc63d8834144abd70d552512005e7d4b3ccb1f8242889",
+        "admin.js": "d3abaff63abfa8e3f78f3330633c5dc91d459d315777c7b7ed063456737a59c1",
+        "admin.css": "c62db04067240676cc0f8b3314649fcbd85ce7af16ee9cde8ce860ecf3cb2532"
+      },
+      "status": "passed"
+    }
+  }
+]

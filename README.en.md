@@ -13,7 +13,7 @@ Senix helps individual developers and small teams operate a gateway with an AI c
 
 | Question | Evidence |
 | --- | --- |
-| Are the released artifacts verified? | v0.4.0: all four downloaded archives match checksums; published-image MCP and monitoring flows passed. [Release validation, Chinese](./docs/validation/2026-10-15-release-v0.4.0.md) includes raw JSON evidence. |
+| Are the released artifacts verified? | v0.4.1: four public archives, both image platforms and the default installer were executed. Checksums, full MCP/restart and monitoring checks passed. [Release validation, Chinese](./docs/validation/2026-10-16-release-v0.4.1.md) lists native/emulated environments and raw evidence. |
 | Can I start it? | The Docker demo starts two real backends, creates the Owner account and checks a real proxy request. [English onboarding checks](./docs/validation/2026-10-15-english-onboarding.md) cover clean starts, repeat starts, restart and saved configuration. |
 | Can an AI change configuration safely? | A real MCP workflow read v1, planned a hostname change, waited for test Owner approval and applied v2. Requests checked the new hostname, old hostname and an unaffected route. [Initial validation](./docs/validation/2026-10-15-ai-configuration.md) and [version conflict/retry validation, Chinese](./docs/validation/2026-10-15-mcp-version-guard.md). |
 | Can I monitor it? | Local Prometheus, Grafana, VictoriaMetrics, OTel Collector, Alloy and Loki paths were exercised. [Validation record, Chinese](./docs/validation/2026-10-15-observability.md) and [raw results](./docs/validation/2026-10-15-observability.json). |

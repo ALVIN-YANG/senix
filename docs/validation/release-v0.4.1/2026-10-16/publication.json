@@ -1,0 +1,46 @@
+{
+  "tag_name": "v0.4.1",
+  "draft": false,
+  "prerelease": false,
+  "published_at": "2026-10-16T02:23:25Z",
+  "html_url": "https://github.com/ALVIN-YANG/senix/releases/tag/v0.4.1",
+  "target_commitish": "main",
+  "source_commit": "1b493e863c63883ae0be0d96d8dee0fea4109a84",
+  "assets": [
+    {
+      "id": 645868171,
+      "name": "checksums.txt",
+      "size": 444,
+      "digest": "sha256:810efe8051d4f07ab40c94e976c7a42d1947c186d94a4d19a14a4d812d623b8e",
+      "browser_download_url": "https://github.com/ALVIN-YANG/senix/releases/download/v0.4.1/checksums.txt"
+    },
+    {
+      "id": 645868172,
+      "name": "senix-v0.4.1-aarch64-apple-darwin.tar.gz",
+      "size": 11280826,
+      "digest": "sha256:eb63148a78f26a4387c65a86766262fe571c37f0b3bd3f07bd16859686b716fb",
+      "browser_download_url": "https://github.com/ALVIN-YANG/senix/releases/download/v0.4.1/senix-v0.4.1-aarch64-apple-darwin.tar.gz"
+    },
+    {
+      "id": 645868178,
+      "name": "senix-v0.4.1-aarch64-unknown-linux-gnu.tar.gz",
+      "size": 12435422,
+      "digest": "sha256:1978b4e57f4eee2659474c6982258e086bee0f259ac243be9bf33ecf21e688c1",
+      "browser_download_url": "https://github.com/ALVIN-YANG/senix/releases/download/v0.4.1/senix-v0.4.1-aarch64-unknown-linux-gnu.tar.gz"
+    },
+    {
+      "id": 645868163,
+      "name": "senix-v0.4.1-x86_64-apple-darwin.tar.gz",
+      "size": 11404367,
+      "digest": "sha256:3726c2f71350c6c78df099a9a3a9bb36319d83a6fdea4addaa9f7133f2e2b7bd",
+      "browser_download_url": "https://github.com/ALVIN-YANG/senix/releases/download/v0.4.1/senix-v0.4.1-x86_64-apple-darwin.tar.gz"
+    },
+    {
+      "id": 645868167,
+      "name": "senix-v0.4.1-x86_64-unknown-linux-gnu.tar.gz",
+      "size": 12331609,
+      "digest": "sha256:8b28fd3093b73352e289a1ac7888e28149232bec6ce1aeaa5de4dbca2b456cf7",
+      "browser_download_url": "https://github.com/ALVIN-YANG/senix/releases/download/v0.4.1/senix-v0.4.1-x86_64-unknown-linux-gnu.tar.gz"
+    }
+  ]
+}
