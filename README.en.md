@@ -7,7 +7,7 @@
 Senix helps individual developers and small teams operate a gateway with an AI client. The AI reads live state and proposes a configuration; the human Owner reviews the exact plan before it can be applied. One `senixd` binary contains the Pingora proxy, SQLite control plane and admin console. It needs no external database. Your scripts handle application deployment.
 
 > [!IMPORTANT]
-> The current version is **[v0.4.0](https://github.com/ALVIN-YANG/senix/releases/tag/v0.4.0)**. Senix is in its 0.x phase: validate your traffic, failure and recovery requirements before production use. This release includes configuration reads, version-aware plans, configuration JSON Schema, Key presets, duration metrics and JSON logs. Existing MCP callers must add `expected_version`; see the [upgrade notes](./docs/releases/v0.4.0.md).
+> The current version is **[v0.4.1](https://github.com/ALVIN-YANG/senix/releases/tag/v0.4.1)**. Senix is in its 0.x phase: validate your traffic, failure and recovery requirements before production use. v0.4.1 adds the bilingual admin console and archive onboarding fixes; see the [release notes](./docs/releases/v0.4.1.md). The v0.4.0 migration still applies: existing MCP callers must add `expected_version`; see the [upgrade notes](./docs/releases/v0.4.0.md).
 
 ## Evidence you can inspect
 
@@ -26,12 +26,12 @@ Senix helps individual developers and small teams operate a gateway with an AI c
 Install Git, Docker with Linux containers, Docker Compose v2 and curl. The demo needs access to the image registry, free ports `8080` and `9080`, and an available Docker subnet `172.28.0.0/24`.
 
 ```bash
-git clone --branch v0.4.0 --depth 1 https://github.com/ALVIN-YANG/senix.git
+git clone --branch v0.4.1 --depth 1 https://github.com/ALVIN-YANG/senix.git
 cd senix
-SENIX_IMAGE=ghcr.io/alvin-yang/senix:0.4.0 ./scripts/demo.sh
+SENIX_IMAGE=ghcr.io/alvin-yang/senix:0.4.1 ./scripts/demo.sh
 ```
 
-The script prints the admin URL, Owner username, generated password and a real backend response. If Demo Owner creation was interrupted, fix the error and run the demo again to finish account setup. An existing account keeps its original password. Open `http://127.0.0.1:9080/admin/` and sign in with those credentials. Published v0.4.0 has a Chinese admin UI; the [English AI guide](./docs/ai-configuration.en.md) includes its exact labels. The current source adds English and Simplified Chinese with a language selector and saved preference. This UI update is not in the v0.4.0 release; use the source build below to try it.
+The script prints the admin URL, Owner username, generated password and a real backend response. If Demo Owner creation was interrupted, fix the error and run the demo again to finish account setup. An existing account keeps its original password. Open `http://127.0.0.1:9080/admin/` and sign in with those credentials. v0.4.1 includes English and Simplified Chinese. Select a language on the login page or in the header; the console remembers your choice.
 
 Check the proxy yourself; the `Host` header selects the demo route, so no DNS change is needed:
 
@@ -49,7 +49,7 @@ docker compose --project-directory examples/demo -f examples/demo/compose.yml do
 
 Stopping keeps the saved configuration and account. Run the script again and use the original password. Add `--volumes` to the stop command **only to delete the demo data and start over**. Keep any image and port overrides when restarting or stopping.
 
-The command above uses `ghcr.io/alvin-yang/senix:0.4.0` and needs no compilation. To try unreleased features such as the bilingual console, stop an older demo with its printed stop command, then use a separate checkout of `main`:
+The command above uses `ghcr.io/alvin-yang/senix:0.4.1` and needs no compilation. To build the current source, stop an older demo with its printed stop command, then use a separate checkout of `main`:
 
 ```bash
 git clone --branch main --depth 1 https://github.com/ALVIN-YANG/senix.git senix-source
@@ -58,7 +58,7 @@ docker build -t senix:local .
 SENIX_IMAGE=senix:local SENIX_DEMO_PULL=0 ./scripts/demo.sh
 ```
 
-Run these commands from a writable working directory. The earlier v0.4.0 checkout stays on its release tag. The first build downloads and compiles dependencies; its duration depends on your machine and network. Existing databases restore their saved Snapshot and ignore the startup JSON.
+Run these commands from a writable working directory. The earlier v0.4.1 checkout stays on its release tag. The first build downloads and compiles dependencies; its duration depends on your machine and network. Existing databases restore their saved Snapshot and ignore the startup JSON.
 
 [Complete the AI workflow: read → plan → Owner approval → apply → real requests](./docs/ai-configuration.en.md)
 

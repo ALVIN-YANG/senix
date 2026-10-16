@@ -14,7 +14,7 @@ services:
         ipv4_address: 172.28.0.12
 
   senix:
-    image: ${SENIX_IMAGE:-ghcr.io/alvin-yang/senix:0.4.0}
+    image: ${SENIX_IMAGE:-ghcr.io/alvin-yang/senix:0.4.1}
     ports:
       - "${SENIX_DEMO_PROXY_PORT:-8080}:8080"
       - "127.0.0.1:${SENIX_DEMO_ADMIN_PORT:-9080}:9080"

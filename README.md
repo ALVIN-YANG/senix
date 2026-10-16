@@ -14,7 +14,7 @@
 Senix 是面向个人开发者和小团队的 Rust 网关。AI 通过受限 MCP 读取状态、提出配置计划，Owner 核对后批准，AI 再应用并验证结果。一个二进制包含 Pingora 代理、SQLite 控制面和管理后台，不依赖 Nginx 或外部数据库；实际部署由用户或外部脚本执行。
 
 > [!IMPORTANT]
-> 当前版本为 [`v0.4.0`](https://github.com/ALVIN-YANG/senix/releases/tag/v0.4.0)，处于 `0.x` 阶段。生产使用前请按自己的流量、故障模型和恢复要求完成验收；已实现能力与暂不支持范围都列在下方。
+> 当前版本为 [`v0.4.1`](https://github.com/ALVIN-YANG/senix/releases/tag/v0.4.1)，处于 `0.x` 阶段。生产使用前请按自己的流量、故障模型和恢复要求完成验收；已实现能力与暂不支持范围都列在下方。
 
 ## 可核对的证据
 
@@ -35,16 +35,16 @@ Senix 是面向个人开发者和小团队的 Rust 网关。AI 通过受限 MCP 
 有 Docker 时，直接启动一个 Senix 和两个演示后端：
 
 ```bash
-git clone --branch v0.4.0 --depth 1 https://github.com/ALVIN-YANG/senix.git
+git clone --branch v0.4.1 --depth 1 https://github.com/ALVIN-YANG/senix.git
 cd senix
-SENIX_IMAGE=ghcr.io/alvin-yang/senix:0.4.0 ./scripts/demo.sh
+SENIX_IMAGE=ghcr.io/alvin-yang/senix:0.4.1 ./scripts/demo.sh
 ```
 
 脚本会生成 Owner 密码，并输出管理后台地址和一次真实代理结果。Owner 创建未完成时，修正错误后重跑会继续创建账号；已创建的账号保留原密码。停止演示不会删除数据；执行输出中的重置命令才会清空演示卷。
 
-以上命令直接使用 `0.4.0` 镜像，无需编译。按 [AI 配置变更指南](./docs/ai-configuration.md) 完成“读取 → 规划 → Owner 批准 → 应用 → 真实请求验证”。
+以上命令直接使用 `0.4.1` 镜像，无需编译。按 [AI 配置变更指南](./docs/ai-configuration.md) 完成“读取 → 规划 → Owner 批准 → 应用 → 真实请求验证”。
 
-主分支新增中英文管理后台，登录页和页头可切换语言并记住选择；这项界面更新尚未进入 `v0.4.0` 发布包。可按 [英文 README 的源码构建命令](./README.en.md#try-the-docker-demo) 使用本地镜像体验。见 [真实流程与窄屏验收](./docs/validation/2026-10-15-admin-languages.md)。
+`v0.4.1` 包含中英文管理后台，登录页和页头可切换语言并记住选择。见 [本次发布说明](./docs/releases/v0.4.1.md) 与 [真实流程及窄屏验收](./docs/validation/2026-10-15-admin-languages.md)。
 
 端口冲突时可覆盖 `SENIX_DEMO_PROXY_PORT` 和 `SENIX_DEMO_ADMIN_PORT`，例如 `SENIX_DEMO_PROXY_PORT=18080 SENIX_DEMO_ADMIN_PORT=19080 ./scripts/demo.sh`。
 
