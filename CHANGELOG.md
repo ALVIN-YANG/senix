@@ -4,6 +4,8 @@ Senix 使用[语义化版本](https://semver.org/lang/zh-CN/)。`0.x` 阶段仍�
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-16
+
 ### Added
 
 - 管理后台增加简体中文和英文，覆盖登录、六个页面、表单、本地提示与时间显示。首次按浏览器语言选择，手动选择后记忆；禁用浏览器存储时仍可在当前页切换。切换语言保留表单、草稿和权限选择，不触发后台刷新；窄屏图标导航保留本地化名称。
@@ -93,4 +95,5 @@ Senix 使用[语义化版本](https://semver.org/lang/zh-CN/)。`0.x` 阶段仍�
 [0.3.0]: https://github.com/ALVIN-YANG/senix/compare/v0.2.2...v0.3.0
 [0.3.1]: https://github.com/ALVIN-YANG/senix/compare/v0.3.0...v0.3.1
 [0.4.0]: https://github.com/ALVIN-YANG/senix/compare/v0.3.1...v0.4.0
-[Unreleased]: https://github.com/ALVIN-YANG/senix/compare/v0.4.0...HEAD
+[0.4.1]: https://github.com/ALVIN-YANG/senix/compare/v0.4.0...v0.4.1
+[Unreleased]: https://github.com/ALVIN-YANG/senix/compare/v0.4.1...HEAD
